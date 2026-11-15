@@ -35,3 +35,4 @@ export const eintragAnlegen = (token, art, werte) => anfrage('POST', `/api/v1/ga
 export const eintragAendern = (token, art, id, werte) => anfrage('PUT', `/api/v1/garage/${art}/${id}`, { token, body: werte });
 export const eintragLoeschen = (token, art, id) => anfrage('DELETE', `/api/v1/garage/${art}/${id}`, { token });
 export const gespannSetzen = (token, werte) => anfrage('PUT', '/api/v1/garage/gespann', { token, body: werte });
+export const reihenfolgeSetzen = (token, reihenfolge) => anfrage('PUT', '/api/v1/garage/reihenfolge', { token, body: { reihenfolge } });

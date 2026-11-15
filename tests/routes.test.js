@@ -138,6 +138,37 @@ test('Gespann: Plätze setzen, leeren, Gewichte; Verweise nur in die eigene Gara
   assert.deepEqual(ungueltig.json.felder, { fahrer_gewicht_kg: 'zu_klein', gepaeck_kg: 'ungueltig' });
 });
 
+test('Reihenfolge: gemeinsame Liste aus Fahrrädern und Anhängern, neue Einträge kommen ans Ende', async () => {
+  const token = await neueGarage();
+  const a = (await s.anfrage('POST', '/api/v1/garage/fahrraeder', { token, body: { name: 'A' } })).json;
+  const b = (await s.anfrage('POST', '/api/v1/garage/anhaenger', { token, body: { name: 'B' } })).json;
+  const c = (await s.anfrage('POST', '/api/v1/garage/fahrraeder', { token, body: { name: 'C' } })).json;
+  assert.ok(a.sortierung < b.sortierung && b.sortierung < c.sortierung);
+
+  const neu = await s.anfrage('PUT', '/api/v1/garage/reihenfolge', { token, body: { reihenfolge: [{ art: 'fahrraeder', id: c.id }, { art: 'anhaenger', id: b.id }, { art: 'fahrraeder', id: a.id }] } });
+  assert.equal(neu.status, 204);
+  const g = (await s.anfrage('GET', '/api/v1/garage', { token })).json;
+  const alle = [...g.fahrraeder.map(x => ({ ...x, art: 'f' })), ...g.anhaenger.map(x => ({ ...x, art: 'a' }))].sort((x, y) => x.sortierung - y.sortierung);
+  assert.deepEqual(alle.map(x => x.name), ['C', 'B', 'A']);
+});
+
+test('Reihenfolge: fremde Einträge ändern nichts, ungültige Eingaben werden abgelehnt', async () => {
+  const a = await neueGarage();
+  const b = await neueGarage();
+  const mein = (await s.anfrage('POST', '/api/v1/garage/fahrraeder', { token: a, body: { name: 'Mein' } })).json;
+  const fremd = (await s.anfrage('POST', '/api/v1/garage/fahrraeder', { token: b, body: { name: 'Fremd' } })).json;
+  const vorher = (await s.anfrage('GET', '/api/v1/garage', { token: b })).json.fahrraeder[0].sortierung;
+
+  await s.anfrage('PUT', '/api/v1/garage/reihenfolge', { token: a, body: { reihenfolge: [{ art: 'fahrraeder', id: fremd.id }, { art: 'fahrraeder', id: mein.id }] } });
+  assert.equal((await s.anfrage('GET', '/api/v1/garage', { token: b })).json.fahrraeder[0].sortierung, vorher);
+
+  for (const body of [{}, { reihenfolge: 'x' }, { reihenfolge: [{ art: 'gespanne', id: 1 }] }, { reihenfolge: [{ art: 'fahrraeder', id: '1; DROP' }] },
+    { reihenfolge: [null] }, { reihenfolge: Array.from({ length: 100 }, () => ({ art: 'fahrraeder', id: 1 })) }]) {
+    const r = await s.anfrage('PUT', '/api/v1/garage/reihenfolge', { token: a, body });
+    assert.equal(r.status, 400, JSON.stringify(body).slice(0, 60));
+  }
+});
+
 test('Fahrrad oder Anhänger löschen leert den Platz im Gespann', async () => {
   const token = await neueGarage();
   const rad = (await s.anfrage('POST', '/api/v1/garage/fahrraeder', { token, body: { name: 'Rad' } })).json;

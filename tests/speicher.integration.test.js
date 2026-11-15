@@ -64,6 +64,11 @@ test('Migration 2 behält von mehreren alten Gespannen eines und lässt Plätze 
   assert.equal(v.v, MIGRATIONEN.length);
 });
 
+test('Migration 3: bestehende Einträge bekommen die Sortierung ihrer Nummer', opt, async () => {
+  const [z] = await pool.query('SELECT id, sortierung FROM anhaenger WHERE garage_id = ?', [altGarage]);
+  assert.equal(z[0].sortierung, z[0].id);
+});
+
 test('Garage: Schlüssel wird nur als Hash gespeichert und wiedergefunden', opt, async () => {
   const { id, token } = await sp.garageAnlegen();
   const [[z]] = await pool.query('SELECT token_hash FROM garagen WHERE id = ?', [id]);
@@ -101,6 +106,28 @@ test('Sonderzeichen und Umlaute bleiben erhalten, SQL-Zeichen sind harmlos', opt
   assert.equal(r.name, name);
   assert.equal(r.notiz, 'ä ö ü ß 🚲');
   assert.equal(await sp.anzahlGaragen() > 0, true);
+});
+
+test('Reihenfolge: neue Einträge ans Ende, gemeinsame Liste umsortieren, fremde Einträge unberührt', opt, async () => {
+  const { id: g } = await sp.garageAnlegen();
+  const { id: h } = await sp.garageAnlegen();
+  const a = await sp.anlegen(g, 'fahrraeder', werte('fahrraeder', { name: 'A' }));
+  const b = await sp.anlegen(g, 'anhaenger', werte('anhaenger', { name: 'B' }));
+  const c = await sp.anlegen(g, 'fahrraeder', werte('fahrraeder', { name: 'C' }));
+  const fremd = await sp.anlegen(h, 'fahrraeder', werte('fahrraeder', { name: 'Fremd' }));
+  assert.ok(a.sortierung < b.sortierung && b.sortierung < c.sortierung);
+
+  await sp.reihenfolgeSetzen(g, [{ art: 'fahrraeder', id: c.id }, { art: 'anhaenger', id: b.id }, { art: 'fahrraeder', id: a.id }, { art: 'fahrraeder', id: fremd.id }]);
+  const alles = await sp.alles(g);
+  const geordnet = [...alles.fahrraeder, ...alles.anhaenger].sort((x, y) => x.sortierung - y.sortierung).map(x => x.name);
+  assert.deepEqual(geordnet, ['C', 'B', 'A']);
+  assert.equal((await sp.alles(h)).fahrraeder[0].sortierung, fremd.sortierung, 'Eintrag einer anderen Garage bleibt');
+
+  const nachher = await sp.anlegen(g, 'anhaenger', werte('anhaenger', { name: 'D' }));
+  assert.ok(nachher.sortierung > a.sortierung && nachher.sortierung > b.sortierung && nachher.sortierung > c.sortierung);
+  // Ändern lässt die Reihenfolge unberührt
+  const geaendert = await sp.aendern(g, 'fahrraeder', c.id, werte('fahrraeder', { name: 'C2' }));
+  assert.equal(geaendert.sortierung, 1);
 });
 
 test('Gespann: fremde Verweise abgelehnt, leere Plätze erlaubt, ein Gespann je Garage', opt, async () => {

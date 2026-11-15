@@ -45,7 +45,7 @@ export class FakeSpeicher {
 
   async alles(garageId) {
     const r = {};
-    for (const a of Object.keys(this.daten)) r[a] = this.daten[a].filter(z => z.garage_id === garageId).map(z => this._sicht(z));
+    for (const a of Object.keys(this.daten)) r[a] = this.daten[a].filter(z => z.garage_id === garageId).sort((x, y) => x.sortierung - y.sortierung || x.id - y.id).map(z => this._sicht(z));
     r.gespann = this.gespanne.has(garageId) ? { ...this.gespanne.get(garageId) } : null;
     return r;
   }
@@ -53,9 +53,18 @@ export class FakeSpeicher {
   async anlegen(garageId, art, werte) {
     const liste = this.daten[art];
     if (liste.filter(z => z.garage_id === garageId).length >= ARTEN[art].max) throw new FehlerEingabe('Limit', 409, { code: 'limit' });
-    const zeile = { id: this.naechsteId++, garage_id: garageId, ...werte, status: 'ungeprueft' };
+    const alle = [...this.daten.fahrraeder, ...this.daten.anhaenger].filter(z => z.garage_id === garageId);
+    const sortierung = Math.max(0, ...alle.map(z => z.sortierung)) + 1;
+    const zeile = { id: this.naechsteId++, garage_id: garageId, sortierung, ...werte, status: 'ungeprueft' };
     liste.push(zeile);
     return this._sicht(zeile);
+  }
+
+  async reihenfolgeSetzen(garageId, reihenfolge) {
+    reihenfolge.forEach((x, i) => {
+      const zeile = this.daten[x.art].find(z => z.id === x.id && z.garage_id === garageId);
+      if (zeile) zeile.sortierung = i + 1;
+    });
   }
 
   async gespannSetzen(garageId, werte) {
