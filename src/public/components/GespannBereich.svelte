@@ -151,7 +151,6 @@
             </button>
           </h3>
           <div class="fahrer">
-            <span class="gross" aria-hidden="true"><Icon name="veh-person" size={72} /></span>
             <div class="feldspalte">
               {@render zahlFeld(feld('fahrer_gewicht_kg'), 'fahrer')}
             </div>
@@ -189,10 +188,10 @@
     </EintragKarte>
   {:else}
     <div class="leer">
-      <span class="gross" aria-hidden="true"><Icon name={p.art === 'fahrraeder' ? 'veh-bike' : 'veh-trailer'} size={72} /></span>
+      <span class="gross" aria-hidden="true"><Icon name={p.art === 'fahrraeder' ? 'veh-bike' : 'veh-trailer'} size={36} /></span>
       <button type="button" class="btn btn-outline plus" disabled={!p.liste.length}
         aria-label={t(lang, `pick_${p.art}`)} title={t(lang, `pick_${p.art}`)} onclick={() => (waehlen = p.art)}>
-        <Icon name="ui-plus" size={24} />
+        <Icon name="ui-plus" size={20} />
       </button>
       <p class="notiz">{p.liste.length ? t(lang, `pick_${p.art}`) : t(lang, `none_${p.art}`)}</p>
     </div>
@@ -202,11 +201,11 @@
 {#snippet zahlFeld(f, name)}
   <label for="g-{f.key}">{pick(f.label, lang)} ({f.einheit})</label>
   {#if name === 'fahrer'}
-    <input id="g-{f.key}" class="input" type="number" inputmode="decimal" min={f.min} max={f.max} step="any" aria-invalid={!!fehler[f.key]} aria-describedby="g-h-{f.key}" bind:value={fahrer} />
+    <input id="g-{f.key}" class="input" type="number" inputmode="decimal" min={f.min} max={f.max} step="any" aria-invalid={!!fehler[f.key]} aria-describedby={fehler[f.key] ? `g-h-${f.key}` : undefined} title={f.hinweis ? pick(f.hinweis, lang) : undefined} bind:value={fahrer} />
   {:else}
-    <input id="g-{f.key}" class="input" type="number" inputmode="decimal" min={f.min} max={f.max} step="any" aria-invalid={!!fehler[f.key]} aria-describedby="g-h-{f.key}" bind:value={gepaeck} />
+    <input id="g-{f.key}" class="input" type="number" inputmode="decimal" min={f.min} max={f.max} step="any" aria-invalid={!!fehler[f.key]} aria-describedby={fehler[f.key] ? `g-h-${f.key}` : undefined} title={f.hinweis ? pick(f.hinweis, lang) : undefined} bind:value={gepaeck} />
   {/if}
-  <p id="g-h-{f.key}" class="notiz" class:fehler={!!fehler[f.key]}>{fehler[f.key] ? meldung(f) : f.hinweis ? pick(f.hinweis, lang) : ''}</p>
+  {#if fehler[f.key]}<p id="g-h-{f.key}" class="notiz fehler">{meldung(f)}</p>{/if}
 {/snippet}
 
 {#if nameFenster}
@@ -246,21 +245,21 @@
 <style>
   /* Schmal: Anhänger, Fahrer, Fahrrad untereinander. Ab 640 px: links der Anhänger über zwei Zeilen, rechts oben Fahrer, rechts unten Fahrrad */
   .gespann :global(h2) { font-size: 1.5rem; }
-  .raster { display: grid; grid-template-columns: 1fr; gap: 1.25rem; }
+  .raster { display: grid; grid-template-columns: 1fr; gap: .75rem; }
   .ablage { outline: 2px dashed var(--primary); outline-offset: 3px; }
   .platz.ueber { border-color: var(--primary); background: var(--primary-bg); }
-  .platz .card-body { display: flex; flex-direction: column; gap: .75rem; height: 100%; padding: 1.25rem; }
+  .platz .card-body { display: flex; flex-direction: column; gap: .5rem; height: 100%; padding: .75rem 1rem; }
   .platzname { display: flex; align-items: center; gap: .5rem; color: var(--fg); font-size: 1rem; font-weight: 600; }
   .symbol { display: inline-flex; color: var(--primary); }
   .fahrername { overflow-wrap: anywhere; }
-  .leer { flex: 1; min-height: 13rem; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .5rem; border: 1px dashed var(--border); border-radius: var(--radius); padding: 1rem; text-align: center; }
+  .leer { flex: 1; min-height: 4.5rem; display: flex; flex-direction: row; align-items: center; justify-content: center; gap: .75rem; border: 1px dashed var(--border); border-radius: var(--radius); padding: .5rem 1rem; text-align: left; }
   .gross { display: inline-flex; color: var(--fg-muted); }
-  .plus { width: 3.5rem; height: 3.5rem; justify-content: center; border-radius: 999px; padding: 0; }
+  .plus { width: 2.5rem; height: 2.5rem; flex-shrink: 0; justify-content: center; border-radius: 999px; padding: 0; }
   .fahrer { display: flex; align-items: center; gap: 1rem; }
   .feldspalte { flex: 1; min-width: 0; }
   .gewicht { margin-top: auto; }
-  .notiz { min-height: 1.1rem; margin-top: .125rem; }
-  .fuss { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-top: 1rem; }
+  .notiz { margin-top: .125rem; }
+  .fuss { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-top: .75rem; }
   .summe { font-size: .875rem; }
   .auswahl { list-style: none; display: flex; flex-direction: column; gap: .5rem; }
   .wahl {

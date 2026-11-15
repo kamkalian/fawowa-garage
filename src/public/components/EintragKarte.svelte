@@ -4,7 +4,7 @@
   import { t, pick, zahlText } from '../lib/i18n.js';
 
   // Karte eines Fahrrads oder Anhängers: Name, Prüfstatus und die ausgefüllten Angaben.
-  // kompakt: nur die ersten Angaben (für den Platz im Gespann); flach: ohne eigenen Rahmen und ohne Symbol (liegt schon in einer Karte mit Überschrift und Symbol);
+  // kompakt: nur Name und Prüfstatus, keine Angaben (für den Platz im Gespann); flach: ohne eigenen Rahmen und ohne Symbol (liegt schon in einer Karte mit Überschrift und Symbol);
   // aktionen: eigene Knöpfe statt Bearbeiten/Löschen
   let { lang, art, eintrag, kompakt = false, flach = false, imGespann = false, onedit, onremove, aktionen } = $props();
 
@@ -20,12 +20,12 @@
 
   // name und notiz stehen oben bzw. unten, der Rest in der Liste
   let zeilen = $derived(cfg.felder.filter(f => f.key !== 'name' && f.key !== 'notiz').map(f => ({ f, w: wert(f) })).filter(z => z.w !== null)
-    .slice(0, kompakt ? 5 : undefined));
+    .slice(0, kompakt ? 0 : undefined));
 </script>
 
 <article class:card={!flach}>
   <div class:card-body={!flach}>
-    <div class="kopf">
+    <div class="kopf" class:kompakt>
       <h3>{#if !flach}<span class="symbol"><Icon name={art === 'fahrraeder' ? 'veh-bike' : 'veh-trailer'} size={24} /></span>{/if}{eintrag.name}</h3>
       <div class="marken">
         {#if imGespann}<span class="badge badge-active">{t(lang, 'inGespann')}</span>{/if}
@@ -58,6 +58,7 @@
 
 <style>
   .kopf { display: flex; align-items: flex-start; justify-content: space-between; gap: .5rem; margin-bottom: .5rem; }
+  .kopf.kompakt { margin-bottom: 0; align-items: center; }
   .marken { display: flex; flex-wrap: wrap; gap: .25rem; justify-content: flex-end; }
   h3 { display: flex; align-items: center; gap: .5rem; font-size: 1rem; overflow-wrap: anywhere; min-width: 0; }
   .symbol { display: inline-flex; flex-shrink: 0; color: var(--primary); }
@@ -66,4 +67,5 @@
   dd { overflow-wrap: anywhere; }
   .notizzeile { margin-top: .5rem; white-space: pre-line; }
   .aktionen { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .75rem; }
+  .kopf.kompakt + .aktionen { margin-top: .5rem; }
 </style>
