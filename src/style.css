@@ -65,11 +65,6 @@ a{color:var(--primary)}
 .card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
 .card-body{padding:1rem}
 
-/* Abschnitte (Gespann, Fahrräder, Anhänger): schlicht, nur eine waagerechte Linie zwischen den Abschnitten */
-.abschnitt + .abschnitt{margin-top:2rem;padding-top:2rem;border-top:1px solid var(--border)}
-.abschnitt-kopf{display:flex;align-items:center;justify-content:space-between;gap:.75rem;flex-wrap:wrap;margin-bottom:1rem}
-.abschnitt-kopf h2{display:flex;align-items:center;gap:.5rem}
-
 /* Eingabefelder */
 .input{
   width:100%;padding:.5rem .75rem;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);

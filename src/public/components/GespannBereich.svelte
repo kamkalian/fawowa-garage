@@ -8,8 +8,7 @@
   import Fenster from './Fenster.svelte';
 
   // Das aktuelle Gespann: links der Anhänger, rechts das Fahrrad (immer sichtbar, leer als Platzhalter), darunter die Gewichte.
-  // ziehend: { art, id } der Kachel, die gerade aus der Fahrzeugliste gezogen wird (Drag and Drop)
-  let { lang, token, daten, melde, ziehend = null } = $props();
+  let { lang, token, daten, melde } = $props();
 
   const feld = (k) => GESPANN_FELDER.find(f => f.key === k);
   // Die Gewichte werden einmal aus dem gespeicherten Gespann übernommen und danach im Formular bearbeitet
@@ -23,7 +22,6 @@
   let nameFenster = $state(false);   // Fenster zum Ändern des Namens
   let nameEingabe = $state('');
   let nameFehler = $state('');
-  let ueber = $state(null);     // Platz (art), über dem gerade gezogen wird
 
   const nachId = (liste, id) => liste.find(x => x.id === id) ?? null;
   const rad = $derived(nachId(daten.fahrraeder, daten.gespann?.fahrrad_id));
@@ -57,23 +55,6 @@
     } catch (e) {
       melde(fehlerText(e), 'error');
     }
-  }
-
-  // Eine Kachel lässt sich nur auf den passenden Platz ziehen: Fahrrad auf Fahrrad, Anhänger auf Anhänger
-  const darfAblegen = (p) => ziehend?.art === p.art;
-  function ablageUeber(e, p) {
-    if (!darfAblegen(p)) return;
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    ueber = p.art;
-  }
-  function ablageVerlassen(e, p) {
-    if (ueber === p.art && !e.currentTarget.contains(e.relatedTarget)) ueber = null;
-  }
-  async function ablegen(e, p) {
-    e.preventDefault();
-    ueber = null;
-    if (darfAblegen(p)) await belegen(p, ziehend.id);
   }
 
   function namenAendern() {
@@ -125,14 +106,12 @@
   }
 </script>
 
-<section class="abschnitt gespann" aria-labelledby="gespann-titel">
-  <div class="abschnitt-kopf"><h2 id="gespann-titel">{t(lang, 'gespannTitle')}</h2></div>
+<div class="gespann">
 
   <form onsubmit={speichereGewichte} novalidate>
     <div class="raster">
       <!-- Links der Anhänger (über beide Zeilen), rechts oben der Fahrer, rechts unten das Fahrrad -->
-      <div class="platz card p-anhaenger" class:ablage={darfAblegen(plaetze[0])} class:ueber={ueber === 'anhaenger'} role="group" aria-label={t(lang, 'slot_anhaenger')}
-        ondragover={(e) => ablageUeber(e, plaetze[0])} ondragleave={(e) => ablageVerlassen(e, plaetze[0])} ondrop={(e) => ablegen(e, plaetze[0])}>
+      <div class="platz card p-anhaenger" role="group" aria-label={t(lang, 'slot_anhaenger')}>
         <div class="card-body">
           {@render fahrzeugPlatz(plaetze[0])}
           <div class="gewicht">
@@ -158,8 +137,7 @@
         </div>
       </div>
 
-      <div class="platz card p-fahrrad" class:ablage={darfAblegen(plaetze[1])} class:ueber={ueber === 'fahrraeder'} role="group" aria-label={t(lang, 'slot_fahrraeder')}
-        ondragover={(e) => ablageUeber(e, plaetze[1])} ondragleave={(e) => ablageVerlassen(e, plaetze[1])} ondrop={(e) => ablegen(e, plaetze[1])}>
+      <div class="platz card p-fahrrad" role="group" aria-label={t(lang, 'slot_fahrraeder')}>
         <div class="card-body">
           {@render fahrzeugPlatz(plaetze[1])}
         </div>
@@ -174,7 +152,7 @@
       <button type="submit" class="btn btn-primary btn-sm" disabled={laeuft}>{laeuft ? t(lang, 'saving') : t(lang, 'save')}</button>
     </div>
   </form>
-</section>
+</div>
 
 <!-- Ein Platz für Anhänger oder Fahrrad: Überschrift mit Symbol, dann Platzhalter mit Plus-Knopf oder das gewählte Fahrzeug -->
 {#snippet fahrzeugPlatz(p)}
@@ -244,10 +222,7 @@
 
 <style>
   /* Schmal: Anhänger, Fahrer, Fahrrad untereinander. Ab 640 px: links der Anhänger über zwei Zeilen, rechts oben Fahrer, rechts unten Fahrrad */
-  .gespann :global(h2) { font-size: 1.5rem; }
   .raster { display: grid; grid-template-columns: 1fr; gap: .75rem; }
-  .ablage { outline: 2px dashed var(--primary); outline-offset: 3px; }
-  .platz.ueber { border-color: var(--primary); background: var(--primary-bg); }
   .platz .card-body { display: flex; flex-direction: column; gap: .5rem; height: 100%; padding: .75rem 1rem; }
   .platzname { display: flex; align-items: center; gap: .5rem; color: var(--fg); font-size: 1rem; font-weight: 600; }
   .symbol { display: inline-flex; color: var(--primary); }

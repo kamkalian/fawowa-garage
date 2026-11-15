@@ -6,7 +6,7 @@
   // Karte eines Fahrrads oder Anhängers: Name, Prüfstatus und die ausgefüllten Angaben.
   // kompakt: nur Name und Prüfstatus, keine Angaben (für den Platz im Gespann); flach: ohne eigenen Rahmen und ohne Symbol (liegt schon in einer Karte mit Überschrift und Symbol);
   // aktionen: eigene Knöpfe statt Bearbeiten/Löschen
-  let { lang, art, eintrag, kompakt = false, flach = false, imGespann = false, onedit, onremove, aktionen } = $props();
+  let { lang, art, eintrag, kompakt = false, flach = false, imGespann = false, onedit, onremove, onGespann, aktionen } = $props();
 
   const cfg = $derived(ARTEN[art]);
 
@@ -49,6 +49,9 @@
       {#if aktionen}
         {@render aktionen()}
       {:else}
+        {#if onGespann}
+          <button type="button" class="btn btn-outline btn-sm" disabled={imGespann} onclick={onGespann}>{t(lang, imGespann ? 'inGespann' : 'toGespann')}</button>
+        {/if}
         <button type="button" class="btn btn-outline btn-sm" onclick={onedit}><Icon name="ui-edit" size={14} /> {t(lang, 'edit')}</button>
         <button type="button" class="btn btn-ghost btn-sm" onclick={onremove}><Icon name="ui-trash" size={14} /> {t(lang, 'remove')}</button>
       {/if}
