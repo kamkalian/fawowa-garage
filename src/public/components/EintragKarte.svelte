@@ -4,8 +4,9 @@
   import { t, pick, zahlText } from '../lib/i18n.js';
 
   // Karte eines Fahrrads oder Anhängers: Name, Prüfstatus und die ausgefüllten Angaben.
-  // kompakt: nur die ersten Angaben (für den Platz im Gespann); aktionen: eigene Knöpfe statt Bearbeiten/Löschen
-  let { lang, art, eintrag, kompakt = false, imGespann = false, onedit, onremove, aktionen } = $props();
+  // kompakt: nur die ersten Angaben (für den Platz im Gespann); flach: ohne eigenen Rahmen und ohne Symbol (liegt schon in einer Karte mit Überschrift und Symbol);
+  // aktionen: eigene Knöpfe statt Bearbeiten/Löschen
+  let { lang, art, eintrag, kompakt = false, flach = false, imGespann = false, onedit, onremove, aktionen } = $props();
 
   const cfg = $derived(ARTEN[art]);
 
@@ -22,10 +23,10 @@
     .slice(0, kompakt ? 5 : undefined));
 </script>
 
-<article class="card">
-  <div class="card-body">
+<article class:card={!flach}>
+  <div class:card-body={!flach}>
     <div class="kopf">
-      <h3>{eintrag.name}</h3>
+      <h3>{#if !flach}<span class="symbol"><Icon name={art === 'fahrraeder' ? 'veh-bike' : 'veh-trailer'} size={24} /></span>{/if}{eintrag.name}</h3>
       <div class="marken">
         {#if imGespann}<span class="badge badge-active">{t(lang, 'inGespann')}</span>{/if}
         <span class="badge {eintrag.status === 'geprueft' ? 'badge-active' : 'badge-check'}" title={t(lang, eintrag.status === 'geprueft' ? 'checkedHint' : 'uncheckedHint')}>
@@ -58,7 +59,8 @@
 <style>
   .kopf { display: flex; align-items: flex-start; justify-content: space-between; gap: .5rem; margin-bottom: .5rem; }
   .marken { display: flex; flex-wrap: wrap; gap: .25rem; justify-content: flex-end; }
-  h3 { font-size: 1rem; overflow-wrap: anywhere; }
+  h3 { display: flex; align-items: center; gap: .5rem; font-size: 1rem; overflow-wrap: anywhere; min-width: 0; }
+  .symbol { display: inline-flex; flex-shrink: 0; color: var(--primary); }
   dl { display: grid; grid-template-columns: minmax(6rem, 42%) 1fr; gap: .15rem .75rem; font-size: .8125rem; }
   dt { color: var(--fg-muted); }
   dd { overflow-wrap: anywhere; }

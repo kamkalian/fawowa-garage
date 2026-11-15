@@ -86,55 +86,78 @@
 <section class="gespann" aria-labelledby="gespann-titel">
   <h2 id="gespann-titel">{t(lang, 'gespannTitle')}</h2>
 
-  <div class="plaetze">
-    {#each plaetze as p (p.art)}
-      <div class="platz" aria-label={t(lang, `slot_${p.art}`)}>
-        <h3 class="platzname">{t(lang, `slot_${p.art}`)}</h3>
-        {#if p.eintrag}
-          <EintragKarte {lang} art={p.art} eintrag={p.eintrag} kompakt>
-            {#snippet aktionen()}
-              <button type="button" class="btn btn-outline btn-sm" onclick={() => (waehlen = p.art)}>{t(lang, 'change')}</button>
-              <button type="button" class="btn btn-ghost btn-sm" onclick={() => belegen(p, null)}>{t(lang, 'leave')}</button>
-            {/snippet}
-          </EintragKarte>
-        {:else}
-          <div class="leer">
-            <button type="button" class="btn btn-outline plus" disabled={!p.liste.length}
-              aria-label={t(lang, `pick_${p.art}`)} title={t(lang, `pick_${p.art}`)} onclick={() => (waehlen = p.art)}>
-              <Icon name="ui-plus" size={28} />
-            </button>
-            <p class="notiz">{p.liste.length ? t(lang, `pick_${p.art}`) : t(lang, `none_${p.art}`)}</p>
+  <form onsubmit={speichereGewichte} novalidate>
+    <div class="raster">
+      <!-- Links der Anhänger (über beide Zeilen), rechts oben der Fahrer, rechts unten das Fahrrad -->
+      <div class="platz card p-anhaenger" role="group" aria-label={t(lang, 'slot_anhaenger')}>
+        <div class="card-body">
+          {@render fahrzeugPlatz(plaetze[0])}
+          <div class="gewicht">
+            {@render zahlFeld(feld('gepaeck_kg'), 'gepaeck')}
           </div>
-        {/if}
+        </div>
       </div>
-    {/each}
-  </div>
 
-  <form class="gewichte card" onsubmit={speichereGewichte} novalidate>
-    <div class="card-body">
-      <div class="raster">
-        {#each [feld('fahrer_gewicht_kg'), feld('gepaeck_kg')] as f (f.key)}
-          <div>
-            <label for="g-{f.key}">{pick(f.label, lang)} ({f.einheit})</label>
-            {#if f.key === 'fahrer_gewicht_kg'}
-              <input id="g-{f.key}" class="input" type="number" inputmode="decimal" min={f.min} max={f.max} step="any" aria-invalid={!!fehler[f.key]} aria-describedby="g-h-{f.key}" bind:value={fahrer} />
-            {:else}
-              <input id="g-{f.key}" class="input" type="number" inputmode="decimal" min={f.min} max={f.max} step="any" aria-invalid={!!fehler[f.key]} aria-describedby="g-h-{f.key}" bind:value={gepaeck} />
-            {/if}
-            <p id="g-h-{f.key}" class="notiz" class:fehler={!!fehler[f.key]}>{fehler[f.key] ? meldung(f) : f.hinweis ? pick(f.hinweis, lang) : ''}</p>
+      <div class="platz card p-fahrer" role="group" aria-label={t(lang, 'slot_fahrer')}>
+        <div class="card-body">
+          <h3 class="platzname"><span class="symbol"><Icon name="veh-person" size={24} /></span>{t(lang, 'slot_fahrer')}</h3>
+          <div class="fahrer">
+            <span class="gross" aria-hidden="true"><Icon name="veh-person" size={56} /></span>
+            <div class="feldspalte">
+              {@render zahlFeld(feld('fahrer_gewicht_kg'), 'fahrer')}
+            </div>
           </div>
-        {/each}
+        </div>
       </div>
-      <div class="fuss">
-        <p class="summe">
-          <span class="muted">{t(lang, 'totalWeight')}:</span> <strong>{zahlText(lang, gewicht.summe)}&nbsp;kg</strong>
-          {#if gewicht.fehlt.length}<span class="notiz"> · {t(lang, 'weightIncomplete')}</span>{/if}
-        </p>
-        <button type="submit" class="btn btn-primary btn-sm" disabled={laeuft}>{laeuft ? t(lang, 'saving') : t(lang, 'save')}</button>
+
+      <div class="platz card p-fahrrad" role="group" aria-label={t(lang, 'slot_fahrraeder')}>
+        <div class="card-body">
+          {@render fahrzeugPlatz(plaetze[1])}
+        </div>
       </div>
+    </div>
+
+    <div class="fuss">
+      <p class="summe">
+        <span class="muted">{t(lang, 'totalWeight')}:</span> <strong>{zahlText(lang, gewicht.summe)}&nbsp;kg</strong>
+        {#if gewicht.fehlt.length}<span class="notiz"> · {t(lang, 'weightIncomplete')}</span>{/if}
+      </p>
+      <button type="submit" class="btn btn-primary btn-sm" disabled={laeuft}>{laeuft ? t(lang, 'saving') : t(lang, 'save')}</button>
     </div>
   </form>
 </section>
+
+<!-- Ein Platz für Anhänger oder Fahrrad: Überschrift mit Symbol, dann Platzhalter mit Plus-Knopf oder das gewählte Fahrzeug -->
+{#snippet fahrzeugPlatz(p)}
+  <h3 class="platzname"><span class="symbol"><Icon name={p.art === 'fahrraeder' ? 'veh-bike' : 'veh-trailer'} size={24} /></span>{t(lang, `slot_${p.art}`)}</h3>
+  {#if p.eintrag}
+    <EintragKarte {lang} art={p.art} eintrag={p.eintrag} kompakt flach>
+      {#snippet aktionen()}
+        <button type="button" class="btn btn-outline btn-sm" onclick={() => (waehlen = p.art)}>{t(lang, 'change')}</button>
+        <button type="button" class="btn btn-ghost btn-sm" onclick={() => belegen(p, null)}>{t(lang, 'leave')}</button>
+      {/snippet}
+    </EintragKarte>
+  {:else}
+    <div class="leer">
+      <span class="gross" aria-hidden="true"><Icon name={p.art === 'fahrraeder' ? 'veh-bike' : 'veh-trailer'} size={56} /></span>
+      <button type="button" class="btn btn-outline plus" disabled={!p.liste.length}
+        aria-label={t(lang, `pick_${p.art}`)} title={t(lang, `pick_${p.art}`)} onclick={() => (waehlen = p.art)}>
+        <Icon name="ui-plus" size={24} />
+      </button>
+      <p class="notiz">{p.liste.length ? t(lang, `pick_${p.art}`) : t(lang, `none_${p.art}`)}</p>
+    </div>
+  {/if}
+{/snippet}
+
+{#snippet zahlFeld(f, name)}
+  <label for="g-{f.key}">{pick(f.label, lang)} ({f.einheit})</label>
+  {#if name === 'fahrer'}
+    <input id="g-{f.key}" class="input" type="number" inputmode="decimal" min={f.min} max={f.max} step="any" aria-invalid={!!fehler[f.key]} aria-describedby="g-h-{f.key}" bind:value={fahrer} />
+  {:else}
+    <input id="g-{f.key}" class="input" type="number" inputmode="decimal" min={f.min} max={f.max} step="any" aria-invalid={!!fehler[f.key]} aria-describedby="g-h-{f.key}" bind:value={gepaeck} />
+  {/if}
+  <p id="g-h-{f.key}" class="notiz" class:fehler={!!fehler[f.key]}>{fehler[f.key] ? meldung(f) : f.hinweis ? pick(f.hinweis, lang) : ''}</p>
+{/snippet}
 
 {#if waehlen}
   {@const platz = plaetze.find(p => p.art === waehlen)}
@@ -158,17 +181,19 @@
 <style>
   .gespann { margin-bottom: 2rem; }
   h2 { margin-bottom: .75rem; }
-  .plaetze { display: grid; grid-template-columns: 1fr; gap: 1rem; margin-bottom: 1rem; }
-  .platz { display: flex; flex-direction: column; gap: .375rem; }
-  .platzname { color: var(--fg-muted); font-weight: 500; }
-  .leer {
-    flex: 1; min-height: 9rem; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .5rem;
-    border: 1px dashed var(--border); border-radius: var(--radius); padding: 1rem; text-align: center;
-  }
-  .plus { width: 3.5rem; height: 3.5rem; justify-content: center; border-radius: 999px; padding: 0; }
-  .raster { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem .75rem; }
+  /* Schmal: Anhänger, Fahrer, Fahrrad untereinander. Ab 640 px: links der Anhänger über zwei Zeilen, rechts oben Fahrer, rechts unten Fahrrad */
+  .raster { display: grid; grid-template-columns: 1fr; gap: 1rem; }
+  .platz .card-body { display: flex; flex-direction: column; gap: .5rem; height: 100%; }
+  .platzname { display: flex; align-items: center; gap: .5rem; color: var(--fg-muted); font-weight: 500; }
+  .symbol { display: inline-flex; color: var(--primary); }
+  .leer { flex: 1; min-height: 9rem; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .5rem; border: 1px dashed var(--border); border-radius: var(--radius); padding: 1rem; text-align: center; }
+  .gross { display: inline-flex; color: var(--fg-muted); }
+  .plus { width: 3rem; height: 3rem; justify-content: center; border-radius: 999px; padding: 0; }
+  .fahrer { display: flex; align-items: center; gap: 1rem; }
+  .feldspalte { flex: 1; min-width: 0; }
+  .gewicht { margin-top: auto; }
   .notiz { min-height: 1.1rem; margin-top: .125rem; }
-  .fuss { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-top: .5rem; }
+  .fuss { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-top: 1rem; }
   .summe { font-size: .875rem; }
   .auswahl { list-style: none; display: flex; flex-direction: column; gap: .5rem; }
   .wahl {
@@ -181,6 +206,10 @@
   .wahl[aria-current="true"] { border-color: var(--primary); background: var(--primary-bg); }
   .name { font-weight: 600; overflow-wrap: anywhere; }
   .aktionen { display: flex; justify-content: flex-end; margin-top: 1rem; }
-  @media (min-width: 640px) { .plaetze { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-  @media (max-width: 520px) { .raster { grid-template-columns: 1fr; } }
+  @media (min-width: 640px) {
+    .raster { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-areas: "anhaenger fahrer" "anhaenger fahrrad"; }
+    .p-anhaenger { grid-area: anhaenger; }
+    .p-fahrer { grid-area: fahrer; }
+    .p-fahrrad { grid-area: fahrrad; }
+  }
 </style>
