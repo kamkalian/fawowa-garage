@@ -273,15 +273,22 @@
     box-shadow: 0 4px 12px rgba(0,0,0,.3); font-size: .8125rem; line-height: 1.5; color: var(--fg-muted);
   }
   .info:hover .tip, .info:focus-within .tip, .tip.offen { display: block; }
-  .tabs { display: flex; gap: .25rem; margin-bottom: 1.25rem; flex-wrap: wrap; }
+  /* Echte Tabs: eine Linie unter dem Tab-Streifen; der aktive Tab ist oben grün abgesetzt und mit dem Inhalt darunter verbunden */
+  .tabs { display: flex; gap: .25rem; margin-bottom: 1.5rem; padding: 0 .5rem; border-bottom: 1px solid var(--border); }
   .tab {
-    padding: .5rem 1rem; border-radius: var(--radius-sm); font-size: .9375rem; font-weight: 500; font-family: inherit;
-    background: transparent; color: var(--fg-muted); border: none; cursor: pointer; transition: all .15s;
+    display: inline-flex; align-items: center; margin-bottom: -1px; padding: .625rem 1.25rem;
+    border: 1px solid var(--border); border-top-width: 2px; border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+    background: var(--bg-card); color: var(--fg-muted); font-family: inherit; font-size: .9375rem; font-weight: 500; cursor: pointer; transition: all .15s;
   }
   .tab:hover { background: var(--bg-hover); color: var(--fg); }
-  .tab.aktiv { background: var(--primary); color: var(--on-primary); }
-  .tab:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
-  .anzahl { margin-left: .25rem; opacity: .8; font-weight: 400; }
+  .tab.aktiv { background: var(--bg); color: var(--fg); font-weight: 600; border-top-color: var(--primary); border-bottom-color: var(--bg); }
+  .tab:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
+  /* Anzahl als eigene Marke (Zahl in einem Kreis), damit sie nicht wie ein Teil des Namens wirkt */
+  .anzahl {
+    display: inline-flex; align-items: center; justify-content: center; min-width: 1.375rem; height: 1.375rem; margin-left: .5rem; padding: 0 .4rem;
+    border: 1px solid var(--border); border-radius: 999px; background: var(--bg-hover); color: var(--fg); font-size: .75rem; font-weight: 700; line-height: 1;
+  }
+  .tab.aktiv .anzahl { background: var(--primary-bg); border-color: var(--primary); color: var(--primary); }
   .hinweis { margin-bottom: 1rem; }
   .liste { display: grid; grid-template-columns: 1fr; gap: 1rem; }
   .kachel { cursor: grab; border-radius: var(--radius); }
