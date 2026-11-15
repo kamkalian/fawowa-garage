@@ -110,6 +110,9 @@ Die Flächen sind die Summe von 72 Winkelsektoren um den Start (sternförmiger R
 
 Das Netz läuft als Dienst in der Anwendung (zwei Hintergrund-Threads, je ein Exemplar des Netzes, zusammen etwa 300 MB RAM), mit selbst gezeichneter Karte,
 Raster-Wärmekarte mit Teilkanten bis zur leeren Batterie und Umrandung (Marching Squares). Solar mindert die Kosten je Teilstück höchstens bis null.
+Auf dem Server (kleine geteilte Kerne) dauert eine große Berechnung 3 bis 4 Sekunden (Fahrrad ohne Anhänger, 30 000 km²), ein Kartenabschnitt
+rund 0,3 Sekunden; der Prozess braucht rund 310 MB RAM, der Server insgesamt 1,3 von 3,8 GB. Das ist 6- bis 7-mal langsamer als auf dem Entwicklungsrechner,
+also langsamer als oben geschätzt; „Berechnen“ per Knopf ist in Ordnung, Live-Berechnung nur mit Geduld.
 Offen aus diesem Bericht: Rand um NRW, Anhänger-Tauglichkeit der Wege, Wetter automatisch.
 
 ## Nächste Schritte (ursprüngliche Planung)
