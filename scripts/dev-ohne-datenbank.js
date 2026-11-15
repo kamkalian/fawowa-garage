@@ -11,6 +11,12 @@ const dist = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 // Mit NODE_ENV=production liefert dieser Server die gebaute Oberfläche (npm run build) selbst aus
 const app = erstelleApp(new FakeSpeicher(), {
   produktion: process.env.NODE_ENV === 'production', oberflaeche: dist,
+  // E-Mails werden nicht gesendet, sondern mit ihrem Link in der Konsole ausgegeben
+  mailer: { senden: async (n) => console.log(`
+--- E-Mail an ${n.an}: ${n.betreff}
+${n.text}
+---`) },
+  url: `http://localhost:${PORT}`,
   env: { TESTINSTANZ: '1', MAIN_SITE_URL: process.env.MAIN_SITE_URL ?? '' },
   begrenzungen: { neu: new Begrenzung({ max: 1000 }), falsch: new Begrenzung({ max: 1000 }) }
 });

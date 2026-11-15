@@ -5,6 +5,7 @@ import { erstellePool, warteAufDatenbank } from './lib/db.js';
 import { migriere } from './lib/migrationen.js';
 import { Speicher } from './lib/speicher.js';
 import { erstelleApp } from './lib/app.js';
+import { erstelleMailer, oeffentlicheUrl } from './lib/mail.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -24,7 +25,12 @@ try {
   process.exit(1);
 }
 
-const app = erstelleApp(new Speicher(pool), { produktion: PRODUCTION, oberflaeche: join(__dirname, 'dist') });
+const mailer = erstelleMailer();
+const url = oeffentlicheUrl();
+if (mailer && !url) console.warn('SMTP ist eingerichtet, aber PUBLIC_URL fehlt oder ist ungültig: die E-Mail-Funktionen bleiben abgeschaltet.');
+console.log(mailer && url ? 'E-Mail: eingerichtet' : 'E-Mail: nicht eingerichtet (SMTP_HOST, MAIL_FROM und PUBLIC_URL in der .env setzen)');
+
+const app = erstelleApp(new Speicher(pool), { produktion: PRODUCTION, oberflaeche: join(__dirname, 'dist'), mailer, url });
 
 const server = app.listen(PORT, () => {
   console.log(`FaWoWa-Garage läuft auf http://localhost:${PORT}${process.env.TESTINSTANZ ? ' (Testinstanz)' : ''}`);

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { ARTEN, GESPANN_FELDER, FAHRER_NAME_FELD, pruefeEingabe } from '../lib/felder.js';
+import { ARTEN, GESPANN_FELDER, FAHRER_NAME_FELD, EMAIL_FELD, pruefeEingabe } from '../lib/felder.js';
 import { MIGRATIONEN } from '../lib/migrationen.js';
 import { gesamtgewicht } from '../lib/gewicht.js';
 
@@ -88,6 +88,16 @@ test('Fahrername: Pflicht, höchstens 40 Zeichen, eine Zeile', () => {
   assert.deepEqual(pruefeEingabe(f, { fahrer_name: 'x'.repeat(41) }).fehler, { fahrer_name: 'zu_lang' });
   assert.equal(pruefeEingabe(f, { fahrer_name: 'Anja\nMüller' }).werte.fahrer_name, 'Anja Müller');
   assert.ok(MIGRATIONEN.flatMap(m => m.sql).some(q => q.includes('garagen') && q.includes('`fahrer_name`')), 'Spalte fahrer_name fehlt in den Migrationen');
+});
+
+test('E-Mail-Feld: klein geschrieben, schlichte Prüfung, keine Zeilenumbrüche', () => {
+  const f = [EMAIL_FELD];
+  assert.equal(pruefeEingabe(f, { email: '  Anja.M@Mail.Example.ORG ' }).werte.email, 'anja.m@mail.example.org');
+  for (const schlecht of ['', 'a', 'a@b', 'a@b.', '@b.de', 'a@.de', 'a b@c.de', 'a@b.de\nBcc: x@y.de', 'a@b.de,c@d.de', 'a@b.d', '<a@b.de>', 'a"b@c.de']) {
+    assert.ok(pruefeEingabe(f, { email: schlecht }).fehler?.email, JSON.stringify(schlecht));
+  }
+  assert.ok(MIGRATIONEN.flatMap(m => m.sql).some(q => q.includes('garagen') && q.includes('`email`')), 'Spalte email fehlt');
+  assert.ok(MIGRATIONEN.flatMap(m => m.sql).some(q => q.includes('garage_tokens')), 'Tabelle garage_tokens fehlt');
 });
 
 test('Migrationen: Versionen aufsteigend und ohne Lücken', () => {

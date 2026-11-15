@@ -5,11 +5,14 @@
   import { t, pick, LANGS } from './lib/i18n.js';
   import * as api from './lib/api.js';
   import Garage from './components/Garage.svelte';
+  import EmailSeite from './components/EmailSeite.svelte';
+  import ZugangAnfordern from './components/ZugangAnfordern.svelte';
 
   let lang = $state('de');
   let einst = $state({});
   let token = $state(null);        // Schlüssel der Garage aus dem Teil der Adresse nach #
   let ungueltig = $state(false);   // Adresse hat einen Schlüssel, zu dem es keine Garage gibt
+  let aktion = $state(null);       // { art: 'bestaetigen' | 'zugang', token } aus einem Link in einer E-Mail
   let legeAn = $state(false);
   let fahrerName = $state('');     // Eingabe beim Anlegen der Garage
   let nameFehler = $state('');
@@ -19,6 +22,9 @@
   // Der Schlüssel steht im Fragment (#g=...), das der Browser nie an den Server sendet: er landet in keinem Protokoll.
   function leseHash() {
     const h = location.hash;
+    const mail = /^#(bestaetigen|zugang)=([A-Za-z0-9_-]{43})$/.exec(h);
+    if (mail) { aktion = { art: mail[1], token: mail[2] }; token = null; ungueltig = false; return; }
+    aktion = null;
     if (!h || h === '#') { token = null; ungueltig = false; return; }
     const m = /^#g=([A-Za-z0-9_-]{43})$/.exec(h);
     token = m ? m[1] : null;
@@ -50,6 +56,14 @@
     } finally {
       legeAn = false;
     }
+  }
+
+  /** Ein Zugangslink aus der E-Mail wurde eingelöst: die Garage öffnet sich mit dem neuen persönlichen Link */
+  function zugangOffen(neu) {
+    aktion = null;
+    history.replaceState(null, '', `#g=${neu}`);
+    leseHash();
+    melde(t(lang, 'zugangOk'));
   }
 
   function zurStartseite() {
@@ -116,9 +130,13 @@
 </header>
 
 <main class="container seite">
-  {#if token && !ungueltig}
+  {#if aktion}
+    {#key aktion.token}
+      <EmailSeite {lang} art={aktion.art} token={aktion.token} onzugang={zugangOffen} onstart={zurStartseite} />
+    {/key}
+  {:else if token && !ungueltig}
     {#key token}
-      <Garage {lang} {token} {melde} onungueltig={() => (ungueltig = true)}
+      <Garage {lang} {token} {melde} emailAktiv={!!einst.emailAktiv} onungueltig={() => (ungueltig = true)}
         ongeloescht={() => { zurStartseite(); melde(t(lang, 'garageDeleted')); }} />
     {/key}
   {:else if ungueltig}
@@ -143,6 +161,7 @@
           <div><button type="submit" class="btn btn-primary" disabled={legeAn}>{legeAn ? t(lang, 'creating') : t(lang, 'create')}</button></div>
         </form>
         <p class="notiz">{t(lang, 'haveLink')}</p>
+        {#if einst.emailAktiv}<ZugangAnfordern {lang} />{/if}
       </div>
     </section>
   {/if}

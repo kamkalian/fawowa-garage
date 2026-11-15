@@ -1,6 +1,6 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { starteTestServer } from './hilfen.js';
+import { starteTestServer, fakeMailer } from './hilfen.js';
 import { Begrenzung } from '../lib/begrenzung.js';
 import { ARTEN } from '../lib/felder.js';
 
@@ -52,7 +52,7 @@ test('Garage-Antworten werden nicht zwischengespeichert', async () => {
   const r = await s.anfrage('GET', '/api/v1/garage', { token });
   assert.equal(r.status, 200);
   assert.equal(r.headers.get('cache-control'), 'no-store');
-  assert.deepEqual(r.json, { fahrer_name: 'Anja', fahrraeder: [], anhaenger: [], gespann: null });
+  assert.deepEqual(r.json, { fahrer_name: 'Anja', email: null, email_offen: null, fahrraeder: [], anhaenger: [], gespann: null });
 });
 
 test('Garage anlegen braucht den Namen der Fahrerin oder des Fahrers', async () => {
@@ -286,4 +286,199 @@ test('Testinstanz: Hinweis in den Einstellungen und Header gegen Suchmaschinen',
   } finally {
     await t.schliessen();
   }
+});
+
+
+// ---------- E-Mail ----------
+
+const URL_ = 'https://garage.example.org';
+
+async function mitMail(optionen = {}) {
+  const mailer = fakeMailer();
+  const t = await starteTestServer({ app: { mailer, url: URL_, ...optionen } });
+  const neu = async (name = 'Anja') => (await t.anfrage('POST', '/api/v1/garagen', { body: { fahrer_name: name } })).json.token;
+  return { t, mailer, neu };
+}
+
+test('E-Mail ohne SMTP: abgeschaltet, Einstellungen sagen es, Anfragen werden mit 503 abgelehnt', async () => {
+  const token = await neueGarage();
+  assert.equal((await s.anfrage('GET', '/api/v1/einstellungen')).json.emailAktiv, false);
+  assert.equal((await s.anfrage('PUT', '/api/v1/garage/email', { token, body: { email: 'a@b.de' } })).json.code, 'email_aus');
+  assert.equal((await s.anfrage('POST', '/api/v1/zugang/anfordern', { body: { email: 'a@b.de' } })).status, 503);
+  assert.equal((await s.anfrage('POST', '/api/v1/email/bestaetigen', { body: { token: 'x'.repeat(43) } })).status, 503);
+});
+
+test('E-Mail: Adresse angeben, Link in der Mail, bestätigen, Link nur einmal nutzbar', async () => {
+  const { t, mailer, neu } = await mitMail();
+  try {
+    assert.equal((await t.anfrage('GET', '/api/v1/einstellungen')).json.emailAktiv, true);
+    const token = await neu();
+    const r = await t.anfrage('PUT', '/api/v1/garage/email', { token, body: { email: '  Anja@Example.ORG ' } });
+    assert.equal(r.status, 202);
+    assert.equal(r.json.email_offen, 'anja@example.org');
+
+    assert.equal(mailer.gesendet.length, 1);
+    assert.equal(mailer.gesendet[0].an, 'anja@example.org');
+    assert.match(mailer.gesendet[0].text, new RegExp(`${URL_}/#bestaetigen=[A-Za-z0-9_-]{43}`));
+    assert.doesNotMatch(mailer.gesendet[0].text, new RegExp(token), 'der Zugangsschlüssel steht nie in einer Mail');
+
+    let g = (await t.anfrage('GET', '/api/v1/garage', { token })).json;
+    assert.equal(g.email, null);
+    assert.equal(g.email_offen, 'anja@example.org');
+
+    const bestaetigung = mailer.letzterToken();
+    const ok = await t.anfrage('POST', '/api/v1/email/bestaetigen', { body: { token: bestaetigung } });
+    assert.equal(ok.status, 200);
+    assert.deepEqual(ok.json, { email: 'anja@example.org' });
+    g = (await t.anfrage('GET', '/api/v1/garage', { token })).json;
+    assert.equal(g.email, 'anja@example.org');
+    assert.equal(g.email_offen, null);
+
+    const nochmal = await t.anfrage('POST', '/api/v1/email/bestaetigen', { body: { token: bestaetigung } });
+    assert.equal(nochmal.status, 400);
+    assert.equal(nochmal.json.code, 'token_ungueltig');
+  } finally { await t.schliessen(); }
+});
+
+test('E-Mail: ungültige Adressen und Schlüssel werden abgelehnt', async () => {
+  const { t, neu } = await mitMail();
+  try {
+    const token = await neu();
+    for (const email of [undefined, '', 'ohne-at', 'a@b', 'a@b.', 'a b@c.de', 'a@b.de, c@d.de', 'a@b.de\r\nBcc: x@y.de', '<a@b.de>', 5, 'x'.repeat(250) + '@b.de']) {
+      const r = await t.anfrage('PUT', '/api/v1/garage/email', { token, body: { email } });
+      assert.equal(r.status, 400, String(email).slice(0, 30));
+      assert.equal(r.json.code, 'eingabe');
+    }
+    for (const x of [undefined, '', 'kurz', 'x'.repeat(43), 5]) {
+      const r = await t.anfrage('POST', '/api/v1/email/bestaetigen', { body: { token: x } });
+      assert.equal(r.status, 400, String(x));
+      assert.equal(r.json.code, 'token_ungueltig');
+    }
+  } finally { await t.schliessen(); }
+});
+
+test('E-Mail: eine bestätigte Adresse gehört nur einer Garage', async () => {
+  const { t, mailer, neu } = await mitMail();
+  try {
+    const a = await neu('A');
+    const b = await neu('B');
+    await t.anfrage('PUT', '/api/v1/garage/email', { token: a, body: { email: 'gleich@example.org' } });
+    await t.anfrage('POST', '/api/v1/email/bestaetigen', { body: { token: mailer.letzterToken() } });
+    await t.anfrage('PUT', '/api/v1/garage/email', { token: b, body: { email: 'gleich@example.org' } });
+    const r = await t.anfrage('POST', '/api/v1/email/bestaetigen', { body: { token: mailer.letzterToken() } });
+    assert.equal(r.status, 409);
+    assert.equal(r.json.code, 'email_vergeben');
+  } finally { await t.schliessen(); }
+});
+
+test('E-Mail: Adresse entfernen löscht auch offene Links', async () => {
+  const { t, mailer, neu } = await mitMail();
+  try {
+    const token = await neu();
+    await t.anfrage('PUT', '/api/v1/garage/email', { token, body: { email: 'weg@example.org' } });
+    const offen = mailer.letzterToken();
+    assert.equal((await t.anfrage('DELETE', '/api/v1/garage/email', { token })).status, 204);
+    assert.equal((await t.anfrage('POST', '/api/v1/email/bestaetigen', { body: { token: offen } })).status, 400);
+    const g = (await t.anfrage('GET', '/api/v1/garage', { token })).json;
+    assert.equal(g.email, null);
+    assert.equal(g.email_offen, null);
+  } finally { await t.schliessen(); }
+});
+
+test('E-Mail: abgelaufener Bestätigungslink gilt nicht', async () => {
+  const { t, mailer, neu } = await mitMail();
+  try {
+    const token = await neu();
+    await t.anfrage('PUT', '/api/v1/garage/email', { token, body: { email: 'spaet@example.org' } });
+    for (const eintrag of t.speicher.tokens.values()) eintrag.bis = Date.now() - 1000;
+    assert.equal((await t.anfrage('POST', '/api/v1/email/bestaetigen', { body: { token: mailer.letzterToken() } })).status, 400);
+    assert.equal((await t.anfrage('GET', '/api/v1/garage', { token })).json.email_offen, null);
+  } finally { await t.schliessen(); }
+});
+
+test('Zugang per E-Mail: neuer Schlüssel, alter gilt nicht mehr, Daten bleiben, Link nur einmal', async () => {
+  const { t, mailer, neu } = await mitMail();
+  try {
+    const alt = await neu('Jo');
+    await t.anfrage('POST', '/api/v1/garage/fahrraeder', { token: alt, body: { name: 'Rad' } });
+    await t.anfrage('PUT', '/api/v1/garage/email', { token: alt, body: { email: 'jo@example.org' } });
+    await t.anfrage('POST', '/api/v1/email/bestaetigen', { body: { token: mailer.letzterToken() } });
+
+    const anfrage = await t.anfrage('POST', '/api/v1/zugang/anfordern', { body: { email: 'JO@example.org', lang: 'en' } });
+    assert.equal(anfrage.status, 202);
+    const mail = mailer.gesendet.at(-1);
+    assert.equal(mail.an, 'jo@example.org');
+    assert.match(mail.betreff, /access/i, 'Sprache en');
+    assert.match(mail.text, new RegExp(`${URL_}/#zugang=`));
+    const link = mailer.letzterToken();
+
+    const ein = await t.anfrage('POST', '/api/v1/zugang/einloesen', { body: { token: link } });
+    assert.equal(ein.status, 200);
+    assert.match(ein.json.token, /^[A-Za-z0-9_-]{43}$/);
+    assert.notEqual(ein.json.token, alt);
+
+    assert.equal((await t.anfrage('GET', '/api/v1/garage', { token: alt })).status, 401);
+    const g = (await t.anfrage('GET', '/api/v1/garage', { token: ein.json.token })).json;
+    assert.equal(g.fahrer_name, 'Jo');
+    assert.equal(g.fahrraeder.length, 1);
+    assert.equal((await t.anfrage('POST', '/api/v1/zugang/einloesen', { body: { token: link } })).status, 400);
+  } finally { await t.schliessen(); }
+});
+
+test('Zugang per E-Mail: unbekannte und bekannte Adressen bekommen dieselbe Antwort', async () => {
+  const { t, mailer, neu } = await mitMail();
+  try {
+    const token = await neu();
+    await t.anfrage('PUT', '/api/v1/garage/email', { token, body: { email: 'bekannt@example.org' } });
+    await t.anfrage('POST', '/api/v1/email/bestaetigen', { body: { token: mailer.letzterToken() } });
+    const vorher = mailer.gesendet.length;
+
+    const bekannt = await t.anfrage('POST', '/api/v1/zugang/anfordern', { body: { email: 'bekannt@example.org' } });
+    const unbekannt = await t.anfrage('POST', '/api/v1/zugang/anfordern', { body: { email: 'niemand@example.org' } });
+    assert.equal(bekannt.status, unbekannt.status);
+    assert.deepEqual(bekannt.json, unbekannt.json);
+    assert.equal(mailer.gesendet.length, vorher + 1, 'nur an die bekannte Adresse geht eine Mail');
+    assert.equal((await t.anfrage('POST', '/api/v1/zugang/anfordern', { body: { email: 'kaputt' } })).status, 400);
+  } finally { await t.schliessen(); }
+});
+
+test('Zugang per E-Mail: ein nur angegebener, nicht bestätigter Wert öffnet nichts', async () => {
+  const { t, mailer, neu } = await mitMail();
+  try {
+    const token = await neu();
+    await t.anfrage('PUT', '/api/v1/garage/email', { token, body: { email: 'offen@example.org' } });
+    const vorher = mailer.gesendet.length;
+    await t.anfrage('POST', '/api/v1/zugang/anfordern', { body: { email: 'offen@example.org' } });
+    assert.equal(mailer.gesendet.length, vorher, 'ohne Bestätigung keine Zugangs-Mail');
+    // Der Bestätigungslink ist kein Zugangslink
+    assert.equal((await t.anfrage('POST', '/api/v1/zugang/einloesen', { body: { token: mailer.letzterToken() } })).status, 400);
+  } finally { await t.schliessen(); }
+});
+
+test('E-Mail: Begrenzung je Adresse und je Besucher; Fehler beim Senden wird gemeldet', async () => {
+  const { t, mailer, neu } = await mitMail();
+  try {
+    const token = await neu();
+    for (let i = 0; i < 3; i++) assert.equal((await t.anfrage('PUT', '/api/v1/garage/email', { token, body: { email: 'viel@example.org' } })).status, 202);
+    assert.equal((await t.anfrage('PUT', '/api/v1/garage/email', { token, body: { email: 'viel@example.org' } })).status, 429);
+    // Zugang: bei Überschreitung je Adresse still keine weitere Mail, Antwort bleibt gleich
+    const vorher = mailer.gesendet.length;
+    assert.equal((await t.anfrage('POST', '/api/v1/zugang/anfordern', { body: { email: 'viel@example.org' } })).status, 202);
+    assert.equal(mailer.gesendet.length, vorher);
+
+    mailer.fehler = true;
+    const r = await t.anfrage('PUT', '/api/v1/garage/email', { token, body: { email: 'andere@example.org' } });
+    assert.equal(r.status, 503);
+    assert.equal(r.json.code, 'mail_fehler');
+  } finally { await t.schliessen(); }
+});
+
+test('E-Mail: Antworten dieser Pfade werden nicht zwischengespeichert', async () => {
+  const { t } = await mitMail();
+  try {
+    for (const pfad of ['/api/v1/email/bestaetigen', '/api/v1/zugang/einloesen']) {
+      const r = await t.anfrage('POST', pfad, { body: { token: 'x'.repeat(43) } });
+      assert.equal(r.headers.get('cache-control'), 'no-store', pfad);
+    }
+  } finally { await t.schliessen(); }
 });

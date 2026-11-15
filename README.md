@@ -7,7 +7,7 @@ Radgrößen, Gewichte, Solar, Zusatzakku ...) und stellen daraus Gespanne zusamm
 Teil von fawowa-tools.de. Aufbau, Design und Betrieb folgen der [Materialdatenbank](https://github.com/kamkalian/fawowa-material-table)
 und den Design-Regeln der Hauptseite (`design_rules.md`).
 
-**Stand: Phase 1** (Garage mit Fahrrädern, Anhängern und Gespannen). Noch nicht enthalten: E-Mail-Bestätigung, Verwaltungsbereich,
+**Stand: Phase 2** (Garage mit Stellplätzen und Gespann, E-Mail-Bestätigung). Noch nicht enthalten: Verwaltungsbereich,
 Rechenmodell, Karte (siehe unten).
 
 ## Wichtige Regeln
@@ -15,6 +15,13 @@ Rechenmodell, Karte (siehe unten).
 - **Kein Login.** Beim Anlegen entsteht eine Garage mit einem zufälligen Schlüssel (256 Bit). Der Link `https://…/#g=<schlüssel>`
   ist der Zugang. Der Schlüssel steht im Teil nach `#`, den der Browser nie an den Server sendet (kein Eintrag in Protokollen);
   die Anfragen tragen ihn im Header `Authorization: Bearer …`. In der Datenbank steht nur der SHA-256-Hash.
+- **E-Mail ist freiwillig.** Eine Adresse gilt erst, wenn der Link in der Bestätigungs-Mail geöffnet wurde (24 Stunden gültig) und gehört
+  höchstens einer Garage. Mit einer bestätigten Adresse lässt sich auf der Startseite ein Zugangslink anfordern (eine Stunde gültig, einmal
+  nutzbar). Beim Einlösen bekommt die Garage einen **neuen** Schlüssel, der alte gilt nicht mehr; so muss der Schlüssel nie im Klartext
+  gespeichert oder per Mail verschickt werden. Die Links tragen ihren Schlüssel im Teil nach `#` (`#bestaetigen=…`, `#zugang=…`): erst die
+  Seite löst ihn per Anfrage ein, deshalb verbrauchen Link-Prüfer in Mail-Programmen ihn nicht. Die Antwort auf „Zugangslink anfordern“ ist
+  für bekannte und unbekannte Adressen gleich. Grenzen: 6 Mails je Besucher und Stunde, 3 je Adresse und Stunde.
+  Ohne `SMTP_HOST`, `MAIL_FROM` und `PUBLIC_URL` (siehe `.env.example`) sind die E-Mail-Funktionen abgeschaltet und ausgeblendet.
 - **Alles ist privat.** Jede Garage sieht nur ihre eigenen Einträge. `status` (`ungeprueft`/`geprueft`) ist eine reine Markierung des
   Betreibers; jede Änderung durch den Nutzer setzt einen Eintrag zurück auf `ungeprueft`. Die Prüfnotiz geht nie an den Nutzer.
 - **Felder stehen an einer Stelle:** `lib/felder.js` beschreibt alle Felder (Typ, Grenzen, Einheit, Texte de/en). Daraus prüft der
@@ -27,7 +34,8 @@ Rechenmodell, Karte (siehe unten).
 
 ```bash
 npm install
-npm run dev:fake    # API mit Nachbildung der Datenbank im Arbeitsspeicher (kein MySQL nötig), Port 3470
+npm run dev:fake    # API mit Nachbildung der Datenbank im Arbeitsspeicher (kein MySQL nötig), Port 3470;
+                    # E-Mails erscheinen mit ihrem Link in der Konsole
 npm run dev:web     # Oberfläche auf http://localhost:5175
 npm test
 ```
@@ -59,5 +67,5 @@ nur im internen Netz, Daten in `data/mysql`). Es wird kein Port nach außen ver�
 ## Noch offen bis zum öffentlichen Start
 
 - Pflichtbausteine der Design-Regeln: „Projekt unterstützen“, Fußzeile, Impressum, Datenschutz (Hinweis auf gespeicherte Daten und Link-Schlüssel), Eintrag in `config/tools.json` der Hauptseite
-- E-Mail-Bestätigung und Link-Versand (SMTP aus `.env`), Verwaltungsbereich mit Prüfstatus
+- Verwaltungsbereich mit Prüfstatus; SMTP-Zugangsdaten und `PUBLIC_URL` in die Server-`.env` eintragen
 - Reichweiten-Planer: Rechenmodell, eigenes Routing (NRW), Karte, Wind

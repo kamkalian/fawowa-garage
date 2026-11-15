@@ -13,6 +13,8 @@ export class FakeSpeicher {
     this.daten = { fahrraeder: [], anhaenger: [] }; // Zeilen mit garage_id
     this.gespanne = new Map(); // garage_id -> Gespann
     this.namen = new Map(); // garage_id -> Name der Fahrerin oder des Fahrers
+    this.emails = new Map(); // garage_id -> bestätigte Adresse
+    this.tokens = new Map(); // hash -> { garageId, art, email, bis }
     this.naechsteId = 1;
     this.kaputt = false;
   }
@@ -38,6 +40,8 @@ export class FakeSpeicher {
     for (const a of Object.keys(this.daten)) this.daten[a] = this.daten[a].filter(z => z.garage_id !== garageId);
     this.gespanne.delete(garageId);
     this.namen.delete(garageId);
+    this.emails.delete(garageId);
+    for (const [h, t] of this.tokens) if (t.garageId === garageId) this.tokens.delete(h);
     for (const [h, id] of this.garagen) if (id === garageId) this.garagen.delete(h);
   }
 
@@ -47,7 +51,8 @@ export class FakeSpeicher {
   }
 
   async alles(garageId) {
-    const r = { fahrer_name: this.namen.get(garageId) ?? null };
+    const offen = [...this.tokens.values()].filter(t => t.garageId === garageId && t.art === 'email' && t.bis > Date.now()).pop();
+    const r = { fahrer_name: this.namen.get(garageId) ?? null, email: this.emails.get(garageId) ?? null, email_offen: offen?.email ?? null };
     for (const a of Object.keys(this.daten)) r[a] = this.daten[a].filter(z => z.garage_id === garageId).sort((x, y) => x.sortierung - y.sortierung || x.id - y.id).map(z => this._sicht(z));
     r.gespann = this.gespanne.has(garageId) ? { ...this.gespanne.get(garageId) } : null;
     return r;
@@ -66,6 +71,48 @@ export class FakeSpeicher {
   async fahrerNameSetzen(garageId, name) {
     this.namen.set(garageId, name);
     return name;
+  }
+
+  _tokenAnlegen(garageId, art, email, stunden) {
+    for (const [h, t] of this.tokens) if (t.garageId === garageId && t.art === art) this.tokens.delete(h);
+    const token = randomBytes(32).toString('base64url');
+    this.tokens.set(hashToken(token), { garageId, art, email, bis: Date.now() + stunden * 3600 * 1000 });
+    return token;
+  }
+
+  _tokenFinden(token, art) {
+    const t = typeof token === 'string' && TOKEN_MUSTER.test(token) ? this.tokens.get(hashToken(token)) : null;
+    if (!t || t.art !== art || t.bis < Date.now()) throw new FehlerEingabe('Der Link ist ungültig oder abgelaufen.', 400, { code: 'token_ungueltig' });
+    return t;
+  }
+
+  async emailAnfordern(garageId, email) { return this._tokenAnlegen(garageId, 'email', email, 24); }
+
+  async emailBestaetigen(token) {
+    const t = this._tokenFinden(token, 'email');
+    for (const [id, adresse] of this.emails) if (adresse === t.email && id !== t.garageId) throw new FehlerEingabe('vergeben', 409, { code: 'email_vergeben' });
+    this.emails.set(t.garageId, t.email);
+    this.tokens.delete(hashToken(token));
+    return { email: t.email };
+  }
+
+  async emailEntfernen(garageId) {
+    this.emails.delete(garageId);
+    for (const [h, t] of this.tokens) if (t.garageId === garageId) this.tokens.delete(h);
+  }
+
+  async zugangAnfordern(email) {
+    const eintrag = [...this.emails].find(([, a]) => a === email);
+    return eintrag ? this._tokenAnlegen(eintrag[0], 'zugang', email, 1) : null;
+  }
+
+  async zugangEinloesen(token) {
+    const t = this._tokenFinden(token, 'zugang');
+    const neu = randomBytes(32).toString('base64url');
+    for (const [h, id] of this.garagen) if (id === t.garageId) this.garagen.delete(h);
+    this.garagen.set(hashToken(neu), t.garageId);
+    for (const [h, x] of this.tokens) if (x.garageId === t.garageId && x.art === 'zugang') this.tokens.delete(h);
+    return neu;
   }
 
   async reihenfolgeSetzen(garageId, reihenfolge) {
@@ -105,11 +152,29 @@ export class FakeSpeicher {
   }
 }
 
+/** Mailer, der Nachrichten sammelt statt zu senden */
+export function fakeMailer() {
+  const gesendet = [];
+  return {
+    gesendet,
+    fehler: false,
+    senden: async function (nachricht) {
+      if (this.fehler) throw new Error('SMTP aus');
+      gesendet.push(nachricht);
+    },
+    /** Schlüssel aus dem Link der letzten Nachricht */
+    letzterToken() {
+      const m = /#(?:bestaetigen|zugang)=([A-Za-z0-9_-]{43})/.exec(gesendet.at(-1)?.text ?? '');
+      return m ? m[1] : null;
+    }
+  };
+}
+
 /** Startet die App mit Nachbildung des Datenzugriffs auf einem freien Port. Ergebnis: { url, speicher, anfrage(), schliessen() } */
 export async function starteTestServer(optionen = {}) {
   const speicher = optionen.speicher ?? new FakeSpeicher();
   // Großzügige Grenzen, damit die Begrenzung nicht die anderen Tests stört (sie hat eigene Tests)
-  const begrenzungen = { neu: new Begrenzung({ max: 10000 }), falsch: new Begrenzung({ max: 10000 }), ...optionen.app?.begrenzungen };
+  const begrenzungen = { neu: new Begrenzung({ max: 10000 }), falsch: new Begrenzung({ max: 10000 }), mailIp: new Begrenzung({ max: 10000 }), ...optionen.app?.begrenzungen };
   const app = erstelleApp(speicher, { env: {}, ...optionen.app, begrenzungen });
   const server = await new Promise(r => { const s = app.listen(0, '127.0.0.1', () => r(s)); });
   const url = `http://127.0.0.1:${server.address().port}`;

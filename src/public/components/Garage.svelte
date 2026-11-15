@@ -8,21 +8,23 @@
   import EintragKarte from './EintragKarte.svelte';
   import Fenster from './Fenster.svelte';
   import GespannBereich from './GespannBereich.svelte';
+  import EmailFenster from './EmailFenster.svelte';
 
   // Die Garage eines Nutzers: zwei Tabs. „Gespann“ (Standard) und „Stellplätze“ (alle Fahrräder und Anhänger als Kacheln, per Drag and Drop ordnen)
-  let { lang, token, melde, onungueltig, ongeloescht } = $props();
+  let { lang, token, melde, onungueltig, ongeloescht, emailAktiv = false } = $props();
 
   const ARTEN_LISTE = ['fahrraeder', 'anhaenger'];
   const TABS = ['gespann', 'stellplaetze'];
   let tab = $state('gespann');
   let status = $state('laden'); // laden | bereit | fehler
-  let daten = $state({ fahrraeder: [], anhaenger: [], gespann: null });
+  let daten = $state({ fahrraeder: [], anhaenger: [], gespann: null, email: null, email_offen: null });
   let form = $state(null);        // { art, eintrag } oder null
   let loeschen = $state(null);    // { art, eintrag } oder null
   let garageLoeschen = $state(false);
   let kopiert = $state(false);
   let infoOffen = $state(false); // Hinweis zum Link: bei Hover und Fokus sichtbar, per Klick festgehalten
   let laeuft = $state(false);
+  let emailFenster = $state(false);
   let artWahl = $state(false);    // Auswahlfenster „Fahrrad oder Anhänger hinzufügen“
   let ziehend = $state(null);     // { art, id } der gerade gezogenen Kachel
   let ziel = $state(null);        // Schlüssel der Kachel, über der gezogen wird, oder 'ende'
@@ -175,6 +177,13 @@
     </div>
     <input id="garage-link" class="input" type="text" readonly value={link} onfocus={(e) => e.currentTarget.select()} />
     <button type="button" class="btn btn-outline btn-sm" onclick={kopieren}><Icon name="ui-copy" size={14} /> {kopiert ? t(lang, 'copied') : t(lang, 'copy')}</button>
+    {#if emailAktiv}
+      <button type="button" class="btn btn-outline btn-sm emailknopf" class:ok={!!daten.email} class:offen={!daten.email && !!daten.email_offen}
+        title={daten.email ?? daten.email_offen ?? undefined} onclick={() => (emailFenster = true)}>
+        <Icon name="ui-mail" size={14} />
+        {daten.email ? t(lang, 'emailDone') : daten.email_offen ? t(lang, 'emailOpen') : t(lang, 'emailAdd')}
+      </button>
+    {/if}
   </section>
 
   <div class="tabs" role="tablist" aria-label={t(lang, 'tabs')}>
@@ -213,6 +222,10 @@
   </div>
 
   <p class="unten"><button type="button" class="btn btn-ghost btn-sm" onclick={() => (garageLoeschen = true)}><Icon name="ui-trash" size={14} /> {t(lang, 'deleteGarage')}</button></p>
+{/if}
+
+{#if emailFenster}
+  <EmailFenster {lang} {token} {daten} {melde} onclose={() => (emailFenster = false)} />
 {/if}
 
 {#if artWahl}
@@ -261,6 +274,8 @@
   .linkkopf label { margin: 0; white-space: nowrap; }
   .link .input { flex: 1; min-width: 12rem; font-family: ui-monospace, monospace; }
   .info { display: inline-flex; }
+  .emailknopf.ok { border-color: var(--primary); color: var(--primary); }
+  .emailknopf.offen { border-color: var(--amber); color: var(--amber); }
   .infoknopf {
     display: inline-flex; align-items: center; justify-content: center; padding: .125rem; background: transparent; border: none;
     border-radius: 999px; color: var(--fg-muted); cursor: pointer; transition: color .15s;

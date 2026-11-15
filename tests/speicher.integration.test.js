@@ -77,6 +77,67 @@ test('Fahrername: speichern, lesen, ändern; alte Garagen haben keinen', opt, as
   assert.equal((await sp.alles(altGarage)).fahrer_name, null);
 });
 
+test('E-Mail: bestätigen, nur einer Garage, Zugangslink dreht den Schlüssel, Links nur einmal und nur als Hash', opt, async () => {
+  const a = await sp.garageAnlegen('A');
+  const b = await sp.garageAnlegen('B');
+  const adresse = `test-${Date.now()}@example.org`;
+
+  const t1 = await sp.emailAnfordern(a.id, adresse);
+  const [[h]] = await pool.query('SELECT token_hash FROM garage_tokens WHERE garage_id = ?', [a.id]);
+  assert.notEqual(h.token_hash, t1);
+  assert.equal((await sp.alles(a.id)).email_offen, adresse);
+  assert.equal((await sp.alles(a.id)).email, null);
+  assert.equal(await sp.zugangAnfordern(adresse), null, 'unbestätigt: kein Zugangslink');
+
+  // Neue Anforderung ersetzt die alte
+  const t2 = await sp.emailAnfordern(a.id, adresse);
+  await assert.rejects(sp.emailBestaetigen(t1), { code: 'token_ungueltig' });
+  assert.deepEqual(await sp.emailBestaetigen(t2), { email: adresse });
+  await assert.rejects(sp.emailBestaetigen(t2), { code: 'token_ungueltig' });
+  assert.equal((await sp.alles(a.id)).email, adresse);
+  assert.equal((await sp.alles(a.id)).email_offen, null);
+
+  // Dieselbe Adresse für eine andere Garage: Konflikt
+  const tb = await sp.emailAnfordern(b.id, adresse);
+  await assert.rejects(sp.emailBestaetigen(tb), { status: 409, code: 'email_vergeben' });
+
+  // Zugangslink: neuer Schlüssel, alter ungültig, Einträge bleiben
+  await sp.anlegen(a.id, 'fahrraeder', werte('fahrraeder', { name: 'Bleibt' }));
+  const z = await sp.zugangAnfordern(adresse);
+  assert.match(z, /^[A-Za-z0-9_-]{43}$/);
+  await assert.rejects(sp.emailBestaetigen(z), { code: 'token_ungueltig' }, 'ein Zugangslink bestätigt keine Adresse');
+  const neu = await sp.zugangEinloesen(z);
+  assert.equal(await sp.garageFinden(a.token), null);
+  const g = await sp.garageFinden(neu);
+  assert.equal(g.id, a.id);
+  assert.equal((await sp.alles(a.id)).fahrraeder[0].name, 'Bleibt');
+  await assert.rejects(sp.zugangEinloesen(z), { code: 'token_ungueltig' });
+
+  // Abgelaufen
+  const z2 = await sp.zugangAnfordern(adresse);
+  await pool.query("UPDATE garage_tokens SET gueltig_bis = UTC_TIMESTAMP() - INTERVAL 1 SECOND WHERE garage_id = ?", [a.id]);
+  await assert.rejects(sp.zugangEinloesen(z2), { code: 'token_ungueltig' });
+
+  // Entfernen
+  await sp.emailAnfordern(a.id, 'neu@example.org');
+  await sp.emailEntfernen(a.id);
+  const alles = await sp.alles(a.id);
+  assert.equal(alles.email, null);
+  assert.equal(alles.email_offen, null);
+  assert.equal(await sp.zugangAnfordern(adresse), null);
+  // Die Adresse ist wieder frei
+  const tb2 = await sp.emailAnfordern(b.id, adresse);
+  assert.deepEqual(await sp.emailBestaetigen(tb2), { email: adresse });
+});
+
+test('Garage löschen entfernt auch die Links', opt, async () => {
+  const { id } = await sp.garageAnlegen('X');
+  await sp.emailAnfordern(id, 'weg-egal@example.org');
+  await sp.garageLoeschen(id);
+  const [[z]] = await pool.query('SELECT COUNT(*) AS n FROM garage_tokens WHERE garage_id = ?', [id]);
+  assert.equal(Number(z.n), 0);
+});
+
 test('Garage: Schlüssel wird nur als Hash gespeichert und wiedergefunden', opt, async () => {
   const { id, token } = await sp.garageAnlegen();
   const [[z]] = await pool.query('SELECT token_hash FROM garagen WHERE id = ?', [id]);
@@ -202,6 +263,6 @@ test('alles() liefert Fahrräder, Anhänger und Gespann ohne garage_id und ohne 
   const { id: g } = await sp.garageAnlegen();
   await sp.anlegen(g, 'fahrraeder', werte('fahrraeder', { name: 'Rad' }));
   const alles = await sp.alles(g);
-  assert.deepEqual(Object.keys(alles), ['fahrer_name', 'fahrraeder', 'anhaenger', 'gespann']);
+  assert.deepEqual(Object.keys(alles), ['fahrer_name', 'email', 'email_offen', 'fahrraeder', 'anhaenger', 'gespann']);
   assert.ok(!('garage_id' in alles.fahrraeder[0]) && !('pruefnotiz' in alles.fahrraeder[0]));
 });
