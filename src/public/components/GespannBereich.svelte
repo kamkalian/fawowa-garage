@@ -83,10 +83,10 @@
   }
 </script>
 
-<section class="gespann" aria-labelledby="gespann-titel">
-  <h2 id="gespann-titel">{t(lang, 'gespannTitle')}</h2>
+<section class="abschnitt" aria-labelledby="gespann-titel">
+  <div class="abschnitt-kopf"><h2 id="gespann-titel">{t(lang, 'gespannTitle')}</h2></div>
 
-  <form onsubmit={speichereGewichte} novalidate>
+  <form class="abschnitt-koerper" onsubmit={speichereGewichte} novalidate>
     <div class="raster">
       <!-- Links der Anhänger (über beide Zeilen), rechts oben der Fahrer, rechts unten das Fahrrad -->
       <div class="platz card p-anhaenger" role="group" aria-label={t(lang, 'slot_anhaenger')}>
@@ -179,8 +179,6 @@
 {/if}
 
 <style>
-  .gespann { margin-bottom: 2rem; }
-  h2 { margin-bottom: .75rem; }
   /* Schmal: Anhänger, Fahrer, Fahrrad untereinander. Ab 640 px: links der Anhänger über zwei Zeilen, rechts oben Fahrer, rechts unten Fahrrad */
   .raster { display: grid; grid-template-columns: 1fr; gap: 1rem; }
   .platz .card-body { display: flex; flex-direction: column; gap: .5rem; height: 100%; }

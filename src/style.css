@@ -65,6 +65,13 @@ a{color:var(--primary)}
 .card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
 .card-body{padding:1rem}
 
+/* Abschnitte: Gespann, Fahrräder und Anhänger sind je ein eigener Rahmen mit Kopfzeile; die Karten darin heben sich durch die Eingabefläche ab */
+.abschnitt{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:2rem;overflow:hidden}
+.abschnitt-kopf{display:flex;align-items:center;justify-content:space-between;gap:.75rem;flex-wrap:wrap;padding:.75rem 1rem;border-bottom:1px solid var(--border);background:var(--bg-hover)}
+.abschnitt-kopf h2{display:flex;align-items:center;gap:.5rem}
+.abschnitt-koerper{padding:1rem}
+.abschnitt .card{background:var(--bg-input)}
+
 /* Eingabefelder */
 .input{
   width:100%;padding:.5rem .75rem;background:var(--bg-input);border:1px solid var(--border);border-radius:var(--radius-sm);

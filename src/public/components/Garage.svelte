@@ -108,24 +108,29 @@
   <GespannBereich {lang} {token} {daten} {melde} />
 
   {#each ARTEN_LISTE as art (art)}
-    <section class="bereich" aria-labelledby="titel-{art}">
-      <div class="kopf">
-        <h2 id="titel-{art}">{t(lang, art)} <span class="anzahl">{daten[art].length} / {ARTEN[art].max}</span></h2>
+    <section class="abschnitt" aria-labelledby="titel-{art}">
+      <div class="abschnitt-kopf">
+        <h2 id="titel-{art}">
+          <span class="symbol"><Icon name={art === 'fahrraeder' ? 'veh-bike' : 'veh-trailer'} size={24} /></span>
+          {t(lang, art)} <span class="anzahl">{daten[art].length} / {ARTEN[art].max}</span>
+        </h2>
         <button type="button" class="btn btn-primary" disabled={daten[art].length >= ARTEN[art].max} onclick={() => (form = { art, eintrag: null })}>
           <Icon name="ui-plus" size={14} /> {t(lang, `add_${art}`)}
         </button>
       </div>
 
-      {#if !daten[art].length}
-        <p class="muted">{t(lang, `empty_${art}`)}</p>
-      {:else}
-        <div class="liste">
-          {#each daten[art] as e (e.id)}
-            <EintragKarte {lang} {art} eintrag={e} imGespann={imGespann(art, e)}
-              onedit={() => (form = { art, eintrag: e })} onremove={() => (loeschen = { art, eintrag: e })} />
-          {/each}
-        </div>
-      {/if}
+      <div class="abschnitt-koerper">
+        {#if !daten[art].length}
+          <p class="muted">{t(lang, `empty_${art}`)}</p>
+        {:else}
+          <div class="liste">
+            {#each daten[art] as e (e.id)}
+              <EintragKarte {lang} {art} eintrag={e} imGespann={imGespann(art, e)}
+                onedit={() => (form = { art, eintrag: e })} onremove={() => (loeschen = { art, eintrag: e })} />
+            {/each}
+          </div>
+        {/if}
+      </div>
     </section>
   {/each}
 
@@ -162,8 +167,7 @@
   .linkkarte .card-body { display: flex; flex-direction: column; gap: .5rem; }
   .linkzeile { display: flex; gap: .5rem; flex-wrap: wrap; }
   .linkzeile .input { flex: 1; min-width: 12rem; font-family: ui-monospace, monospace; }
-  .bereich { margin-bottom: 2rem; }
-  .kopf { display: flex; align-items: center; justify-content: space-between; gap: .75rem; flex-wrap: wrap; margin-bottom: 1rem; }
+  .symbol { display: inline-flex; color: var(--primary); }
   .anzahl { font-size: .8125rem; font-weight: 400; color: var(--fg-muted); margin-left: .5rem; }
   .liste { display: grid; grid-template-columns: 1fr; gap: 1rem; }
   .unten { margin-top: 2rem; padding-top: 1.25rem; border-top: 1px solid var(--border); }
