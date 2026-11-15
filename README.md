@@ -7,7 +7,7 @@ Radgrößen, Gewichte, Solar, Zusatzakku ...) und stellen daraus Gespanne zusamm
 Teil von fawowa-tools.de. Aufbau, Design und Betrieb folgen der [Materialdatenbank](https://github.com/kamkalian/fawowa-material-table)
 und den Design-Regeln der Hauptseite (`design_rules.md`).
 
-**Stand: Phase 2** (Garage mit Stellplätzen und Gespann, E-Mail-Bestätigung). Noch nicht enthalten: Verwaltungsbereich,
+**Stand: Phase 3** (Garage mit Stellplätzen und Gespann, E-Mail-Bestätigung, Verwaltungsbereich). Noch nicht enthalten:
 Rechenmodell, Karte (siehe unten).
 
 ## Wichtige Regeln
@@ -22,6 +22,11 @@ Rechenmodell, Karte (siehe unten).
   Seite löst ihn per Anfrage ein, deshalb verbrauchen Link-Prüfer in Mail-Programmen ihn nicht. Die Antwort auf „Zugangslink anfordern“ ist
   für bekannte und unbekannte Adressen gleich. Grenzen: 6 Mails je Besucher und Stunde, 3 je Adresse und Stunde.
   Ohne `SMTP_HOST`, `MAIL_FROM` und `PUBLIC_URL` (siehe `.env.example`) sind die E-Mail-Funktionen abgeschaltet und ausgeblendet.
+- **Verwaltungsbereich** unter `/wunderkammer` (Pfad mit `ADMIN_PATH` änderbar; `/admin` gibt es nicht). Anmeldung mit einem Passwort, dessen Hash
+  in der `.env` steht (`ADMIN_PASSWORD_HASH`, erzeugen mit `node scripts/admin-passwort.js`, mindestens 12 Zeichen); Sitzung 12 Stunden per
+  Cookie (HttpOnly, SameSite=Strict), Sperre nach Fehlversuchen, bei ändernden Anfragen Prüfung von Origin und JSON-Typ. Der Betreiber sieht alle
+  Garagen und Einträge (auch E-Mail-Adressen), markiert Einträge einzeln oder je Garage als geprüft, schreibt Notizen (die Nutzer nie sehen),
+  korrigiert Namen und löscht Spam. Ohne `ADMIN_PASSWORD_HASH` ist der Zugang nicht eingerichtet.
 - **Alles ist privat.** Jede Garage sieht nur ihre eigenen Einträge. `status` (`ungeprueft`/`geprueft`) ist eine reine Markierung des
   Betreibers; jede Änderung durch den Nutzer setzt einen Eintrag zurück auf `ungeprueft`. Die Prüfnotiz geht nie an den Nutzer.
 - **Felder stehen an einer Stelle:** `lib/felder.js` beschreibt alle Felder (Typ, Grenzen, Einheit, Texte de/en). Daraus prüft der
@@ -67,5 +72,5 @@ nur im internen Netz, Daten in `data/mysql`). Es wird kein Port nach außen ver�
 ## Noch offen bis zum öffentlichen Start
 
 - Pflichtbausteine der Design-Regeln: „Projekt unterstützen“, Fußzeile, Impressum, Datenschutz (Hinweis auf gespeicherte Daten und Link-Schlüssel), Eintrag in `config/tools.json` der Hauptseite
-- Verwaltungsbereich mit Prüfstatus; SMTP-Zugangsdaten und `PUBLIC_URL` in die Server-`.env` eintragen
+- `ADMIN_PASSWORD_HASH` sowie SMTP-Zugangsdaten und `PUBLIC_URL` in die Server-`.env` eintragen
 - Reichweiten-Planer: Rechenmodell, eigenes Routing (NRW), Karte, Wind

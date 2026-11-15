@@ -5,6 +5,7 @@ import { fileURLToPath } from 'url';
 import { FakeSpeicher } from '../tests/hilfen.js';
 import { erstelleApp } from '../lib/app.js';
 import { Begrenzung } from '../lib/begrenzung.js';
+import { hashPasswort } from '../lib/auth.js';
 
 const PORT = process.env.PORT || 3470;
 const dist = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
@@ -17,7 +18,8 @@ const app = erstelleApp(new FakeSpeicher(), {
 ${n.text}
 ---`) },
   url: `http://localhost:${PORT}`,
-  env: { TESTINSTANZ: '1', MAIN_SITE_URL: process.env.MAIN_SITE_URL ?? '' },
+  // Verwaltungsbereich unter /wunderkammer mit dem Passwort "dev-admin-passwort" (nur für diese Entwicklungs-Nachbildung)
+  env: { TESTINSTANZ: '1', MAIN_SITE_URL: process.env.MAIN_SITE_URL ?? '', ADMIN_PASSWORD_HASH: hashPasswort('dev-admin-passwort') },
   begrenzungen: { neu: new Begrenzung({ max: 1000 }), falsch: new Begrenzung({ max: 1000 }) }
 });
 app.listen(PORT, '127.0.0.1', () => console.log(`Garage ohne Datenbank auf http://localhost:${PORT} (Oberfläche: npm run dev:web)`));

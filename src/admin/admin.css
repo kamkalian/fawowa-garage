@@ -1,0 +1,26 @@
+/* Stile des Verwaltungsbereichs: voller Fensterbreite, Listen, Meldungen */
+
+#admin .container,
+#admin .header-inner { max-width: none; }
+
+.meldung-fehler { color: var(--danger); font-size: .8125rem; margin: 0 0 .75rem; }
+.meldung-ok { color: var(--primary); font-size: .8125rem; margin: 0; }
+.leer { color: var(--fg-muted); text-align: center; padding: 2rem 1rem; }
+
+.liste { list-style: none; display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; background: var(--bg-card); }
+.liste > li + li { border-top: 1px solid var(--border); }
+.eintrag {
+  /* Knöpfe füllen ihre Zeile nicht von selbst, daher die feste Breite */
+  width: 100%; display: flex; align-items: center; gap: .875rem; padding: .75rem 1rem;
+  background: none; border: none; color: var(--fg); font: inherit; text-align: left; cursor: pointer;
+}
+.eintrag:hover { background: var(--bg-hover); }
+.eintrag:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
+.eintrag .haupt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: .125rem; }
+.eintrag .titel { font-size: .9375rem; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.eintrag .unter { font-size: .75rem; color: var(--fg-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.eintrag .rechts { display: flex; align-items: center; gap: .75rem; flex-shrink: 0; color: var(--fg-muted); font-size: .75rem; }
+@media (max-width: 640px) {
+  .eintrag { flex-wrap: wrap; }
+  .eintrag .unter { white-space: normal; }
+}

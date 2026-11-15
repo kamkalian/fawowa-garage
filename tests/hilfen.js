@@ -46,7 +46,8 @@ export class FakeSpeicher {
   }
 
   _sicht(z) {
-    const { garage_id, ...rest } = z; // eslint-disable-line no-unused-vars
+    // Wie die Datenbankabfrage: ohne Garage-Nummer und ohne Angaben des Betreibers (Prüfdatum, Prüfnotiz)
+    const { garage_id, pruefnotiz, geprueft_am, ...rest } = z; // eslint-disable-line no-unused-vars
     return rest;
   }
 
@@ -113,6 +114,99 @@ export class FakeSpeicher {
     this.garagen.set(hashToken(neu), t.garageId);
     for (const [h, x] of this.tokens) if (x.garageId === t.garageId && x.art === 'zugang') this.tokens.delete(h);
     return neu;
+  }
+
+  // --- Verwaltung ---
+  _alleEintraege(art) {
+    if (art === 'gespanne') return [...this.gespanne].map(([garage_id, g]) => ({ garage_id, ...g }));
+    return this.daten[art];
+  }
+
+  _eintrag(art, id) {
+    if (art === 'gespanne') {
+      const e = [...this.gespanne.values()].find(g => g.id === id);
+      return e ?? null;
+    }
+    return this.daten[art].find(z => z.id === id) ?? null;
+  }
+
+  _ungeprueft(garageId) {
+    return ['fahrraeder', 'anhaenger', 'gespanne'].reduce((n, a) => n + this._alleEintraege(a).filter(z => z.garage_id === garageId && z.status === 'ungeprueft').length, 0);
+  }
+
+  async adminUebersicht() {
+    const ids = [...this.garagen.values()];
+    return {
+      garagen: ids.length, mit_email: ids.filter(i => this.emails.has(i)).length,
+      fahrraeder: this.daten.fahrraeder.length, anhaenger: this.daten.anhaenger.length,
+      ungeprueft: ids.reduce((n, i) => n + this._ungeprueft(i), 0),
+      garagen_mit_ungeprueften: ids.filter(i => this._ungeprueft(i) > 0).length
+    };
+  }
+
+  async adminGaragen({ suche = '', nurUngeprueft = false, seite = 1, proSeite = 25 } = {}) {
+    let ids = [...this.garagen.values()].sort((a, b) => b - a);
+    const s = suche.toLowerCase();
+    if (s) ids = ids.filter(i => (this.namen.get(i) ?? '').toLowerCase().includes(s) || (this.emails.get(i) ?? '').includes(s) || String(i) === s);
+    if (nurUngeprueft) ids = ids.filter(i => this._ungeprueft(i) > 0);
+    return {
+      gesamt: ids.length, seite, proSeite,
+      garagen: ids.slice((seite - 1) * proSeite, seite * proSeite).map(i => ({
+        id: i, fahrer_name: this.namen.get(i) ?? null, email: this.emails.get(i) ?? null,
+        fahrraeder: this.daten.fahrraeder.filter(z => z.garage_id === i).length,
+        anhaenger: this.daten.anhaenger.filter(z => z.garage_id === i).length, ungeprueft: this._ungeprueft(i)
+      }))
+    };
+  }
+
+  async adminGarage(garageId) {
+    if (![...this.garagen.values()].includes(garageId)) return null;
+    const kopie = (z) => { const { garage_id, ...rest } = z; return { pruefnotiz: null, geprueft_am: null, ...rest }; }; // eslint-disable-line no-unused-vars
+    return {
+      id: garageId, fahrer_name: this.namen.get(garageId) ?? null, email: this.emails.get(garageId) ?? null,
+      fahrraeder: this.daten.fahrraeder.filter(z => z.garage_id === garageId).map(kopie),
+      anhaenger: this.daten.anhaenger.filter(z => z.garage_id === garageId).map(kopie),
+      gespann: this.gespanne.has(garageId) ? kopie(this.gespanne.get(garageId)) : null
+    };
+  }
+
+  async adminFahrerName(garageId, name) {
+    if (![...this.garagen.values()].includes(garageId)) return false;
+    this.namen.set(garageId, name);
+    return true;
+  }
+
+  async adminGaragePruefen(garageId, status) {
+    if (![...this.garagen.values()].includes(garageId)) return false;
+    for (const a of ['fahrraeder', 'anhaenger']) for (const z of this.daten[a]) if (z.garage_id === garageId) z.status = status;
+    const g = this.gespanne.get(garageId);
+    if (g) g.status = status;
+    return true;
+  }
+
+  async adminGarageLoeschen(garageId) {
+    if (![...this.garagen.values()].includes(garageId)) return false;
+    await this.garageLoeschen(garageId);
+    return true;
+  }
+
+  async adminEintragAendern(art, id, aenderung) {
+    const e = this._eintrag(art, id);
+    if (!e) return null;
+    if (aenderung.status !== undefined) { e.status = aenderung.status; e.geprueft_am = aenderung.status === 'geprueft' ? new Date().toISOString() : null; }
+    if (aenderung.pruefnotiz !== undefined) e.pruefnotiz = aenderung.pruefnotiz;
+    return { id: e.id, status: e.status, geprueft_am: e.geprueft_am ?? null, pruefnotiz: e.pruefnotiz ?? null };
+  }
+
+  async adminEintragLoeschen(art, id) {
+    const e = this._eintrag(art, id);
+    if (!e) return false;
+    if (art === 'gespanne') {
+      for (const [g, x] of this.gespanne) if (x === e) this.gespanne.delete(g);
+    } else {
+      this.daten[art].splice(this.daten[art].indexOf(e), 1);
+    }
+    return true;
   }
 
   async reihenfolgeSetzen(garageId, reihenfolge) {

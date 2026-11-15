@@ -138,6 +138,75 @@ test('Garage löschen entfernt auch die Links', opt, async () => {
   assert.equal(Number(z.n), 0);
 });
 
+test('Verwaltung: Übersicht, Liste mit Suche und Filter, Detail, Prüfen, Löschen', opt, async () => {
+  const kennung = `Verw${Date.now()}`;
+  const { id: a, token: ta } = await sp.garageAnlegen(`${kennung} Anja`);
+  const { id: b } = await sp.garageAnlegen(`${kennung} Bernd`);
+  const rad = await sp.anlegen(a, 'fahrraeder', werte('fahrraeder', { name: 'Rad', notiz: 'privat' }));
+  const wagen = await sp.anlegen(a, 'anhaenger', werte('anhaenger', { name: 'Wagen' }));
+  await sp.gespannSetzen(a, pruefeEingabe(GESPANN_FELDER, { fahrrad_id: rad.id, anhaenger_id: wagen.id, fahrer_gewicht_kg: 80 }).werte);
+
+  const u = await sp.adminUebersicht();
+  for (const k of ['garagen', 'mit_email', 'fahrraeder', 'anhaenger', 'ungeprueft', 'garagen_mit_ungeprueften']) assert.equal(typeof u[k], 'number', k);
+  assert.ok(u.garagen >= 2 && u.ungeprueft >= 3);
+
+  const liste = await sp.adminGaragen({ suche: kennung });
+  assert.equal(liste.gesamt, 2);
+  assert.equal(liste.garagen[0].id, b, 'neueste zuerst');
+  const eintragA = liste.garagen.find(g => g.id === a);
+  assert.deepEqual([eintragA.fahrraeder, eintragA.anhaenger, eintragA.ungeprueft], [1, 1, 3]);
+  assert.equal((await sp.adminGaragen({ suche: `${kennung} anja` })).gesamt, 1, 'Groß-/Kleinschreibung egal');
+  assert.equal((await sp.adminGaragen({ suche: String(a) })).garagen.some(g => g.id === a), true);
+  assert.equal((await sp.adminGaragen({ suche: kennung, nurUngeprueft: true })).gesamt, 1);
+  for (const sonder of ['%', '_', '\\', "' OR 1=1 --"]) assert.equal((await sp.adminGaragen({ suche: sonder + kennung })).gesamt, 0, sonder);
+  assert.equal((await sp.adminGaragen({ suche: kennung, proSeite: 1, seite: 2 })).garagen.length, 1);
+
+  const d = await sp.adminGarage(a);
+  assert.equal(d.fahrraeder[0].pruefnotiz, null);
+  assert.equal(d.fahrraeder[0].notiz, 'privat');
+  assert.equal(d.gespann.fahrer_gewicht_kg, 80);
+  assert.equal(await sp.adminGarage(999999999), null);
+
+  // Prüfen und Notiz
+  const geprueft = await sp.adminEintragAendern('fahrraeder', rad.id, { status: 'geprueft', pruefnotiz: 'gesehen' });
+  assert.equal(geprueft.status, 'geprueft');
+  assert.ok(geprueft.geprueft_am);
+  assert.equal(geprueft.pruefnotiz, 'gesehen');
+  assert.equal((await sp.adminEintragAendern('fahrraeder', rad.id, { pruefnotiz: null })).pruefnotiz, null);
+  assert.equal((await sp.adminEintragAendern('fahrraeder', rad.id, { pruefnotiz: null })).status, 'geprueft', 'gleiche Werte nochmal setzen geht');
+  assert.equal(await sp.adminEintragAendern('fahrraeder', 999999999, { status: 'geprueft' }), null);
+  assert.equal(await sp.adminEintragAendern('gespanne', 999999999, { status: 'geprueft' }), null);
+
+  // Der Nutzer sieht weder Notiz noch Prüfdatum, und seine Änderung setzt zurück
+  await sp.adminEintragAendern('fahrraeder', rad.id, { pruefnotiz: 'nur intern' });
+  const sichtbar = (await sp.alles(a)).fahrraeder[0];
+  assert.equal(sichtbar.status, 'geprueft');
+  assert.ok(!('pruefnotiz' in sichtbar) && !('geprueft_am' in sichtbar));
+  const zurueck = await sp.aendern(a, 'fahrraeder', rad.id, werte('fahrraeder', { name: 'Rad 2' }));
+  assert.equal(zurueck.status, 'ungeprueft');
+  assert.equal((await sp.adminGarage(a)).fahrraeder[0].geprueft_am, null);
+
+  // Ganze Garage
+  assert.equal(await sp.adminGaragePruefen(a, 'geprueft'), true);
+  const alle = await sp.adminGarage(a);
+  assert.deepEqual([alle.fahrraeder[0].status, alle.anhaenger[0].status, alle.gespann.status], ['geprueft', 'geprueft', 'geprueft']);
+  assert.ok(alle.gespann.geprueft_am);
+  assert.equal((await sp.adminGaragen({ suche: `${kennung} anja`, nurUngeprueft: true })).gesamt, 0);
+  assert.equal(await sp.adminGaragePruefen(999999999, 'geprueft'), false);
+
+  // Namen, Einträge, Garage
+  assert.equal(await sp.adminFahrerName(a, `${kennung} Anja K.`), true);
+  assert.equal((await sp.adminGarage(a)).fahrer_name, `${kennung} Anja K.`);
+  assert.equal(await sp.adminEintragLoeschen('anhaenger', wagen.id), true);
+  assert.equal(await sp.adminEintragLoeschen('anhaenger', wagen.id), false);
+  assert.equal((await sp.adminGarage(a)).gespann.anhaenger_id, null, 'Platz im Gespann wird leer');
+  assert.equal(await sp.adminEintragLoeschen('gespanne', alle.gespann.id), true);
+  assert.equal(await sp.adminGarageLoeschen(a), true);
+  assert.equal(await sp.adminGarageLoeschen(a), false);
+  assert.equal(await sp.garageFinden(ta), null);
+  await sp.adminGarageLoeschen(b);
+});
+
 test('Garage: Schlüssel wird nur als Hash gespeichert und wiedergefunden', opt, async () => {
   const { id, token } = await sp.garageAnlegen();
   const [[z]] = await pool.query('SELECT token_hash FROM garagen WHERE id = ?', [id]);

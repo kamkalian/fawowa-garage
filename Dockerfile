@@ -6,7 +6,7 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 
-COPY vite.config.js index.html ./
+COPY vite.config.js index.html admin.html ./
 COPY public/ ./public/
 COPY src/ ./src/
 # lib/ wird auch vom Browser-Code importiert (Felder, Gewicht)
