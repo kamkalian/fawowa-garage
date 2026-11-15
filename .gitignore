@@ -1,0 +1,19 @@
+# Abhängigkeiten und Build
+node_modules/
+dist/
+
+# Datenbank-Dateien, lokale Dateien und Schlüssel gehören nicht ins Repo
+/data/
+.env
+.env.*
+# Die Vorlage für die Umgebungsvariablen darf eingecheckt werden
+!.env.example
+
+npm-debug.log*
+
+# Editor und System
+*.swp
+*.swo
+.DS_Store
+*.pem
+.claude/

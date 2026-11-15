@@ -1,0 +1,16 @@
+<script>
+  // Selbst gezeichnete Icons im gemeinsamen Linienstil ("Feinstrich": 24 × 24, Strichstärke 1,5, runde Enden, currentColor).
+  const ICONS = {
+    'ui-moon': `<path d="M20 14.5A8.5 8.5 0 0 1 9.5 4 8.5 8.5 0 1 0 20 14.5z"/>`,
+    'ui-plus': `<path d="M12 5v14M5 12h14"/>`,
+    'ui-edit': `<path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4z"/><path d="M13.5 6.5l4 4"/>`,
+    'ui-trash': `<path d="M4 7h16"/><path d="M9 7V4.5h6V7"/><path d="M6.5 7l1 13h9l1-13"/>`,
+    'ui-copy': `<rect x="8.5" y="8.5" width="11" height="11" rx="2"/><path d="M15.5 8.5V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7.5a2 2 0 0 0 2 2h2.5"/>`
+  };
+
+  let { name = 'ui-plus', size = 16 } = $props();
+  let zeichnung = $derived(ICONS[name] ?? ICONS['ui-plus']);
+</script>
+
+<svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+  stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">{@html zeichnung}</svg>

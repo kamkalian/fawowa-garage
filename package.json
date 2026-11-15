@@ -1,0 +1,25 @@
+{
+  "name": "fawowa-garage",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -n api,web -c blue,green \"npm:dev:api\" \"npm:dev:web\"",
+    "dev:api": "node --watch server.js",
+    "dev:web": "npx vite --port 5175",
+    "build": "vite build",
+    "test": "node --test tests/",
+    "start": "NODE_ENV=production node server.js",
+    "dev:fake": "node scripts/dev-ohne-datenbank.js"
+  },
+  "dependencies": {
+    "express": "^4.21.0",
+    "mysql2": "^3.11.0"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^5.1.1",
+    "concurrently": "^10.0.7",
+    "svelte": "^5.57.3",
+    "vite": "^6.0.0"
+  }
+}

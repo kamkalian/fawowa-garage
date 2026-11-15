@@ -1,0 +1,83 @@
+# FaWoWa-Garage: Anwendung und MySQL. Die Anwendung läuft hinter dem Caddy-Container (siehe Materialtabelle: deploy/caddy)
+# im Netzwerk "caddy-net". Es wird absichtlich kein Port nach außen veröffentlicht: Docker würde die Firewall (ufw) umgehen.
+# Die Datenbank hängt nur im internen Netzwerk "intern" ohne Verbindung nach außen, sie ist nur für die Anwendung erreichbar.
+#
+# Nötig in der .env neben diesem Ordner: DB_PASSWORD (siehe .env.example).
+
+services:
+  garage:
+    build: .
+    image: fawowa-garage:latest
+    container_name: fawowa-garage
+    restart: unless-stopped
+    depends_on:
+      garage-db:
+        condition: service_healthy
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      - NODE_ENV=production
+      - PORT=3470
+      - DB_HOST=garage-db
+      - DB_NAME=garage
+      - DB_USER=garage
+      - DB_PASSWORD=${DB_PASSWORD:?DB_PASSWORD fehlt in der .env}
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - caddy-net
+      - intern
+
+  garage-db:
+    image: mysql:8.4
+    container_name: fawowa-garage-db
+    restart: unless-stopped
+    environment:
+      - MYSQL_DATABASE=garage
+      - MYSQL_USER=garage
+      - MYSQL_PASSWORD=${DB_PASSWORD:?DB_PASSWORD fehlt in der .env}
+      # Das Root-Passwort wird zufällig erzeugt und nirgends gebraucht; die Anwendung nutzt nur den Benutzer "garage"
+      - MYSQL_RANDOM_ROOT_PASSWORD=1
+    # Sparsam für einen kleinen Server (4 GB RAM, geteilt mit weiteren Anwendungen)
+    command:
+      - --performance-schema=OFF
+      - --innodb-buffer-pool-size=96M
+      - --max-connections=30
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --skip-name-resolve
+    volumes:
+      - ./data/mysql:/var/lib/mysql
+    healthcheck:
+      # Prüft über TCP; während der Einrichtung beim ersten Start lauscht MySQL nur auf dem Socket und gilt damit noch nicht als bereit
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u\"$$MYSQL_USER\" -p\"$$MYSQL_PASSWORD\" --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - intern
+
+networks:
+  caddy-net:
+    external: true
+  intern:
+    internal: true

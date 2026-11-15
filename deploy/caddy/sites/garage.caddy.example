@@ -1,0 +1,18 @@
+# Vorlage für die FaWoWa-Garage. Auf dem Server kopieren nach /srv/caddy/sites/garage.caddy
+# und die Adresse anpassen. Danach: docker exec <caddy-container> caddy reload --config /etc/caddy/Caddyfile
+# Testinstanz: eigene Subdomain, die nirgends verlinkt ist (der DNS-Eintrag muss auf den Server zeigen, Cloudflare: "Nur DNS").
+
+garage.example.com {
+	encode zstd gzip
+
+	header {
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy strict-origin-when-cross-origin
+		Strict-Transport-Security "max-age=31536000"
+		-Server
+	}
+
+	# Name des Containers (container_name in docker-compose.yml)
+	reverse_proxy fawowa-garage:3470
+}
