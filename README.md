@@ -8,7 +8,8 @@ Teil von fawowa-tools.de. Aufbau, Design und Betrieb folgen der [Materialdatenba
 und den Design-Regeln der Hauptseite (`design_rules.md`).
 
 **Stand: Phase 4** (Garage mit Stellplätzen und Gespann, E-Mail-Bestätigung, Verwaltungsbereich, Rechenmodell als reine Logik
-ohne Oberfläche, siehe [docs/RECHENMODELL.md](docs/RECHENMODELL.md)). Noch nicht enthalten: Routing, Karte (siehe unten).
+ohne Oberfläche, siehe [docs/RECHENMODELL.md](docs/RECHENMODELL.md); Routing-Test NRW bestanden, siehe
+[docs/ROUTING-TEST.md](docs/ROUTING-TEST.md)). Noch nicht enthalten: Routing im Betrieb, Karte (siehe unten).
 
 ## Wichtige Regeln
 
@@ -73,4 +74,4 @@ nur im internen Netz, Daten in `data/mysql`). Es wird kein Port nach außen ver�
 
 - Pflichtbausteine der Design-Regeln: „Projekt unterstützen“, Fußzeile, Impressum, Datenschutz (Hinweis auf gespeicherte Daten und Link-Schlüssel), Eintrag in `config/tools.json` der Hauptseite
 - `ADMIN_PASSWORD_HASH` sowie SMTP-Zugangsdaten und `PUBLIC_URL` in die Server-`.env` eintragen
-- Reichweiten-Planer: eigenes Routing (NRW), Karte mit Heatmap, Wetterabruf (Wind, Sonne); das Rechenmodell ist fertig
+- Reichweiten-Planer: Routing im Betrieb (Netz mit Rand auf den Server, Suche als Dienst), Karte mit Heatmap, Wetterabruf (Wind, Sonne); Rechenmodell und Routing-Test sind fertig

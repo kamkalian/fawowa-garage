@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="de"><head><meta charset="utf-8"><title>Reichweite NRW – Test</title>
+<style>
+  body{margin:0;background:#0a0a0b;color:#e4e4e7;font:14px system-ui,sans-serif}
+  header{padding:.6rem 1rem;border-bottom:1px solid #27272a;display:flex;gap:1rem;align-items:center;flex-wrap:wrap}
+  select,button{background:#1a1a1e;color:#e4e4e7;border:1px solid #27272a;padding:.3rem .5rem;border-radius:4px}
+  #info{color:#a1a1aa;font-size:12px}
+  canvas{display:block;margin:0 auto;max-width:100%}
+  .legende{display:flex;align-items:center;gap:.5rem;font-size:12px;color:#a1a1aa}
+  .balken{width:180px;height:10px;background:linear-gradient(90deg,#16a34a,#eab308,#dc2626)}
+</style></head><body>
+<header>
+  <label>Ergebnis <select id="wahl"></select></label>
+  <span class="legende">Energie vom Start: <span>0 Wh</span><span class="balken"></span><span id="max"></span></span>
+  <span id="info"></span>
+</header>
+<canvas id="c" width="1100" height="760"></canvas>
+<script>
+const ORTE = {Köln:[50.94,6.96],Düsseldorf:[51.22,6.79],Dortmund:[51.52,7.46],Essen:[51.45,7.01],Münster:[51.96,7.64],Bielefeld:[52.03,8.53],Aachen:[50.77,6.09],Bonn:[50.73,7.10],Wuppertal:[51.25,7.15],Paderborn:[51.71,8.74],Siegen:[50.88,8.02],Hamm:[51.68,7.81]};
+const c = document.getElementById('c'), g = c.getContext('2d');
+const wahl = document.getElementById('wahl');
+function farbe(t){ t=Math.min(1,Math.max(0,t)); const a=[22,163,74], b=[234,179,8], d=[220,38,38]; const [x,y,u]=t<.5?[a,b,t*2]:[b,d,(t-.5)*2]; return `rgb(${x.map((v,i)=>Math.round(v+(y[i]-v)*u)).join(',')})`; }
+async function laden(name){
+  const d = await (await fetch('/ergebnisse/'+name+'.json')).json();
+  const lat0=49.9, lat1=52.7, lon0=5.6, lon1=9.7, k=Math.cos(51.3*Math.PI/180);
+  const W=c.width, H=c.height; const sx=W/((lon1-lon0)*k), sy=H/(lat1-lat0), s=Math.min(sx,sy);
+  const X=lo=>(lo-lon0)*k*s, Y=la=>H-(la-lat0)*s;
+  g.fillStyle='#0a0a0b'; g.fillRect(0,0,W,H);
+  const z=d.zelle;
+  for(const [la,lo,w] of d.zellen){ g.fillStyle=farbe(w/d.budgetWh); g.fillRect(X(lo),Y(la+z),Math.ceil(z*k*s)+1,Math.ceil(z*s)+1); }
+  g.strokeStyle='#fff'; g.lineWidth=1.5; g.beginPath(); let erster=true;
+  for(const p of d.rand){ if(!p) continue; const x=X(p[1]), y=Y(p[0]); if(erster){g.moveTo(x,y);erster=false}else g.lineTo(x,y); } g.closePath(); g.stroke();
+  g.fillStyle='#e4e4e7'; g.font='12px system-ui';
+  for(const [n,[la,lo]] of Object.entries(ORTE)){ g.beginPath(); g.arc(X(lo),Y(la),3,0,7); g.fill(); g.fillText(n,X(lo)+6,Y(la)-4); }
+  g.fillStyle='#fff'; g.beginPath(); g.arc(X(d.start.lon),Y(d.start.lat),6,0,7); g.fill(); g.strokeStyle='#000'; g.stroke();
+  document.getElementById('max').textContent=Math.round(d.budgetWh)+' Wh';
+  document.getElementById('info').textContent=`${d.modus} · ${d.start.ort} · Fläche ${d.flaecheKm2} km² · weitester Punkt ${d.weitesteKm} km · ${d.erreichteKnoten} Knoten · Suche ${d.suchzeitMs.median} ms`;
+}
+(async()=>{ const l=await (await fetch('/liste')).json(); wahl.innerHTML=l.map(n=>`<option>${n}</option>`).join('');
+  wahl.onchange=()=>laden(wahl.value); const q=new URLSearchParams(location.search).get('e'); if(q) wahl.value=q; if(l.length) laden(wahl.value); })();
+</script></body></html>
