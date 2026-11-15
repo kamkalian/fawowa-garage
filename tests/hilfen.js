@@ -12,6 +12,7 @@ export class FakeSpeicher {
     this.garagen = new Map(); // hash -> id
     this.daten = { fahrraeder: [], anhaenger: [] }; // Zeilen mit garage_id
     this.gespanne = new Map(); // garage_id -> Gespann
+    this.namen = new Map(); // garage_id -> Name der Fahrerin oder des Fahrers
     this.naechsteId = 1;
     this.kaputt = false;
   }
@@ -19,10 +20,11 @@ export class FakeSpeicher {
   async ping() { if (this.kaputt) throw new Error('Datenbank aus'); }
   async anzahlGaragen() { return this.garagen.size; }
 
-  async garageAnlegen() {
+  async garageAnlegen(fahrerName = null) {
     const token = randomBytes(32).toString('base64url');
     const id = this.naechsteId++;
     this.garagen.set(hashToken(token), id);
+    this.namen.set(id, fahrerName);
     return { id, token };
   }
 
@@ -35,6 +37,7 @@ export class FakeSpeicher {
   async garageLoeschen(garageId) {
     for (const a of Object.keys(this.daten)) this.daten[a] = this.daten[a].filter(z => z.garage_id !== garageId);
     this.gespanne.delete(garageId);
+    this.namen.delete(garageId);
     for (const [h, id] of this.garagen) if (id === garageId) this.garagen.delete(h);
   }
 
@@ -44,7 +47,7 @@ export class FakeSpeicher {
   }
 
   async alles(garageId) {
-    const r = {};
+    const r = { fahrer_name: this.namen.get(garageId) ?? null };
     for (const a of Object.keys(this.daten)) r[a] = this.daten[a].filter(z => z.garage_id === garageId).sort((x, y) => x.sortierung - y.sortierung || x.id - y.id).map(z => this._sicht(z));
     r.gespann = this.gespanne.has(garageId) ? { ...this.gespanne.get(garageId) } : null;
     return r;
@@ -58,6 +61,11 @@ export class FakeSpeicher {
     const zeile = { id: this.naechsteId++, garage_id: garageId, sortierung, ...werte, status: 'ungeprueft' };
     liste.push(zeile);
     return this._sicht(zeile);
+  }
+
+  async fahrerNameSetzen(garageId, name) {
+    this.namen.set(garageId, name);
+    return name;
   }
 
   async reihenfolgeSetzen(garageId, reihenfolge) {

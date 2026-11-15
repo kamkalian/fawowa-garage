@@ -1,7 +1,8 @@
 <script>
   import { onMount } from 'svelte';
   import Icon from '../shared/Icon.svelte';
-  import { t, LANGS } from './lib/i18n.js';
+  import { FAHRER_NAME_FELD } from '../../lib/felder.js';
+  import { t, pick, LANGS } from './lib/i18n.js';
   import * as api from './lib/api.js';
   import Garage from './components/Garage.svelte';
 
@@ -10,6 +11,8 @@
   let token = $state(null);        // Schlüssel der Garage aus dem Teil der Adresse nach #
   let ungueltig = $state(false);   // Adresse hat einen Schlüssel, zu dem es keine Garage gibt
   let legeAn = $state(false);
+  let fahrerName = $state('');     // Eingabe beim Anlegen der Garage
+  let nameFehler = $state('');
   let toast = $state(null);        // { text, art }
   let toastTimer;
 
@@ -28,15 +31,22 @@
     toastTimer = setTimeout(() => (toast = null), 4000);
   }
 
-  async function anlegen() {
+  async function anlegen(e) {
+    e.preventDefault();
     legeAn = true;
+    nameFehler = '';
     try {
-      const { token: neu } = await api.garageAnlegen();
+      const { token: neu } = await api.garageAnlegen(fahrerName);
       history.pushState(null, '', `#g=${neu}`);
       leseHash();
-    } catch (e) {
-      const text = t(lang, e.code ? `e_${e.code}` : 'e_allgemein');
-      melde(text.startsWith('e_') ? t(lang, 'e_allgemein') : text, 'error');
+    } catch (err) {
+      const code = err.felder?.fahrer_name;
+      if (code) {
+        nameFehler = t(lang, `v_${code}`, FAHRER_NAME_FELD.max);
+      } else {
+        const text = t(lang, err.code ? `e_${err.code}` : 'e_allgemein');
+        melde(text.startsWith('e_') ? t(lang, 'e_allgemein') : text, 'error');
+      }
     } finally {
       legeAn = false;
     }
@@ -125,7 +135,13 @@
         <h2 id="intro-titel">{t(lang, 'introTitle')}</h2>
         <p class="text">{t(lang, 'intro')}</p>
         <p class="text">{t(lang, 'introPrivate')}</p>
-        <div><button class="btn btn-primary" disabled={legeAn} onclick={anlegen}>{legeAn ? t(lang, 'creating') : t(lang, 'create')}</button></div>
+        <form class="anlegen" onsubmit={anlegen} novalidate>
+          <label for="fahrer-name">{pick(FAHRER_NAME_FELD.label, lang)} *</label>
+          <input id="fahrer-name" class="input" type="text" maxlength={FAHRER_NAME_FELD.max} autocomplete="off"
+            aria-invalid={!!nameFehler} aria-describedby="fahrer-name-hinweis" bind:value={fahrerName} />
+          <p id="fahrer-name-hinweis" class="notiz" class:fehler={!!nameFehler}>{nameFehler || pick(FAHRER_NAME_FELD.hinweis, lang)}</p>
+          <div><button type="submit" class="btn btn-primary" disabled={legeAn}>{legeAn ? t(lang, 'creating') : t(lang, 'create')}</button></div>
+        </form>
         <p class="notiz">{t(lang, 'haveLink')}</p>
       </div>
     </section>
@@ -140,4 +156,6 @@
   .seite { padding-top: 1.5rem; padding-bottom: 2rem; }
   .start { max-width: 40rem; }
   .start .card-body { display: flex; flex-direction: column; gap: .75rem; }
+  .anlegen { display: flex; flex-direction: column; gap: .25rem; max-width: 22rem; }
+  .anlegen .notiz { min-height: 1.1rem; margin-bottom: .5rem; }
 </style>

@@ -28,7 +28,7 @@ async function anfrage(methode, pfad, { token, body } = {}) {
 }
 
 export const einstellungen = () => anfrage('GET', '/api/v1/einstellungen');
-export const garageAnlegen = () => anfrage('POST', '/api/v1/garagen');
+export const garageAnlegen = (fahrerName) => anfrage('POST', '/api/v1/garagen', { body: { fahrer_name: fahrerName } });
 export const garageLaden = (token) => anfrage('GET', '/api/v1/garage', { token });
 export const garageLoeschen = (token) => anfrage('DELETE', '/api/v1/garage', { token });
 export const eintragAnlegen = (token, art, werte) => anfrage('POST', `/api/v1/garage/${art}`, { token, body: werte });
@@ -36,3 +36,4 @@ export const eintragAendern = (token, art, id, werte) => anfrage('PUT', `/api/v1
 export const eintragLoeschen = (token, art, id) => anfrage('DELETE', `/api/v1/garage/${art}/${id}`, { token });
 export const gespannSetzen = (token, werte) => anfrage('PUT', '/api/v1/garage/gespann', { token, body: werte });
 export const reihenfolgeSetzen = (token, reihenfolge) => anfrage('PUT', '/api/v1/garage/reihenfolge', { token, body: { reihenfolge } });
+export const fahrerNameSetzen = (token, name) => anfrage('PUT', '/api/v1/garage/fahrer', { token, body: { fahrer_name: name } });

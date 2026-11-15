@@ -69,6 +69,14 @@ test('Migration 3: bestehende Einträge bekommen die Sortierung ihrer Nummer', o
   assert.equal(z[0].sortierung, z[0].id);
 });
 
+test('Fahrername: speichern, lesen, ändern; alte Garagen haben keinen', opt, async () => {
+  const { id } = await sp.garageAnlegen('Anja Ö');
+  assert.equal((await sp.alles(id)).fahrer_name, 'Anja Ö');
+  await sp.fahrerNameSetzen(id, 'Jo');
+  assert.equal((await sp.alles(id)).fahrer_name, 'Jo');
+  assert.equal((await sp.alles(altGarage)).fahrer_name, null);
+});
+
 test('Garage: Schlüssel wird nur als Hash gespeichert und wiedergefunden', opt, async () => {
   const { id, token } = await sp.garageAnlegen();
   const [[z]] = await pool.query('SELECT token_hash FROM garagen WHERE id = ?', [id]);
@@ -194,6 +202,6 @@ test('alles() liefert Fahrräder, Anhänger und Gespann ohne garage_id und ohne 
   const { id: g } = await sp.garageAnlegen();
   await sp.anlegen(g, 'fahrraeder', werte('fahrraeder', { name: 'Rad' }));
   const alles = await sp.alles(g);
-  assert.deepEqual(Object.keys(alles), ['fahrraeder', 'anhaenger', 'gespann']);
+  assert.deepEqual(Object.keys(alles), ['fahrer_name', 'fahrraeder', 'anhaenger', 'gespann']);
   assert.ok(!('garage_id' in alles.fahrraeder[0]) && !('pruefnotiz' in alles.fahrraeder[0]));
 });

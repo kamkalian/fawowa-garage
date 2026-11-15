@@ -14,8 +14,10 @@ const STRINGS = {
     // Startseite
     introTitle: 'Deine Garage',
     intro: 'Lege deine Fahrräder und Fahrradanhänger mit allen technischen Daten an und stelle daraus dein Gespann zusammen. Eine Anmeldung brauchst du nicht: Du bekommst einen persönlichen Link, mit dem du jederzeit zu deiner Garage zurückkommst.',
-    introPrivate: 'Deine Einträge sind privat. Der Betreiber kann sie einsehen und prüfen, andere Nutzer sehen sie nicht.',
+    introPrivate: 'Deine Einträge sind privat. Der Betreiber kann sie einsehen und prüfen, andere Nutzer sehen sie nicht. Das gilt auch für den Namen.',
     create: 'Garage anlegen',
+    editName: 'Namen ändern',
+    editNameTitle: 'Name der Fahrerin oder des Fahrers',
     creating: 'Lege an ...',
     haveLink: 'Du hast schon eine Garage? Öffne einfach deinen persönlichen Link.',
     // Garage
@@ -97,8 +99,10 @@ const STRINGS = {
     loadError: 'The data could not be loaded. Please try again later.',
     introTitle: 'Your garage',
     intro: 'Add your bikes and bike trailers with all their technical data and put your combination together. You do not need to sign in: you get a personal link that always brings you back to your garage.',
-    introPrivate: 'Your entries are private. The operator can see and review them, other users cannot.',
+    introPrivate: 'Your entries are private. The operator can see and review them, other users cannot. This includes the name.',
     create: 'Create garage',
+    editName: 'Change name',
+    editNameTitle: 'Name of the rider',
     creating: 'Creating ...',
     haveLink: 'Already have a garage? Just open your personal link.',
     linkTitle: 'Your personal link',

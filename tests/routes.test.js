@@ -8,8 +8,8 @@ let s;
 before(async () => { s = await starteTestServer(); });
 after(async () => { await s.schliessen(); });
 
-async function neueGarage() {
-  const r = await s.anfrage('POST', '/api/v1/garagen');
+async function neueGarage(name = 'Anja') {
+  const r = await s.anfrage('POST', '/api/v1/garagen', { body: { fahrer_name: name } });
   assert.equal(r.status, 201);
   assert.match(r.json.token, /^[A-Za-z0-9_-]{43}$/);
   return r.json.token;
@@ -52,7 +52,28 @@ test('Garage-Antworten werden nicht zwischengespeichert', async () => {
   const r = await s.anfrage('GET', '/api/v1/garage', { token });
   assert.equal(r.status, 200);
   assert.equal(r.headers.get('cache-control'), 'no-store');
-  assert.deepEqual(r.json, { fahrraeder: [], anhaenger: [], gespann: null });
+  assert.deepEqual(r.json, { fahrer_name: 'Anja', fahrraeder: [], anhaenger: [], gespann: null });
+});
+
+test('Garage anlegen braucht den Namen der Fahrerin oder des Fahrers', async () => {
+  for (const body of [undefined, {}, { fahrer_name: '' }, { fahrer_name: '   ' }, { fahrer_name: 5 }, { fahrer_name: 'x'.repeat(41) }]) {
+    const r = await s.anfrage('POST', '/api/v1/garagen', body === undefined ? {} : { body });
+    assert.equal(r.status, 400, JSON.stringify(body));
+    assert.equal(r.json.code, 'eingabe');
+    assert.ok(r.json.felder.fahrer_name);
+  }
+  const ok = await neueGarage('  Jo\u0007Müller ');
+  assert.equal((await s.anfrage('GET', '/api/v1/garage', { token: ok })).json.fahrer_name, 'Jo Müller');
+});
+
+test('Name der Fahrerin oder des Fahrers ändern', async () => {
+  const token = await neueGarage('Alt');
+  const r = await s.anfrage('PUT', '/api/v1/garage/fahrer', { token, body: { fahrer_name: 'Neu' } });
+  assert.equal(r.status, 200);
+  assert.deepEqual(r.json, { fahrer_name: 'Neu' });
+  assert.equal((await s.anfrage('GET', '/api/v1/garage', { token })).json.fahrer_name, 'Neu');
+  assert.equal((await s.anfrage('PUT', '/api/v1/garage/fahrer', { token, body: { fahrer_name: '' } })).status, 400);
+  assert.equal((await s.anfrage('PUT', '/api/v1/garage/fahrer', { body: { fahrer_name: 'X' } })).status, 401);
 });
 
 test('Fahrrad anlegen, ändern, löschen', async () => {
@@ -231,9 +252,9 @@ test('Unbekannte API-Adresse: 404 als JSON', async () => {
 test('Begrenzung: neue Garagen je Adresse, falsche Schlüssel je Adresse', async () => {
   const t = await starteTestServer({ app: { begrenzungen: { neu: new Begrenzung({ max: 2 }), falsch: new Begrenzung({ max: 3 }) } } });
   try {
-    assert.equal((await t.anfrage('POST', '/api/v1/garagen')).status, 201);
-    assert.equal((await t.anfrage('POST', '/api/v1/garagen')).status, 201);
-    const zuViele = await t.anfrage('POST', '/api/v1/garagen');
+    assert.equal((await t.anfrage('POST', '/api/v1/garagen', { body: { fahrer_name: 'A' } })).status, 201);
+    assert.equal((await t.anfrage('POST', '/api/v1/garagen', { body: { fahrer_name: 'A' } })).status, 201);
+    const zuViele = await t.anfrage('POST', '/api/v1/garagen', { body: { fahrer_name: 'A' } });
     assert.equal(zuViele.status, 429);
     assert.equal(zuViele.json.code, 'zu_viele');
 
@@ -247,8 +268,8 @@ test('Begrenzung: neue Garagen je Adresse, falsche Schlüssel je Adresse', async
 test('Obergrenze für Garagen insgesamt: 503', async () => {
   const t = await starteTestServer({ app: { env: { MAX_GARAGEN: '1' } } });
   try {
-    assert.equal((await t.anfrage('POST', '/api/v1/garagen')).status, 201);
-    const r = await t.anfrage('POST', '/api/v1/garagen');
+    assert.equal((await t.anfrage('POST', '/api/v1/garagen', { body: { fahrer_name: 'A' } })).status, 201);
+    const r = await t.anfrage('POST', '/api/v1/garagen', { body: { fahrer_name: 'A' } });
     assert.equal(r.status, 503);
     assert.equal(r.json.code, 'voll');
   } finally {

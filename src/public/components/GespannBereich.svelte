@@ -1,5 +1,5 @@
 <script>
-  import { ARTEN, GESPANN_FELDER } from '../../../lib/felder.js';
+  import { ARTEN, GESPANN_FELDER, FAHRER_NAME_FELD } from '../../../lib/felder.js';
   import { gesamtgewicht } from '../../../lib/gewicht.js';
   import Icon from '../../shared/Icon.svelte';
   import { t, pick, zahlText } from '../lib/i18n.js';
@@ -20,6 +20,9 @@
   let fehler = $state({});
   let waehlen = $state(null);   // 'anhaenger' | 'fahrraeder' | null: welches Auswahlfenster offen ist
   let laeuft = $state(false);
+  let nameFenster = $state(false);   // Fenster zum Ändern des Namens
+  let nameEingabe = $state('');
+  let nameFehler = $state('');
   let ueber = $state(null);     // Platz (art), über dem gerade gezogen wird
 
   const nachId = (liste, id) => liste.find(x => x.id === id) ?? null;
@@ -73,6 +76,26 @@
     if (darfAblegen(p)) await belegen(p, ziehend.id);
   }
 
+  function namenAendern() {
+    nameEingabe = daten.fahrer_name ?? '';
+    nameFehler = '';
+    nameFenster = true;
+  }
+
+  async function speichereName(e) {
+    e.preventDefault();
+    nameFehler = '';
+    try {
+      daten.fahrer_name = (await api.fahrerNameSetzen(token, nameEingabe)).fahrer_name;
+      nameFenster = false;
+      melde(t(lang, 'saved'));
+    } catch (err) {
+      const code = err.felder?.fahrer_name;
+      if (code) nameFehler = t(lang, `v_${code}`, FAHRER_NAME_FELD.max);
+      else melde(fehlerText(err), 'error');
+    }
+  }
+
   async function speichereGewichte(e) {
     e.preventDefault();
     laeuft = true;
@@ -118,9 +141,15 @@
         </div>
       </div>
 
-      <div class="platz card p-fahrer" role="group" aria-label={t(lang, 'slot_fahrer')}>
+      <div class="platz card p-fahrer" role="group" aria-label={daten.fahrer_name || t(lang, 'slot_fahrer')}>
         <div class="card-body">
-          <h3 class="platzname"><span class="symbol"><Icon name="veh-person" size={24} /></span>{t(lang, 'slot_fahrer')}</h3>
+          <h3 class="platzname">
+            <span class="symbol"><Icon name="veh-person" size={24} /></span>
+            <span class="fahrername">{daten.fahrer_name || t(lang, 'slot_fahrer')}</span>
+            <button type="button" class="btn btn-ghost btn-icon btn-sm" title={t(lang, 'editName')} aria-label={t(lang, 'editName')} onclick={namenAendern}>
+              <Icon name="ui-edit" size={14} />
+            </button>
+          </h3>
           <div class="fahrer">
             <span class="gross" aria-hidden="true"><Icon name="veh-person" size={72} /></span>
             <div class="feldspalte">
@@ -180,6 +209,21 @@
   <p id="g-h-{f.key}" class="notiz" class:fehler={!!fehler[f.key]}>{fehler[f.key] ? meldung(f) : f.hinweis ? pick(f.hinweis, lang) : ''}</p>
 {/snippet}
 
+{#if nameFenster}
+  <Fenster {lang} titel={t(lang, 'editNameTitle')} onclose={() => (nameFenster = false)}>
+    <form onsubmit={speichereName} novalidate>
+      <label for="name-aendern">{pick(FAHRER_NAME_FELD.label, lang)} *</label>
+      <input id="name-aendern" class="input" type="text" maxlength={FAHRER_NAME_FELD.max} autocomplete="off" aria-invalid={!!nameFehler}
+        aria-describedby="name-aendern-hinweis" bind:value={nameEingabe} />
+      <p id="name-aendern-hinweis" class="notiz" class:fehler={!!nameFehler}>{nameFehler || pick(FAHRER_NAME_FELD.hinweis, lang)}</p>
+      <div class="aktionen">
+        <button type="button" class="btn btn-ghost" onclick={() => (nameFenster = false)}>{t(lang, 'cancel')}</button>
+        <button type="submit" class="btn btn-primary">{t(lang, 'save')}</button>
+      </div>
+    </form>
+  </Fenster>
+{/if}
+
 {#if waehlen}
   {@const platz = plaetze.find(p => p.art === waehlen)}
   <Fenster {lang} titel={t(lang, `pick_${waehlen}`)} onclose={() => (waehlen = null)}>
@@ -208,6 +252,7 @@
   .platz .card-body { display: flex; flex-direction: column; gap: .75rem; height: 100%; padding: 1.25rem; }
   .platzname { display: flex; align-items: center; gap: .5rem; color: var(--fg); font-size: 1rem; font-weight: 600; }
   .symbol { display: inline-flex; color: var(--primary); }
+  .fahrername { overflow-wrap: anywhere; }
   .leer { flex: 1; min-height: 13rem; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .5rem; border: 1px dashed var(--border); border-radius: var(--radius); padding: 1rem; text-align: center; }
   .gross { display: inline-flex; color: var(--fg-muted); }
   .plus { width: 3.5rem; height: 3.5rem; justify-content: center; border-radius: 999px; padding: 0; }
@@ -227,7 +272,7 @@
   .wahl:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
   .wahl[aria-current="true"] { border-color: var(--primary); background: var(--primary-bg); }
   .name { font-weight: 600; overflow-wrap: anywhere; }
-  .aktionen { display: flex; justify-content: flex-end; margin-top: 1rem; }
+  .aktionen { display: flex; gap: .5rem; justify-content: flex-end; margin-top: 1rem; }
   @media (min-width: 640px) {
     .raster { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-areas: "anhaenger fahrer" "anhaenger fahrrad"; }
     .p-anhaenger { grid-area: anhaenger; }
