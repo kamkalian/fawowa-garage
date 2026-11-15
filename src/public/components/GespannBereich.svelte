@@ -83,10 +83,10 @@
   }
 </script>
 
-<section class="abschnitt" aria-labelledby="gespann-titel">
+<section class="abschnitt gespann" aria-labelledby="gespann-titel">
   <div class="abschnitt-kopf"><h2 id="gespann-titel">{t(lang, 'gespannTitle')}</h2></div>
 
-  <form class="abschnitt-koerper" onsubmit={speichereGewichte} novalidate>
+  <form onsubmit={speichereGewichte} novalidate>
     <div class="raster">
       <!-- Links der Anhänger (über beide Zeilen), rechts oben der Fahrer, rechts unten das Fahrrad -->
       <div class="platz card p-anhaenger" role="group" aria-label={t(lang, 'slot_anhaenger')}>
@@ -102,7 +102,7 @@
         <div class="card-body">
           <h3 class="platzname"><span class="symbol"><Icon name="veh-person" size={24} /></span>{t(lang, 'slot_fahrer')}</h3>
           <div class="fahrer">
-            <span class="gross" aria-hidden="true"><Icon name="veh-person" size={56} /></span>
+            <span class="gross" aria-hidden="true"><Icon name="veh-person" size={72} /></span>
             <div class="feldspalte">
               {@render zahlFeld(feld('fahrer_gewicht_kg'), 'fahrer')}
             </div>
@@ -139,7 +139,7 @@
     </EintragKarte>
   {:else}
     <div class="leer">
-      <span class="gross" aria-hidden="true"><Icon name={p.art === 'fahrraeder' ? 'veh-bike' : 'veh-trailer'} size={56} /></span>
+      <span class="gross" aria-hidden="true"><Icon name={p.art === 'fahrraeder' ? 'veh-bike' : 'veh-trailer'} size={72} /></span>
       <button type="button" class="btn btn-outline plus" disabled={!p.liste.length}
         aria-label={t(lang, `pick_${p.art}`)} title={t(lang, `pick_${p.art}`)} onclick={() => (waehlen = p.art)}>
         <Icon name="ui-plus" size={24} />
@@ -180,13 +180,14 @@
 
 <style>
   /* Schmal: Anhänger, Fahrer, Fahrrad untereinander. Ab 640 px: links der Anhänger über zwei Zeilen, rechts oben Fahrer, rechts unten Fahrrad */
-  .raster { display: grid; grid-template-columns: 1fr; gap: 1rem; }
-  .platz .card-body { display: flex; flex-direction: column; gap: .5rem; height: 100%; }
-  .platzname { display: flex; align-items: center; gap: .5rem; color: var(--fg-muted); font-weight: 500; }
+  .gespann :global(h2) { font-size: 1.5rem; }
+  .raster { display: grid; grid-template-columns: 1fr; gap: 1.25rem; }
+  .platz .card-body { display: flex; flex-direction: column; gap: .75rem; height: 100%; padding: 1.25rem; }
+  .platzname { display: flex; align-items: center; gap: .5rem; color: var(--fg); font-size: 1rem; font-weight: 600; }
   .symbol { display: inline-flex; color: var(--primary); }
-  .leer { flex: 1; min-height: 9rem; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .5rem; border: 1px dashed var(--border); border-radius: var(--radius); padding: 1rem; text-align: center; }
+  .leer { flex: 1; min-height: 13rem; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .5rem; border: 1px dashed var(--border); border-radius: var(--radius); padding: 1rem; text-align: center; }
   .gross { display: inline-flex; color: var(--fg-muted); }
-  .plus { width: 3rem; height: 3rem; justify-content: center; border-radius: 999px; padding: 0; }
+  .plus { width: 3.5rem; height: 3.5rem; justify-content: center; border-radius: 999px; padding: 0; }
   .fahrer { display: flex; align-items: center; gap: 1rem; }
   .feldspalte { flex: 1; min-width: 0; }
   .gewicht { margin-top: auto; }

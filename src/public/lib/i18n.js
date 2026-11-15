@@ -21,6 +21,7 @@ const STRINGS = {
     // Garage
     linkTitle: 'Dein persönlicher Link',
     linkText: 'Wer diesen Link hat, kann deine Garage ansehen und ändern. Speichere ihn als Lesezeichen oder kopiere ihn an einen sicheren Ort. Verlierst du ihn, kommst du nicht mehr an deine Einträge.',
+    linkInfo: 'Hinweis zum persönlichen Link',
     copy: 'Link kopieren',
     copied: 'Kopiert',
     linkInvalidTitle: 'Dieser Link gilt nicht (mehr)',
@@ -102,6 +103,7 @@ const STRINGS = {
     haveLink: 'Already have a garage? Just open your personal link.',
     linkTitle: 'Your personal link',
     linkText: 'Anyone with this link can view and change your garage. Bookmark it or copy it to a safe place. If you lose it, you cannot get back to your entries.',
+    linkInfo: 'About the personal link',
     copy: 'Copy link',
     copied: 'Copied',
     linkInvalidTitle: 'This link is not valid (any more)',

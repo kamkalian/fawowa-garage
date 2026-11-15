@@ -19,6 +19,7 @@
   let loeschen = $state(null);    // { art, eintrag } oder null
   let garageLoeschen = $state(false);
   let kopiert = $state(false);
+  let infoOffen = $state(false); // Hinweis zum Link: bei Hover und Fokus sichtbar, per Klick festgehalten
   let laeuft = $state(false);
 
   const link = $derived(`${location.origin}/#g=${token}`);
@@ -89,20 +90,28 @@
   }
 </script>
 
+<!-- Esc und Klick daneben schließen den festgehaltenen Hinweis -->
+<svelte:window onkeydown={(e) => { if (e.key === 'Escape') infoOffen = false; }}
+  onclick={(e) => { if (infoOffen && !e.target.closest?.('.info')) infoOffen = false; }} />
+
 {#if status === 'laden'}
   <p class="muted">{t(lang, 'loading')}</p>
 {:else if status === 'fehler'}
   <p class="fehler" role="alert">{t(lang, 'loadError')}</p>
 {:else}
-  <section class="card linkkarte" aria-labelledby="link-titel">
-    <div class="card-body">
-      <h2 id="link-titel">{t(lang, 'linkTitle')}</h2>
-      <p class="text">{t(lang, 'linkText')}</p>
-      <div class="linkzeile">
-        <input id="garage-link" class="input" type="text" readonly value={link} aria-label={t(lang, 'linkTitle')} onfocus={(e) => e.currentTarget.select()} />
-        <button type="button" class="btn btn-outline" onclick={kopieren}><Icon name="ui-copy" size={14} /> {kopiert ? t(lang, 'copied') : t(lang, 'copy')}</button>
-      </div>
+  <section class="link" aria-label={t(lang, 'linkTitle')}>
+    <div class="linkkopf">
+      <label for="garage-link">{t(lang, 'linkTitle')}</label>
+      <span class="info">
+        <button type="button" class="infoknopf" aria-label={t(lang, 'linkInfo')} aria-expanded={infoOffen} aria-describedby="link-info"
+          onclick={() => (infoOffen = !infoOffen)}>
+          <Icon name="ui-info" size={16} />
+        </button>
+        <span id="link-info" role="tooltip" class="tip" class:offen={infoOffen}>{t(lang, 'linkText')}</span>
+      </span>
     </div>
+    <input id="garage-link" class="input" type="text" readonly value={link} onfocus={(e) => e.currentTarget.select()} />
+    <button type="button" class="btn btn-outline btn-sm" onclick={kopieren}><Icon name="ui-copy" size={14} /> {kopiert ? t(lang, 'copied') : t(lang, 'copy')}</button>
   </section>
 
   <GespannBereich {lang} {token} {daten} {melde} />
@@ -119,7 +128,7 @@
         </button>
       </div>
 
-      <div class="abschnitt-koerper">
+      <div>
         {#if !daten[art].length}
           <p class="muted">{t(lang, `empty_${art}`)}</p>
         {:else}
@@ -163,10 +172,24 @@
 {/if}
 
 <style>
-  .linkkarte { margin-bottom: 2rem; }
-  .linkkarte .card-body { display: flex; flex-direction: column; gap: .5rem; }
-  .linkzeile { display: flex; gap: .5rem; flex-wrap: wrap; }
-  .linkzeile .input { flex: 1; min-width: 12rem; font-family: ui-monospace, monospace; }
+  /* Persönlicher Link: eine schmale Zeile, die Erklärung steht hinter dem i-Symbol */
+  .link { position: relative; display: flex; align-items: center; gap: .5rem .75rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
+  .linkkopf { display: flex; align-items: center; gap: .25rem; }
+  .linkkopf label { margin: 0; white-space: nowrap; }
+  .link .input { flex: 1; min-width: 12rem; font-family: ui-monospace, monospace; }
+  .info { display: inline-flex; }
+  .infoknopf {
+    display: inline-flex; align-items: center; justify-content: center; padding: .125rem; background: transparent; border: none;
+    border-radius: 999px; color: var(--fg-muted); cursor: pointer; transition: color .15s;
+  }
+  .infoknopf:hover, .infoknopf[aria-expanded="true"] { color: var(--primary); }
+  .infoknopf:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+  .tip {
+    display: none; position: absolute; top: calc(100% + .375rem); left: 0; z-index: 30; width: min(22rem, 100%);
+    padding: .75rem; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
+    box-shadow: 0 4px 12px rgba(0,0,0,.3); font-size: .8125rem; line-height: 1.5; color: var(--fg-muted);
+  }
+  .info:hover .tip, .info:focus-within .tip, .tip.offen { display: block; }
   .symbol { display: inline-flex; color: var(--primary); }
   .anzahl { font-size: .8125rem; font-weight: 400; color: var(--fg-muted); margin-left: .5rem; }
   .liste { display: grid; grid-template-columns: 1fr; gap: 1rem; }

@@ -9,6 +9,7 @@
     'veh-person': `<circle cx="12" cy="7.5" r="3.5"/><path d="M5 21v-2a5 5 0 0 1 5-5h4a5 5 0 0 1 5 5v2"/>`,
     'veh-bike': `<circle cx="6" cy="16.5" r="3.5"/><circle cx="18" cy="16.5" r="3.5"/><path d="M6 16.5h5l4.5-8h-6L11 16.5"/><path d="M15.5 8.5l2.5 8"/><path d="M14 6.5h3"/><path d="M8 7h3"/><path d="M9.5 8.5V7"/>`,
     'veh-trailer': `<g transform="matrix(-1 0 0 1 24 0)"><path d="M11 14H8a1.5 1.5 0 0 1-1.5-1.5V8.5A2.5 2.5 0 0 1 9 6h10a2.5 2.5 0 0 1 2.5 2.5v4A1.5 1.5 0 0 1 20 14h-3"/><circle cx="14" cy="14.5" r="3"/><path d="M6.5 11H2.5"/></g>`,
+    'ui-info': `<circle cx="12" cy="12" r="9"/><path d="M12 11v5.5"/><path d="M12 7.5v.01"/>`,
     'ui-copy': `<rect x="8.5" y="8.5" width="11" height="11" rx="2"/><path d="M15.5 8.5V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7.5a2 2 0 0 0 2 2h2.5"/>`
   };
 
