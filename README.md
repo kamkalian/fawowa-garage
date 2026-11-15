@@ -7,8 +7,8 @@ Radgrößen, Gewichte, Solar, Zusatzakku ...) und stellen daraus Gespanne zusamm
 Teil von fawowa-tools.de. Aufbau, Design und Betrieb folgen der [Materialdatenbank](https://github.com/kamkalian/fawowa-material-table)
 und den Design-Regeln der Hauptseite (`design_rules.md`).
 
-**Stand: Phase 3** (Garage mit Stellplätzen und Gespann, E-Mail-Bestätigung, Verwaltungsbereich). Noch nicht enthalten:
-Rechenmodell, Karte (siehe unten).
+**Stand: Phase 4** (Garage mit Stellplätzen und Gespann, E-Mail-Bestätigung, Verwaltungsbereich, Rechenmodell als reine Logik
+ohne Oberfläche, siehe [docs/RECHENMODELL.md](docs/RECHENMODELL.md)). Noch nicht enthalten: Routing, Karte (siehe unten).
 
 ## Wichtige Regeln
 
@@ -73,4 +73,4 @@ nur im internen Netz, Daten in `data/mysql`). Es wird kein Port nach außen ver�
 
 - Pflichtbausteine der Design-Regeln: „Projekt unterstützen“, Fußzeile, Impressum, Datenschutz (Hinweis auf gespeicherte Daten und Link-Schlüssel), Eintrag in `config/tools.json` der Hauptseite
 - `ADMIN_PASSWORD_HASH` sowie SMTP-Zugangsdaten und `PUBLIC_URL` in die Server-`.env` eintragen
-- Reichweiten-Planer: Rechenmodell, eigenes Routing (NRW), Karte, Wind
+- Reichweiten-Planer: eigenes Routing (NRW), Karte mit Heatmap, Wetterabruf (Wind, Sonne); das Rechenmodell ist fertig
