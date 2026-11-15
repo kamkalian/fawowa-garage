@@ -53,8 +53,8 @@ nur im internen Netz, Daten in `data/mysql`). Es wird kein Port nach außen ver�
 2. Mit `deploy\deploy.ps1` ausliefern (wie bei den anderen Anwendungen).
 3. `deploy/caddy/sites/garage.caddy.example` nach `/srv/caddy/sites/garage.caddy` kopieren, Adresse eintragen, Caddy neu laden.
    Der DNS-Eintrag der Subdomain muss auf den Server zeigen.
-4. Den SQL-Test einmal auf dem Server laufen lassen (nach dem Start): `docker compose exec garage-db mysql -u garage -p -e "CREATE DATABASE IF NOT EXISTS garage_test"`
-   braucht Rechte, die der Benutzer `garage` nicht hat; einfacher gegen die Hauptdatenbank mit einem Wegwerf-Container testen.
+4. Den SQL-Test ohne lokales MySQL ausführen: `sh scripts/sql-test.sh` (braucht nur Docker, startet eine Wegwerf-MySQL und räumt auf;
+   die echte Datenbank bleibt unberührt).
 
 ## Noch offen bis zum öffentlichen Start
 
