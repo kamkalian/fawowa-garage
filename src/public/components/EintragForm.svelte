@@ -6,13 +6,13 @@
 
   // Formular für Fahrrad, Anhänger und Gespann; die Felder kommen aus lib/felder.js.
   // onsave(werte) legt an oder ändert und wirft bei Fehlern einen ApiFehler.
-  let { lang, art, eintrag = null, daten, onsave, onclose } = $props();
+  let { lang, art, eintrag = null, onsave, onclose } = $props();
 
   // Das Formular wird für genau einen Eintrag geöffnet und danach geschlossen: Art und Anfangswerte werden nur einmal gelesen
   // svelte-ignore state_referenced_locally
   const cfg = ARTEN[art];
   // svelte-ignore state_referenced_locally
-  const werte = $state(Object.fromEntries(cfg.felder.map(f => [f.key, eintrag?.[f.key] ?? (f.typ === 'zahl' || f.typ === 'ganzzahl' || f.typ === 'verweis' ? null : '')])));
+  const werte = $state(Object.fromEntries(cfg.felder.map(f => [f.key, eintrag?.[f.key] ?? (f.typ === 'zahl' || f.typ === 'ganzzahl' ? null : '')])));
   let fehler = $state({});
   let allgemein = $state('');
   let laeuft = $state(false);
@@ -24,8 +24,6 @@
     if (!g) gruppen.push(g = { key: f.gruppe, felder: [] });
     g.felder.push(f);
   }
-
-  const optionenFuer = (f) => (daten[f.verweis] ?? []);
 
   function fehlerText(f) {
     const code = fehler[f.key];
@@ -58,7 +56,7 @@
         <legend>{pick(GRUPPEN[g.key], lang)}</legend>
         <div class="raster">
           {#each g.felder as f (f.key)}
-            <div class="feld" class:voll={f.typ === 'langtext' || f.typ === 'verweis' || f.key === 'name'}>
+            <div class="feld" class:voll={f.typ === 'langtext' || f.key === 'name'}>
               <label for="f-{f.key}">{pick(f.label, lang) + (f.einheit ? ` (${f.einheit})` : '') + (f.pflicht ? ' *' : '')}</label>
               {#if f.typ === 'text'}
                 <input id="f-{f.key}" class="input" type="text" maxlength={f.max} aria-invalid={!!fehler[f.key]} aria-describedby="h-{f.key}" bind:value={werte[f.key]} />
@@ -71,11 +69,6 @@
                 <select id="f-{f.key}" class="input" aria-invalid={!!fehler[f.key]} aria-describedby="h-{f.key}" bind:value={werte[f.key]}>
                   <option value="">–</option>
                   {#each f.optionen as o (o.wert)}<option value={o.wert}>{pick(o, lang)}</option>{/each}
-                </select>
-              {:else if f.typ === 'verweis'}
-                <select id="f-{f.key}" class="input" aria-invalid={!!fehler[f.key]} aria-describedby="h-{f.key}" bind:value={werte[f.key]}>
-                  <option value={null}>{t(lang, 'choose')}</option>
-                  {#each optionenFuer(f) as o (o.id)}<option value={o.id}>{o.name}</option>{/each}
                 </select>
               {/if}
               <p id="h-{f.key}" class="notiz" class:fehler={!!fehler[f.key]}>{fehler[f.key] ? fehlerText(f) : f.hinweis ? pick(f.hinweis, lang) : ''}</p>

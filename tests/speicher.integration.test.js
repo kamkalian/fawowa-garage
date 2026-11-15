@@ -5,15 +5,17 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { erstellePool } from '../lib/db.js';
-import { migriere } from '../lib/migrationen.js';
+import { migriere, MIGRATIONEN } from '../lib/migrationen.js';
 import { Speicher } from '../lib/speicher.js';
-import { ARTEN, pruefeEingabe } from '../lib/felder.js';
+import { ARTEN, GESPANN_FELDER, pruefeEingabe } from '../lib/felder.js';
 
 const aktiv = !!process.env.TEST_DB_HOST;
 const opt = { skip: aktiv ? false : 'TEST_DB_HOST nicht gesetzt' };
 
 let pool;
 let sp;
+
+let altGarage;
 
 before(async () => {
   if (!aktiv) return;
@@ -24,6 +26,17 @@ before(async () => {
   await pool.query('SET FOREIGN_KEY_CHECKS = 0');
   for (const t of ['gespanne', 'anhaenger', 'fahrraeder', 'garagen', 'schema_version']) await pool.query(`DROP TABLE IF EXISTS ${t}`);
   await pool.query('SET FOREIGN_KEY_CHECKS = 1');
+
+  // Stand der ersten Auslieferung (nur Migration 1) mit mehreren Gespannen in einer Garage: Migration 2 muss damit zurechtkommen
+  await migriere(pool, MIGRATIONEN.slice(0, 1), () => {});
+  const [g] = await pool.query("INSERT INTO garagen (token_hash) VALUES ('alt')");
+  altGarage = g.insertId;
+  const [r] = await pool.query('INSERT INTO fahrraeder (garage_id, `name`) VALUES (?, ?)', [altGarage, 'Altes Rad']);
+  const [w] = await pool.query('INSERT INTO anhaenger (garage_id, `name`) VALUES (?, ?)', [altGarage, 'Alter Wagen']);
+  for (const name of ['Erstes', 'Zweites']) {
+    await pool.query('INSERT INTO gespanne (garage_id, `name`, fahrrad_id, anhaenger_id) VALUES (?, ?, ?, ?)', [altGarage, name, r.insertId, w.insertId]);
+  }
+
   await migriere(pool, undefined, () => {});
   sp = new Speicher(pool);
 });
@@ -37,6 +50,18 @@ const werte = (art, eingabe) => {
 
 test('Migration lässt sich wiederholen', opt, async () => {
   await migriere(pool, undefined, () => {});
+});
+
+test('Migration 2 behält von mehreren alten Gespannen eines und lässt Plätze leer werden', opt, async () => {
+  const [z] = await pool.query('SELECT `name`, fahrrad_id FROM gespanne WHERE garage_id = ?', [altGarage]);
+  assert.equal(z.length, 1);
+  assert.equal(z[0].name, 'Erstes');
+  await pool.query('DELETE FROM fahrraeder WHERE garage_id = ?', [altGarage]);
+  const [nach] = await pool.query('SELECT fahrrad_id, anhaenger_id FROM gespanne WHERE garage_id = ?', [altGarage]);
+  assert.equal(nach[0].fahrrad_id, null, 'Platz ist leer, das Gespann bleibt');
+  assert.notEqual(nach[0].anhaenger_id, null);
+  const [[v]] = await pool.query('SELECT MAX(version) AS v FROM schema_version');
+  assert.equal(v.v, MIGRATIONEN.length);
 });
 
 test('Garage: Schlüssel wird nur als Hash gespeichert und wiedergefunden', opt, async () => {
@@ -78,21 +103,45 @@ test('Sonderzeichen und Umlaute bleiben erhalten, SQL-Zeichen sind harmlos', opt
   assert.equal(await sp.anzahlGaragen() > 0, true);
 });
 
-test('Gespann: fremde Verweise abgelehnt, Löschen benutzter Einträge gesperrt', opt, async () => {
+test('Gespann: fremde Verweise abgelehnt, leere Plätze erlaubt, ein Gespann je Garage', opt, async () => {
   const { id: a } = await sp.garageAnlegen();
   const { id: b } = await sp.garageAnlegen();
   const rad = await sp.anlegen(a, 'fahrraeder', werte('fahrraeder', { name: 'Rad' }));
   const wagen = await sp.anlegen(a, 'anhaenger', werte('anhaenger', { name: 'Wagen' }));
   const fremd = await sp.anlegen(b, 'fahrraeder', werte('fahrraeder', { name: 'Fremd' }));
+  const gw = (eingabe) => { const r = pruefeEingabe(GESPANN_FELDER, eingabe); assert.equal(r.fehler, null); return r.werte; };
 
-  await assert.rejects(sp.anlegen(a, 'gespanne', werte('gespanne', { name: 'G', fahrrad_id: fremd.id, anhaenger_id: wagen.id })), { status: 400 });
-  const g = await sp.anlegen(a, 'gespanne', werte('gespanne', { name: 'G', fahrrad_id: rad.id, anhaenger_id: wagen.id, fahrer_gewicht_kg: 80 }));
-  assert.equal(g.fahrer_gewicht_kg, 80);
+  assert.equal((await sp.alles(a)).gespann, null);
+  await assert.rejects(sp.gespannSetzen(a, gw({ fahrrad_id: fremd.id, anhaenger_id: wagen.id })), { status: 400 });
 
-  await assert.rejects(sp.loeschen(a, 'fahrraeder', rad.id), { status: 409, code: 'verwendet' });
-  await assert.rejects(sp.loeschen(a, 'anhaenger', wagen.id), { status: 409, code: 'verwendet' });
-  await sp.loeschen(a, 'gespanne', g.id);
+  const halb = await sp.gespannSetzen(a, gw({ anhaenger_id: wagen.id }));
+  assert.equal(halb.fahrrad_id, null);
+  assert.equal(halb.anhaenger_id, wagen.id);
+
+  const voll = await sp.gespannSetzen(a, gw({ fahrrad_id: rad.id, anhaenger_id: wagen.id, fahrer_gewicht_kg: 80, gepaeck_kg: 12.5 }));
+  assert.equal(voll.id, halb.id);
+  assert.equal(voll.fahrer_gewicht_kg, 80);
+  assert.equal(voll.status, 'ungeprueft');
+  const [[n]] = await pool.query('SELECT COUNT(*) AS n FROM gespanne WHERE garage_id = ?', [a]);
+  assert.equal(Number(n.n), 1);
+
+  // Ein Fahrrad löschen leert nur den Platz
   assert.equal(await sp.loeschen(a, 'fahrraeder', rad.id), true);
+  const danach = (await sp.alles(a)).gespann;
+  assert.equal(danach.fahrrad_id, null);
+  assert.equal(danach.anhaenger_id, wagen.id);
+  assert.equal(danach.fahrer_gewicht_kg, 80);
+});
+
+test('Gespann wird als ungeprüft zurückgesetzt, wenn es geändert wird', opt, async () => {
+  const { id: a } = await sp.garageAnlegen();
+  const gw = (eingabe) => pruefeEingabe(GESPANN_FELDER, eingabe).werte;
+  await sp.gespannSetzen(a, gw({ fahrer_gewicht_kg: 70 }));
+  await pool.query("UPDATE gespanne SET status = 'geprueft', geprueft_am = UTC_TIMESTAMP() WHERE garage_id = ?", [a]);
+  const neu = await sp.gespannSetzen(a, gw({ fahrer_gewicht_kg: 71 }));
+  assert.equal(neu.status, 'ungeprueft');
+  const [[z]] = await pool.query('SELECT geprueft_am FROM gespanne WHERE garage_id = ?', [a]);
+  assert.equal(z.geprueft_am, null);
 });
 
 test('Höchstzahl wird eingehalten', opt, async () => {
@@ -101,11 +150,11 @@ test('Höchstzahl wird eingehalten', opt, async () => {
   await assert.rejects(sp.anlegen(g, 'anhaenger', werte('anhaenger', { name: 'zu viel' })), { status: 409, code: 'limit' });
 });
 
-test('Garage löschen entfernt alle Einträge einschließlich benutzter', opt, async () => {
+test('Garage löschen entfernt alle Einträge einschließlich Gespann', opt, async () => {
   const { id: g, token } = await sp.garageAnlegen();
   const rad = await sp.anlegen(g, 'fahrraeder', werte('fahrraeder', { name: 'Rad' }));
   const wagen = await sp.anlegen(g, 'anhaenger', werte('anhaenger', { name: 'Wagen' }));
-  await sp.anlegen(g, 'gespanne', werte('gespanne', { name: 'G', fahrrad_id: rad.id, anhaenger_id: wagen.id }));
+  await sp.gespannSetzen(g, pruefeEingabe(GESPANN_FELDER, { fahrrad_id: rad.id, anhaenger_id: wagen.id }).werte);
   await sp.garageLoeschen(g);
   assert.equal(await sp.garageFinden(token), null);
   for (const t of ['fahrraeder', 'anhaenger', 'gespanne']) {
@@ -114,10 +163,10 @@ test('Garage löschen entfernt alle Einträge einschließlich benutzter', opt, a
   }
 });
 
-test('alles() liefert die drei Listen ohne garage_id und ohne Prüfnotiz', opt, async () => {
+test('alles() liefert Fahrräder, Anhänger und Gespann ohne garage_id und ohne Prüfnotiz', opt, async () => {
   const { id: g } = await sp.garageAnlegen();
   await sp.anlegen(g, 'fahrraeder', werte('fahrraeder', { name: 'Rad' }));
   const alles = await sp.alles(g);
-  assert.deepEqual(Object.keys(alles), ['fahrraeder', 'anhaenger', 'gespanne']);
+  assert.deepEqual(Object.keys(alles), ['fahrraeder', 'anhaenger', 'gespann']);
   assert.ok(!('garage_id' in alles.fahrraeder[0]) && !('pruefnotiz' in alles.fahrraeder[0]));
 });

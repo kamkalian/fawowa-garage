@@ -2,19 +2,19 @@
   import { onMount } from 'svelte';
   import { ARTEN } from '../../../lib/felder.js';
   import Icon from '../../shared/Icon.svelte';
-  import { t, pick } from '../lib/i18n.js';
+  import { t } from '../lib/i18n.js';
   import * as api from '../lib/api.js';
   import EintragForm from './EintragForm.svelte';
   import EintragKarte from './EintragKarte.svelte';
   import Fenster from './Fenster.svelte';
+  import GespannBereich from './GespannBereich.svelte';
 
-  // Die Garage eines Nutzers: Fahrräder, Anhänger und Gespanne
+  // Die Garage eines Nutzers auf einer Seite: Gespann, darunter die Fahrräder, darunter die Anhänger
   let { lang, token, melde, onungueltig, ongeloescht } = $props();
 
-  const TABS = ['fahrraeder', 'anhaenger', 'gespanne'];
+  const ARTEN_LISTE = ['fahrraeder', 'anhaenger'];
   let status = $state('laden'); // laden | bereit | fehler
-  let daten = $state({ fahrraeder: [], anhaenger: [], gespanne: [] });
-  let tab = $state('fahrraeder');
+  let daten = $state({ fahrraeder: [], anhaenger: [], gespann: null });
   let form = $state(null);        // { art, eintrag } oder null
   let loeschen = $state(null);    // { art, eintrag } oder null
   let garageLoeschen = $state(false);
@@ -22,7 +22,7 @@
   let laeuft = $state(false);
 
   const link = $derived(`${location.origin}/#g=${token}`);
-  const kannGespann = $derived(daten.fahrraeder.length > 0 && daten.anhaenger.length > 0);
+  const imGespann = (art, e) => daten.gespann?.[art === 'fahrraeder' ? 'fahrrad_id' : 'anhaenger_id'] === e.id;
 
   onMount(async () => {
     try {
@@ -45,7 +45,6 @@
       ? await api.eintragAendern(token, art, eintrag.id, werte)
       : await api.eintragAnlegen(token, art, werte);
     daten[art] = eintrag ? daten[art].map(x => (x.id === neu.id ? neu : x)) : [...daten[art], neu];
-    // Ein geänderter Name oder Gewichte wirken sich nicht auf andere Listen aus; Gespanne lesen ihre Daten live aus den Listen
     form = null;
     melde(t(lang, 'saved'));
   }
@@ -55,7 +54,8 @@
     laeuft = true;
     try {
       await api.eintragLoeschen(token, art, eintrag.id);
-      daten[art] = daten[art].filter(x => x.id !== eintrag.id);
+      // Ein Platz im Gespann, der den Eintrag benutzte, ist jetzt leer: alles neu laden, damit die Anzeige stimmt
+      daten = await api.garageLaden(token);
       melde(t(lang, 'deleted'));
     } catch (e) {
       melde(fehlerMeldung(e), 'error');
@@ -105,46 +105,41 @@
     </div>
   </section>
 
-  <div class="tabs" role="tablist" aria-label={t(lang, 'tabs')}>
-    {#each TABS as a (a)}
-      <button type="button" role="tab" class="tab" class:aktiv={tab === a} aria-selected={tab === a} id="tab-{a}" aria-controls="bereich" onclick={() => (tab = a)}>
-        {t(lang, a)} <span class="anzahl">{daten[a].length}</span>
-      </button>
-    {/each}
-  </div>
+  <GespannBereich {lang} {token} {daten} {melde} />
 
-  <div id="bereich" role="tabpanel" aria-labelledby="tab-{tab}">
-    <div class="werkzeug">
-      <button type="button" class="btn btn-primary" disabled={(tab === 'gespanne' && !kannGespann) || daten[tab].length >= ARTEN[tab].max}
-        onclick={() => (form = { art: tab, eintrag: null })}>
-        <Icon name="ui-plus" size={14} /> {t(lang, `add${tab[0].toUpperCase()}${tab.slice(1)}`)}
-      </button>
-      <span class="notiz">{daten[tab].length} / {ARTEN[tab].max}</span>
-    </div>
-
-    {#if tab === 'gespanne' && !kannGespann}<p class="text">{t(lang, 'needBoth')}</p>{/if}
-    {#if !daten[tab].length}
-      <p class="muted">{t(lang, `empty${tab[0].toUpperCase()}${tab.slice(1)}`)}</p>
-    {:else}
-      <div class="liste">
-        {#each daten[tab] as e (e.id)}
-          <EintragKarte {lang} art={tab} eintrag={e} {daten}
-            onedit={() => (form = { art: tab, eintrag: e })} onremove={() => (loeschen = { art: tab, eintrag: e })} />
-        {/each}
+  {#each ARTEN_LISTE as art (art)}
+    <section class="bereich" aria-labelledby="titel-{art}">
+      <div class="kopf">
+        <h2 id="titel-{art}">{t(lang, art)} <span class="anzahl">{daten[art].length} / {ARTEN[art].max}</span></h2>
+        <button type="button" class="btn btn-primary" disabled={daten[art].length >= ARTEN[art].max} onclick={() => (form = { art, eintrag: null })}>
+          <Icon name="ui-plus" size={14} /> {t(lang, `add_${art}`)}
+        </button>
       </div>
-    {/if}
-  </div>
+
+      {#if !daten[art].length}
+        <p class="muted">{t(lang, `empty_${art}`)}</p>
+      {:else}
+        <div class="liste">
+          {#each daten[art] as e (e.id)}
+            <EintragKarte {lang} {art} eintrag={e} imGespann={imGespann(art, e)}
+              onedit={() => (form = { art, eintrag: e })} onremove={() => (loeschen = { art, eintrag: e })} />
+          {/each}
+        </div>
+      {/if}
+    </section>
+  {/each}
 
   <p class="unten"><button type="button" class="btn btn-ghost btn-sm" onclick={() => (garageLoeschen = true)}><Icon name="ui-trash" size={14} /> {t(lang, 'deleteGarage')}</button></p>
 {/if}
 
 {#if form}
-  <EintragForm {lang} art={form.art} eintrag={form.eintrag} {daten} onsave={speichere} onclose={() => (form = null)} />
+  <EintragForm {lang} art={form.art} eintrag={form.eintrag} onsave={speichere} onclose={() => (form = null)} />
 {/if}
 
 {#if loeschen}
   <Fenster {lang} titel={t(lang, 'remove')} onclose={() => (loeschen = null)}>
     <p class="text">{t(lang, 'confirmDelete', loeschen.eintrag.name)}</p>
+    {#if imGespann(loeschen.art, loeschen.eintrag)}<p class="text">{t(lang, 'confirmDeleteGespann')}</p>{/if}
     <div class="aktionen">
       <button type="button" class="btn btn-ghost" onclick={() => (loeschen = null)}>{t(lang, 'cancel')}</button>
       <button type="button" class="btn btn-danger" disabled={laeuft} onclick={entferne}>{t(lang, 'remove')}</button>
@@ -163,19 +158,13 @@
 {/if}
 
 <style>
-  .linkkarte { margin-bottom: 1.5rem; }
+  .linkkarte { margin-bottom: 2rem; }
   .linkkarte .card-body { display: flex; flex-direction: column; gap: .5rem; }
   .linkzeile { display: flex; gap: .5rem; flex-wrap: wrap; }
   .linkzeile .input { flex: 1; min-width: 12rem; font-family: ui-monospace, monospace; }
-  .tabs { display: flex; gap: .25rem; margin-bottom: 1rem; flex-wrap: wrap; }
-  .tab {
-    padding: .5rem 1rem; border-radius: var(--radius-sm); font-size: .8125rem; font-family: inherit;
-    background: transparent; color: var(--fg-muted); border: none; cursor: pointer; transition: all .15s;
-  }
-  .tab:hover { background: var(--bg-hover); color: var(--fg); }
-  .tab.aktiv { background: var(--primary); color: var(--on-primary); }
-  .anzahl { margin-left: .25rem; opacity: .8; }
-  .werkzeug { display: flex; align-items: center; gap: .75rem; margin-bottom: 1rem; }
+  .bereich { margin-bottom: 2rem; }
+  .kopf { display: flex; align-items: center; justify-content: space-between; gap: .75rem; flex-wrap: wrap; margin-bottom: 1rem; }
+  .anzahl { font-size: .8125rem; font-weight: 400; color: var(--fg-muted); margin-left: .5rem; }
   .liste { display: grid; grid-template-columns: 1fr; gap: 1rem; }
   .unten { margin-top: 2rem; padding-top: 1.25rem; border-top: 1px solid var(--border); }
   .aktionen { display: flex; gap: .5rem; justify-content: flex-end; margin-top: 1rem; }

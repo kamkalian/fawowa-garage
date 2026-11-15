@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { ARTEN, pruefeEingabe } from '../lib/felder.js';
+import { ARTEN, GESPANN_FELDER, pruefeEingabe } from '../lib/felder.js';
 import { MIGRATIONEN } from '../lib/migrationen.js';
 import { gesamtgewicht } from '../lib/gewicht.js';
 
@@ -56,18 +56,19 @@ test('Eingabe, die kein Objekt ist, zählt als leer', () => {
   for (const x of [null, undefined, 'text', 5, []]) assert.deepEqual(pruefeEingabe(fahrrad, x).fehler, { name: 'pflicht' });
 });
 
-test('Gespann: Verweise müssen positive ganze Zahlen sein', () => {
-  const g = ARTEN.gespanne.felder;
-  assert.deepEqual(pruefeEingabe(g, { name: 'a' }).fehler, { fahrrad_id: 'pflicht', anhaenger_id: 'pflicht' });
-  assert.deepEqual(pruefeEingabe(g, { name: 'a', fahrrad_id: 0, anhaenger_id: 'x' }).fehler, { fahrrad_id: 'ungueltig', anhaenger_id: 'ungueltig' });
-  const ok = pruefeEingabe(g, { name: 'a', fahrrad_id: '3', anhaenger_id: 4 });
+test('Gespann: Plätze dürfen leer sein, Verweise müssen positive ganze Zahlen sein', () => {
+  const g = GESPANN_FELDER;
+  assert.equal(pruefeEingabe(g, {}).fehler, null);
+  assert.deepEqual(pruefeEingabe(g, { fahrrad_id: 0, anhaenger_id: 'x' }).fehler, { fahrrad_id: 'ungueltig', anhaenger_id: 'ungueltig' });
+  const ok = pruefeEingabe(g, { fahrrad_id: '3', anhaenger_id: 4, fahrer_gewicht_kg: 80 });
   assert.equal(ok.fehler, null);
   assert.equal(ok.werte.fahrrad_id, 3);
 });
 
 test('Jedes Feld hat eine Spalte in der Migration, Schlüssel sind eindeutig', () => {
   const sql = MIGRATIONEN.flatMap(m => m.sql);
-  for (const [art, cfg] of Object.entries(ARTEN)) {
+  const gespann = { tabelle: 'gespanne', felder: GESPANN_FELDER };
+  for (const [art, cfg] of [...Object.entries(ARTEN), ['gespann', gespann]]) {
     const tabelle = sql.find(s => s.includes(`CREATE TABLE IF NOT EXISTS ${cfg.tabelle} `));
     assert.ok(tabelle, `Tabelle ${cfg.tabelle} fehlt`);
     const keys = cfg.felder.map(f => f.key);

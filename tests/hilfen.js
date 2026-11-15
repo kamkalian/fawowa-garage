@@ -10,7 +10,8 @@ import { Begrenzung } from '../lib/begrenzung.js';
 export class FakeSpeicher {
   constructor() {
     this.garagen = new Map(); // hash -> id
-    this.daten = { fahrraeder: [], anhaenger: [], gespanne: [] }; // Zeilen mit garage_id
+    this.daten = { fahrraeder: [], anhaenger: [] }; // Zeilen mit garage_id
+    this.gespanne = new Map(); // garage_id -> Gespann
     this.naechsteId = 1;
     this.kaputt = false;
   }
@@ -33,6 +34,7 @@ export class FakeSpeicher {
 
   async garageLoeschen(garageId) {
     for (const a of Object.keys(this.daten)) this.daten[a] = this.daten[a].filter(z => z.garage_id !== garageId);
+    this.gespanne.delete(garageId);
     for (const [h, id] of this.garagen) if (id === garageId) this.garagen.delete(h);
   }
 
@@ -44,39 +46,44 @@ export class FakeSpeicher {
   async alles(garageId) {
     const r = {};
     for (const a of Object.keys(this.daten)) r[a] = this.daten[a].filter(z => z.garage_id === garageId).map(z => this._sicht(z));
+    r.gespann = this.gespanne.has(garageId) ? { ...this.gespanne.get(garageId) } : null;
     return r;
   }
 
   async anlegen(garageId, art, werte) {
     const liste = this.daten[art];
     if (liste.filter(z => z.garage_id === garageId).length >= ARTEN[art].max) throw new FehlerEingabe('Limit', 409, { code: 'limit' });
-    if (art === 'gespanne') this._verweise(garageId, werte);
     const zeile = { id: this.naechsteId++, garage_id: garageId, ...werte, status: 'ungeprueft' };
     liste.push(zeile);
     return this._sicht(zeile);
   }
 
-  _verweise(garageId, werte) {
+  async gespannSetzen(garageId, werte) {
     const felder = {};
-    if (!this.daten.fahrraeder.some(z => z.id === werte.fahrrad_id && z.garage_id === garageId)) felder.fahrrad_id = 'ungueltig';
-    if (!this.daten.anhaenger.some(z => z.id === werte.anhaenger_id && z.garage_id === garageId)) felder.anhaenger_id = 'ungueltig';
+    if (werte.fahrrad_id !== null && !this.daten.fahrraeder.some(z => z.id === werte.fahrrad_id && z.garage_id === garageId)) felder.fahrrad_id = 'ungueltig';
+    if (werte.anhaenger_id !== null && !this.daten.anhaenger.some(z => z.id === werte.anhaenger_id && z.garage_id === garageId)) felder.anhaenger_id = 'ungueltig';
     if (Object.keys(felder).length) throw new FehlerEingabe('Verweis', 400, { code: 'eingabe', felder });
+    const alt = this.gespanne.get(garageId);
+    const neu = { id: alt?.id ?? this.naechsteId++, ...werte, status: 'ungeprueft' };
+    this.gespanne.set(garageId, neu);
+    return { ...neu };
   }
 
   async aendern(garageId, art, id, werte) {
     const zeile = this.daten[art].find(z => z.id === id && z.garage_id === garageId);
     if (!zeile) return null;
-    if (art === 'gespanne') this._verweise(garageId, werte);
     Object.assign(zeile, werte, { status: 'ungeprueft' });
     return this._sicht(zeile);
   }
 
+  // Wie in der Datenbank (ON DELETE SET NULL): ein benutzter Platz im Gespann wird leer
   async loeschen(garageId, art, id) {
     const i = this.daten[art].findIndex(z => z.id === id && z.garage_id === garageId);
     if (i < 0) return false;
-    const benutzt = art === 'fahrraeder' ? 'fahrrad_id' : art === 'anhaenger' ? 'anhaenger_id' : null;
-    if (benutzt && this.daten.gespanne.some(g => g[benutzt] === id)) throw new FehlerEingabe('Benutzt', 409, { code: 'verwendet' });
     this.daten[art].splice(i, 1);
+    const g = this.gespanne.get(garageId);
+    const feld = art === 'fahrraeder' ? 'fahrrad_id' : 'anhaenger_id';
+    if (g && g[feld] === id) g[feld] = null;
     return true;
   }
 }

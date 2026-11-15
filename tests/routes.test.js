@@ -34,7 +34,7 @@ test('Health: 200, bei ausgefallener Datenbank 503', async () => {
 test('Einstellungen enthalten die Grenzen und keine Geheimnisse', async () => {
   const r = await s.anfrage('GET', '/api/v1/einstellungen');
   assert.equal(r.status, 200);
-  assert.deepEqual(r.json.grenzen, { fahrraeder: 20, anhaenger: 20, gespanne: 20 });
+  assert.deepEqual(r.json.grenzen, { fahrraeder: 20, anhaenger: 20 });
   assert.equal(r.json.testinstanz, false);
 });
 
@@ -52,7 +52,7 @@ test('Garage-Antworten werden nicht zwischengespeichert', async () => {
   const r = await s.anfrage('GET', '/api/v1/garage', { token });
   assert.equal(r.status, 200);
   assert.equal(r.headers.get('cache-control'), 'no-store');
-  assert.deepEqual(r.json, { fahrraeder: [], anhaenger: [], gespanne: [] });
+  assert.deepEqual(r.json, { fahrraeder: [], anhaenger: [], gespann: null });
 });
 
 test('Fahrrad anlegen, ändern, löschen', async () => {
@@ -107,26 +107,54 @@ test('Garagen sehen und ändern nur ihre eigenen Einträge', async () => {
   assert.equal((await s.anfrage('GET', '/api/v1/garage', { token: a })).json.fahrraeder[0].name, 'Nur von A');
 });
 
-test('Gespann: Verweise müssen in die eigene Garage zeigen; benutzte Einträge lassen sich nicht löschen', async () => {
+test('Gespann: Plätze setzen, leeren, Gewichte; Verweise nur in die eigene Garage', async () => {
   const a = await neueGarage();
   const b = await neueGarage();
   const rad = (await s.anfrage('POST', '/api/v1/garage/fahrraeder', { token: a, body: { name: 'Rad' } })).json;
   const wagen = (await s.anfrage('POST', '/api/v1/garage/anhaenger', { token: a, body: { name: 'Wagen' } })).json;
   const fremdesRad = (await s.anfrage('POST', '/api/v1/garage/fahrraeder', { token: b, body: { name: 'Rad von B' } })).json;
 
-  const fremd = await s.anfrage('POST', '/api/v1/garage/gespanne', { token: a, body: { name: 'G', fahrrad_id: fremdesRad.id, anhaenger_id: wagen.id } });
+  const fremd = await s.anfrage('PUT', '/api/v1/garage/gespann', { token: a, body: { fahrrad_id: fremdesRad.id, anhaenger_id: wagen.id } });
   assert.equal(fremd.status, 400);
   assert.deepEqual(fremd.json.felder, { fahrrad_id: 'ungueltig' });
 
-  const ok = await s.anfrage('POST', '/api/v1/garage/gespanne', { token: a, body: { name: 'Sommer', fahrrad_id: rad.id, anhaenger_id: wagen.id, fahrer_gewicht_kg: 75 } });
-  assert.equal(ok.status, 201);
+  // Nur ein Platz belegt ist erlaubt
+  const halb = await s.anfrage('PUT', '/api/v1/garage/gespann', { token: a, body: { anhaenger_id: wagen.id } });
+  assert.equal(halb.status, 200);
+  assert.equal(halb.json.anhaenger_id, wagen.id);
+  assert.equal(halb.json.fahrrad_id, null);
 
-  const loeschen = await s.anfrage('DELETE', `/api/v1/garage/fahrraeder/${rad.id}`, { token: a });
-  assert.equal(loeschen.status, 409);
-  assert.equal(loeschen.json.code, 'verwendet');
+  const voll = await s.anfrage('PUT', '/api/v1/garage/gespann', { token: a, body: { fahrrad_id: rad.id, anhaenger_id: wagen.id, fahrer_gewicht_kg: 75, gepaeck_kg: '12,5' } });
+  assert.equal(voll.status, 200);
+  assert.equal(voll.json.gepaeck_kg, 12.5);
+  assert.equal(voll.json.status, 'ungeprueft');
+  assert.equal(voll.json.id, halb.json.id, 'es bleibt dasselbe Gespann');
 
-  await s.anfrage('DELETE', `/api/v1/garage/gespanne/${ok.json.id}`, { token: a });
-  assert.equal((await s.anfrage('DELETE', `/api/v1/garage/fahrraeder/${rad.id}`, { token: a })).status, 204);
+  assert.equal((await s.anfrage('GET', '/api/v1/garage', { token: a })).json.gespann.fahrrad_id, rad.id);
+  assert.equal((await s.anfrage('GET', '/api/v1/garage', { token: b })).json.gespann, null);
+
+  const ungueltig = await s.anfrage('PUT', '/api/v1/garage/gespann', { token: a, body: { fahrer_gewicht_kg: 5, gepaeck_kg: 'viel' } });
+  assert.equal(ungueltig.status, 400);
+  assert.deepEqual(ungueltig.json.felder, { fahrer_gewicht_kg: 'zu_klein', gepaeck_kg: 'ungueltig' });
+});
+
+test('Fahrrad oder Anhänger löschen leert den Platz im Gespann', async () => {
+  const token = await neueGarage();
+  const rad = (await s.anfrage('POST', '/api/v1/garage/fahrraeder', { token, body: { name: 'Rad' } })).json;
+  const wagen = (await s.anfrage('POST', '/api/v1/garage/anhaenger', { token, body: { name: 'Wagen' } })).json;
+  await s.anfrage('PUT', '/api/v1/garage/gespann', { token, body: { fahrrad_id: rad.id, anhaenger_id: wagen.id, fahrer_gewicht_kg: 80 } });
+
+  assert.equal((await s.anfrage('DELETE', `/api/v1/garage/fahrraeder/${rad.id}`, { token })).status, 204);
+  const g = (await s.anfrage('GET', '/api/v1/garage', { token })).json.gespann;
+  assert.equal(g.fahrrad_id, null);
+  assert.equal(g.anhaenger_id, wagen.id);
+  assert.equal(g.fahrer_gewicht_kg, 80);
+});
+
+test('Gespann ist keine Eintragsart: POST darauf gibt es nicht', async () => {
+  const token = await neueGarage();
+  assert.equal((await s.anfrage('POST', '/api/v1/garage/gespann', { token, body: {} })).status, 404);
+  assert.equal((await s.anfrage('POST', '/api/v1/garage/gespanne', { token, body: { name: 'x' } })).status, 404);
 });
 
 test('Höchstzahl je Art: 409 limit', async () => {
