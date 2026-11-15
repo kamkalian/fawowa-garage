@@ -106,7 +106,13 @@ Die Flächen sind die Summe von 72 Winkelsektoren um den Start (sternförmiger R
 - Empfehlung: **NRW mit 100 km Rand** als Start (etwa 300 bis 400 MB Netz), später Deutschland, falls das Bedürfnis da ist. Valhalla als
   Rückweg ist nicht nötig.
 
-## Nächste Schritte (Phase 6)
+## Stand Phase 6 (umgesetzt, nur NRW ohne Rand)
+
+Das Netz läuft als Dienst in der Anwendung (zwei Hintergrund-Threads, je ein Exemplar des Netzes, zusammen etwa 300 MB RAM), mit selbst gezeichneter Karte,
+Raster-Wärmekarte mit Teilkanten bis zur leeren Batterie und Umrandung (Marching Squares). Solar mindert die Kosten je Teilstück höchstens bis null.
+Offen aus diesem Bericht: Rand um NRW, Anhänger-Tauglichkeit der Wege, Wetter automatisch.
+
+## Nächste Schritte (ursprüngliche Planung)
 
 - Netz mit Rand bauen und auf den Server laden; Suche als Dienst in der Anwendung (Ablauf: Gespann und Einstellungen aus der Garage, Start, Modus →
   Rechenmodell → Suche → Umrandung und Raster).

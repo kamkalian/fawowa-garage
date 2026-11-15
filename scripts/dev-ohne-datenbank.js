@@ -6,12 +6,17 @@ import { FakeSpeicher } from '../tests/hilfen.js';
 import { erstelleApp } from '../lib/app.js';
 import { Begrenzung } from '../lib/begrenzung.js';
 import { hashPasswort } from '../lib/auth.js';
+import { RoutingDienst } from '../lib/routing-dienst.js';
 
 const PORT = process.env.PORT || 3470;
 const dist = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
+// Mit NETZ_DIR (Wegenetz von tools/routing/bauen.js) ist auch der Reichweiten-Planer aktiv
+let routing = null;
+if (process.env.NETZ_DIR) { routing = new RoutingDienst({ ordner: process.env.NETZ_DIR }); await routing.starten(); console.log('Routing geladen:', routing.info); }
+
 // Mit NODE_ENV=production liefert dieser Server die gebaute Oberfläche (npm run build) selbst aus
 const app = erstelleApp(new FakeSpeicher(), {
-  produktion: process.env.NODE_ENV === 'production', oberflaeche: dist,
+  produktion: process.env.NODE_ENV === 'production', oberflaeche: dist, routing,
   // E-Mails werden nicht gesendet, sondern mit ihrem Link in der Konsole ausgegeben
   mailer: { senden: async (n) => console.log(`
 --- E-Mail an ${n.an}: ${n.betreff}

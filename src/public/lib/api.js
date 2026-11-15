@@ -42,3 +42,12 @@ export const emailEntfernen = (token) => anfrage('DELETE', '/api/v1/garage/email
 export const emailBestaetigen = (schluessel) => anfrage('POST', '/api/v1/email/bestaetigen', { body: { token: schluessel } });
 export const zugangAnfordern = (email, lang) => anfrage('POST', '/api/v1/zugang/anfordern', { body: { email, lang } });
 export const zugangEinloesen = (schluessel) => anfrage('POST', '/api/v1/zugang/einloesen', { body: { token: schluessel } });
+export const reichweiteBerechnen = (token, werte) => anfrage('POST', '/api/v1/garage/reichweite', { token, body: werte });
+export const karteOrte = () => anfrage('GET', '/api/v1/karte/orte');
+
+/** Wegelinien einer Kartenkachel (Binärformat, siehe lib/karte-daten.js) */
+export async function karteKachel(z, x, y) {
+  const res = await fetch(`/api/v1/karte/${z}/${x}/${y}`);
+  if (!res.ok) throw new ApiFehler(res.status, null);
+  return res.arrayBuffer();
+}

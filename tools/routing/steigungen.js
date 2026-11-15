@@ -1,6 +1,6 @@
 // Prüft die Höhen im Netz: Verteilung der Steigungen und Energie hin und zurück zwischen Orten verschiedener Höhe.
 // Aufruf: node tools/routing/steigungen.js <Netzordner>
-import { Netz, MODI } from './netz.js';
+import { Netz, MODI } from '../../lib/netz.js';
 import { ORTE } from './orte.js';
 import { baueModell } from '../../lib/rechenmodell.js';
 

@@ -9,12 +9,14 @@
   import Fenster from './Fenster.svelte';
   import GespannBereich from './GespannBereich.svelte';
   import EmailFenster from './EmailFenster.svelte';
+  import Planer from './Planer.svelte';
 
   // Die Garage eines Nutzers: zwei Tabs. „Gespann“ (Standard) und „Stellplätze“ (alle Fahrräder und Anhänger als Kacheln, per Drag and Drop ordnen)
-  let { lang, token, melde, onungueltig, ongeloescht, emailAktiv = false } = $props();
+  let { lang, token, melde, onungueltig, ongeloescht, emailAktiv = false, einst = {} } = $props();
 
   const ARTEN_LISTE = ['fahrraeder', 'anhaenger'];
-  const TABS = ['gespann', 'stellplaetze'];
+  const planerAktiv = $derived(!!einst.reichweite?.aktiv);
+  const TABS = $derived(planerAktiv ? ['gespann', 'stellplaetze', 'planer'] : ['gespann', 'stellplaetze']);
   let tab = $state('gespann');
   let status = $state('laden'); // laden | bereit | fehler
   let daten = $state({ fahrraeder: [], anhaenger: [], gespann: null, email: null, email_offen: null });
@@ -189,7 +191,7 @@
   <div class="tabs" role="tablist" aria-label={t(lang, 'tabs')}>
     {#each TABS as a (a)}
       <button type="button" role="tab" class="tab" class:aktiv={tab === a} aria-selected={tab === a} id="tab-{a}" aria-controls="panel-{a}" onclick={() => (tab = a)}>
-        {t(lang, a === 'gespann' ? 'gespannTitle' : 'stellplaetze')}{#if a === 'stellplaetze'} <span class="anzahl">{fahrzeuge.length}</span>{/if}
+        {t(lang, a === 'gespann' ? 'gespannTitle' : a === 'planer' ? 'tabPlaner' : 'stellplaetze')}{#if a === 'stellplaetze'} <span class="anzahl">{fahrzeuge.length}</span>{/if}
       </button>
     {/each}
   </div>
@@ -198,6 +200,12 @@
   <div id="panel-gespann" role="tabpanel" aria-labelledby="tab-gespann" hidden={tab !== 'gespann'}>
     <GespannBereich {lang} {token} {daten} {melde} />
   </div>
+
+  {#if planerAktiv}
+    <div id="panel-planer" role="tabpanel" aria-labelledby="tab-planer" hidden={tab !== 'planer'}>
+      <Planer {lang} {token} {daten} {einst} sichtbar={tab === 'planer'} {melde} zumGespann={() => (tab = 'gespann')} />
+    </div>
+  {/if}
 
   <div id="panel-stellplaetze" role="tabpanel" aria-labelledby="tab-stellplaetze" hidden={tab !== 'stellplaetze'}>
     <p class="notiz hinweis">{t(lang, 'dragHinweis')}</p>

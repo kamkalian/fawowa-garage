@@ -62,7 +62,15 @@ function sucheKnoten(id) {
 
 log('Lese', pbfDatei);
 let letzteId = 0;
+// Orte für die Beschriftung der Karte und die Suche nach dem Startpunkt
+const ORTS_ARTEN = new Set(['city', 'town', 'village', 'suburb']);
+const orte = [];
+
 leseDatei(pbfDatei, {
+  knotenSchluessel: new Set(['place', 'name']),
+  knotenTags: (id, lat, lon, tags) => {
+    if (tags.name && ORTS_ARTEN.has(tags.place)) orte.push([tags.name, tags.place, Math.round(lat * 1e5) / 1e5, Math.round(lon * 1e5) / 1e5]);
+  },
   knoten: (ids, lat, lon, n) => {
     if (wegeBegonnen) throw new Error('Knoten nach den Wegen: die Datei ist nicht nach Typ sortiert');
     if (nKnoten + n > knotenIds.length) {
@@ -272,6 +280,8 @@ for (let e = 0; e < E; e++) {
 }
 
 // ---------- 5. Schreiben ----------
+writeFileSync(join(ausgabe, 'orte.json'), JSON.stringify(orte));
+log(`Orte: ${orte.length}`);
 const dateien = {
   'knoten_lat.i32': nLat.fertig(), 'knoten_lon.i32': nLon.fertig(), 'adj_start.u32': grad, 'adj.u32': adj,
   'kante_a.u32': A, 'kante_b.u32': B, 'kante_flags.u8': eFlags.fertig(), 'kante_belag.u8': eBelag.fertig(),

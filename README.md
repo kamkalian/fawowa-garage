@@ -7,9 +7,9 @@ Radgrößen, Gewichte, Solar, Zusatzakku ...) und stellen daraus Gespanne zusamm
 Teil von fawowa-tools.de. Aufbau, Design und Betrieb folgen der [Materialdatenbank](https://github.com/kamkalian/fawowa-material-table)
 und den Design-Regeln der Hauptseite (`design_rules.md`).
 
-**Stand: Phase 4** (Garage mit Stellplätzen und Gespann, E-Mail-Bestätigung, Verwaltungsbereich, Rechenmodell als reine Logik
-ohne Oberfläche, siehe [docs/RECHENMODELL.md](docs/RECHENMODELL.md); Routing-Test NRW bestanden, siehe
-[docs/ROUTING-TEST.md](docs/ROUTING-TEST.md)). Noch nicht enthalten: Routing im Betrieb, Karte (siehe unten).
+**Stand: Phase 6** (Garage mit Stellplätzen und Gespann, E-Mail-Bestätigung, Verwaltungsbereich, Rechenmodell, Routing-Test und
+**Reichweiten-Planer** mit eigener Karte für NRW). Siehe [docs/RECHENMODELL.md](docs/RECHENMODELL.md) und
+[docs/ROUTING-TEST.md](docs/ROUTING-TEST.md).
 
 ## Wichtige Regeln
 
@@ -28,6 +28,13 @@ ohne Oberfläche, siehe [docs/RECHENMODELL.md](docs/RECHENMODELL.md); Routing-Te
   Cookie (HttpOnly, SameSite=Strict), Sperre nach Fehlversuchen, bei ändernden Anfragen Prüfung von Origin und JSON-Typ. Der Betreiber sieht alle
   Garagen und Einträge (auch E-Mail-Adressen), markiert Einträge einzeln oder je Garage als geprüft, schreibt Notizen (die Nutzer nie sehen),
   korrigiert Namen und löscht Spam. Ohne `ADMIN_PASSWORD_HASH` ist der Zugang nicht eingerichtet.
+- **Reichweiten-Planer** (Tab in der Garage, nur mit Wegenetz): Start wählen (Ortssuche, Karte, Standort), Wegart, Akku, Unterstützung, Wind, Sonne;
+  der Server rechnet mit dem Gespann der Garage (`lib/reichweite.js`, Suche in Wattstunden auf dem Wegenetz) und liefert Wärmekarte (Raster), Umrandung
+  und Kennzahlen. Die Rechnung läuft in einem Hintergrund-Thread (`lib/routing-dienst.js`), ein zweiter liefert die Kartenkacheln; die Karte ist selbst
+  gezeichnet (`src/public/lib/karte.js`, Wegelinien aus dem Netz, Ortsnamen aus OSM), es werden keine fremden Kartenserver angesprochen. Das Netz
+  (`tools/routing/bauen.js`, nur NRW) liegt unter `data/netz` (`NETZ_DIR`), Hochladen mit `deploy/netz-hochladen.ps1`; ohne Netz ist der Planer aus.
+  Grenzen: 40 Berechnungen je Besucher und 10 Minuten, höchstens 4 wartende Berechnungen, Kartenkacheln 4000 je 10 Minuten. Die Seite darf den
+  Standort abfragen (`Permissions-Policy: geolocation=(self)`).
 - **Alles ist privat.** Jede Garage sieht nur ihre eigenen Einträge. `status` (`ungeprueft`/`geprueft`) ist eine reine Markierung des
   Betreibers; jede Änderung durch den Nutzer setzt einen Eintrag zurück auf `ungeprueft`. Die Prüfnotiz geht nie an den Nutzer.
 - **Felder stehen an einer Stelle:** `lib/felder.js` beschreibt alle Felder (Typ, Grenzen, Einheit, Texte de/en). Daraus prüft der
@@ -74,4 +81,4 @@ nur im internen Netz, Daten in `data/mysql`). Es wird kein Port nach außen ver�
 
 - Pflichtbausteine der Design-Regeln: „Projekt unterstützen“, Fußzeile, Impressum, Datenschutz (Hinweis auf gespeicherte Daten und Link-Schlüssel), Eintrag in `config/tools.json` der Hauptseite
 - `ADMIN_PASSWORD_HASH` sowie SMTP-Zugangsdaten und `PUBLIC_URL` in die Server-`.env` eintragen
-- Reichweiten-Planer: Routing im Betrieb (Netz mit Rand auf den Server, Suche als Dienst), Karte mit Heatmap, Wetterabruf (Wind, Sonne); Rechenmodell und Routing-Test sind fertig
+- Reichweiten-Planer: Netz mit Rand um NRW, automatischer Wetterabruf (Wind, Sonne), Anhänger-Tauglichkeit der Wege (Breite, Poller), Quellenangabe und Datenschutzhinweis zur Karte; die Grundfunktion ist fertig

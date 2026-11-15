@@ -23,6 +23,10 @@ services:
       - DB_NAME=garage
       - DB_USER=garage
       - DB_PASSWORD=${DB_PASSWORD:?DB_PASSWORD fehlt in der .env}
+      # Wegenetz für den Reichweiten-Planer (siehe deploy/netz-hochladen.ps1); fehlt es, bleibt der Planer abgeschaltet
+      - NETZ_DIR=/app/netz
+    volumes:
+      - ./data/netz:/app/netz:ro
     read_only: true
     tmpfs:
       - /tmp

@@ -51,10 +51,12 @@ function packed(buf, start, ende, zigzag, ausgabe) {
  * Geht die Blöcke einer PBF-Datei durch. Für jeden Datenblock wird `block` aufgerufen: { knoten, wege }-Rückrufe werden
  * über `optionen` gesteuert:
  *   knoten(ids, lat, lon, n)           Dichte Knoten eines Blocks (Arrays der Länge n, lat/lon in Grad); nur, wenn angegeben
+ *   knotenTags(id, lat, lon, tags)     Knoten mit Tags aus knotenSchluessel (z. B. Orte); tags als Objekt
+ *   knotenSchluessel: Set der Tag-Schlüssel, die für Knoten gelesen werden
  *   wege(id, tags, refs, nRefs)        ein Weg: tags als Objekt nur mit den Schlüsseln aus `schluessel`, refs als Knoten-IDs
  *   schluessel: Set der Tag-Schlüssel, die für Wege gelesen werden
  */
-export function leseDatei(pfad, { knoten = null, wege = null, schluessel = new Set(), fortschritt = null } = {}) {
+export function leseDatei(pfad, { knoten = null, knotenTags = null, knotenSchluessel = new Set(), wege = null, schluessel = new Set(), fortschritt = null } = {}) {
   const fd = openSync(pfad, 'r');
   const groesse = fstatSync(fd).size;
   let pos = 0;
@@ -126,13 +128,14 @@ export function leseDatei(pfad, { knoten = null, wege = null, schluessel = new S
       for (const [gs, ge] of gruppen) {
         const gl = new Leser(daten, gs, ge);
         while (gl.weiter()) {
-          if (gl.feld === 2 && gl.typ === 2 && knoten) {
+          if (gl.feld === 2 && gl.typ === 2 && (knoten || knotenTags)) {
             // DenseNodes
             const [ds, de] = gl.bereich();
             const dl = new Leser(daten, ds, de);
-            let idB = null; let latB = null; let lonB = null;
+            let idB = null; let latB = null; let lonB = null; let kvB = null;
             while (dl.weiter()) {
               if (dl.feld === 1 && dl.typ === 2) idB = dl.bereich();
+              else if (dl.feld === 10 && dl.typ === 2) kvB = dl.bereich();
               else if (dl.feld === 8 && dl.typ === 2) latB = dl.bereich();
               else if (dl.feld === 9 && dl.typ === 2) lonB = dl.bereich();
               else dl.ueberspringen();
@@ -150,7 +153,22 @@ export function leseDatei(pfad, { knoten = null, wege = null, schluessel = new S
               lat[i] = 1e-9 * (latOffset + granularitaet * a0);
               lon[i] = 1e-9 * (lonOffset + granularitaet * o0);
             }
-            knoten(ids, lat, lon, n);
+            if (knoten) knoten(ids, lat, lon, n);
+            if (knotenTags && kvB) {
+              // keys_vals: je Knoten Paare (Schlüssel, Wert) als Stringnummern, abgeschlossen mit 0
+              const st = stringsLaden();
+              const kv = new Leser(daten, kvB[0], kvB[1]);
+              for (let i = 0; i < n && kv.p < kvB[1]; i++) {
+                let tags = null;
+                while (kv.p < kvB[1]) {
+                  const k = kv.varint();
+                  if (k === 0) break;
+                  const v = kv.varint();
+                  if (knotenSchluessel.has(st[k])) (tags ??= {})[st[k]] = st[v];
+                }
+                if (tags) knotenTags(ids[i], lat[i], lon[i], tags);
+              }
+            }
           } else if (gl.feld === 3 && gl.typ === 2 && wege) {
             // Way
             const [ws, we] = gl.bereich();

@@ -5,7 +5,7 @@
 // <Ort>: Name aus orte.js oder "Breite,Länge". Ergebnis: Kennzahlen auf dem Bildschirm und <Netzordner>/../ergebnisse/<name>.json für die Anzeige.
 import { mkdirSync, writeFileSync } from 'fs';
 import { join, dirname } from 'path';
-import { Netz, MODI } from './netz.js';
+import { Netz, MODI } from '../../lib/netz.js';
 import { ort } from './orte.js';
 import { baueModell, pruefeEinstellungen } from '../../lib/rechenmodell.js';
 

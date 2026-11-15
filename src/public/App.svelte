@@ -136,7 +136,7 @@
     {/key}
   {:else if token && !ungueltig}
     {#key token}
-      <Garage {lang} {token} {melde} emailAktiv={!!einst.emailAktiv} onungueltig={() => (ungueltig = true)}
+      <Garage {lang} {token} {melde} emailAktiv={!!einst.emailAktiv} {einst} onungueltig={() => (ungueltig = true)}
         ongeloescht={() => { zurStartseite(); melde(t(lang, 'garageDeleted')); }} />
     {/key}
   {:else if ungueltig}

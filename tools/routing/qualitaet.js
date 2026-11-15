@@ -1,6 +1,6 @@
 // Plausibilitätsprüfung des Wegenetzes: kürzeste Strecken zwischen bekannten Orten im Vergleich zur Luftlinie und zu bekannten Radstrecken.
 // Aufruf: node tools/routing/qualitaet.js <Netzordner>
-import { Netz, MODI } from './netz.js';
+import { Netz, MODI } from '../../lib/netz.js';
 import { ORTE } from './orte.js';
 
 const netz = new Netz(process.argv[2]);
