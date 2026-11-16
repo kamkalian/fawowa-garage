@@ -80,6 +80,7 @@ export class Karte {
     this.overlay = null;      // { bild, lat0, lon0, lat1, lon1 }
     this.routen = null;       // [{ pfad: [[lat, lon, anteil], ...] }] der Reichweiten-Routen
     this.zeigeRouten = false; // true: Routen als Linien statt Heatmap
+    this.zeigeSchritte = false; // true: die 1-km-Schritte als rote Punkte
     this.start = null;
     this.zeichnenGeplant = false;
     this.zeiger = new Map();
@@ -149,6 +150,22 @@ export class Karte {
   /** Routen der Reichweite (Linien); ansicht: true zeigt die Routen, false die Heatmap */
   setzeRouten(routen) { this.routen = routen ?? null; this.zeichnen(); }
   setzeAnsicht(alsRouten) { this.zeigeRouten = !!alsRouten; this.zeichnen(); }
+  setzeSchritte(an) { this.zeigeSchritte = !!an; this.zeichnen(); }
+
+  /** Die 1-km-Schritte der Routen als rote Punkte (machbare und nicht machbare) */
+  _zeichneSchritte(g) {
+    if (!this.routen) return;
+    const s = this.welt;
+    const [ox, oy] = [this.w / 2 - this.mitte.x * s, this.h / 2 - this.mitte.y * s];
+    g.fillStyle = '#dc2626';
+    for (const rt of this.routen) {
+      for (const [la, lo] of rt.schritte ?? []) {
+        g.beginPath();
+        g.arc(weltX(lo) * s + ox, weltY(la) * s + oy, 2.2, 0, Math.PI * 2);
+        g.fill();
+      }
+    }
+  }
 
   /** Wärmekarte aus dem Raster der Antwort (base64, ein Byte je Zelle; Wert = byte / 254 × max) */
   setzeRaster(raster) {
@@ -261,6 +278,7 @@ export class Karte {
     }
     if (this.zeigeRouten) this._zeichneRouten(g);
     else this._zeichneWaerme(g);
+    if (this.zeigeSchritte) this._zeichneSchritte(g);
     this._zeichneOrte(g);
     this._zeichneStart(g);
     g.font = '10px system-ui, sans-serif';
