@@ -205,8 +205,13 @@
     <Planer {lang} {token} {daten} {einst} offen={planerOffen} zurueck={() => (planerOffen = false)} />
   {/if}
 
+  {#if planerAktiv}
+    <div class="planer-zeile">
+      <button type="button" class="btn btn-outline planer-knopf" onclick={() => (planerOffen = true)}>{t(lang, 'p_planerOeffnen')}</button>
+    </div>
+  {/if}
+
   <div class="stellplaetze">
-    <p class="notiz hinweis">{t(lang, 'dragHinweis')}</p>
     <div class="liste" role="list">
       {#each fahrzeuge as f (schluessel(f))}
         <div class="kachel" role="listitem" draggable="true" class:gezogen={ziehend?.art === f.art && ziehend?.id === f.e.id} class:ziel={ziel === schluessel(f)}
@@ -228,8 +233,9 @@
   </div>
 
 
+  <hr class="trenner" />
+
   <section class="fahrt" aria-label={t(lang, 'fahrtTitle')}>
-    <p class="notiz">{t(lang, 'gespannInfo')} {gespannNamen || t(lang, 'gespannLeer')}</p>
     <div class="fahrt-felder">
       <label for="fahrt-fahrer">{pick(GESPANN_FELDER.find(f => f.key === 'fahrer_gewicht_kg').label, lang)} (kg)</label>
       <input id="fahrt-fahrer" class="input" type="number" inputmode="decimal" min="20" max="250" step="any" bind:value={fahrer} />
@@ -237,9 +243,6 @@
       <input id="fahrt-gepaeck" class="input" type="number" inputmode="decimal" min="0" max="500" step="any" bind:value={gepaeck} />
       <button type="button" class="btn btn-outline btn-sm" onclick={fahrtSpeichern}>{t(lang, 'save')}</button>
     </div>
-    {#if planerAktiv}
-      <button type="button" class="btn btn-outline planer-knopf" onclick={() => (planerOffen = true)}>{t(lang, 'p_planerOeffnen')}</button>
-    {/if}
   </section>
 
   <p class="unten"><button type="button" class="btn btn-ghost btn-sm" onclick={() => (garageLoeschen = true)}><Icon name="ui-trash" size={14} /> {t(lang, 'deleteGarage')}</button></p>
@@ -310,6 +313,9 @@
   }
   .info:hover .tip, .info:focus-within .tip, .tip.offen { display: block; }
   .planer-knopf { margin-bottom: 1rem; }
+  .planer-zeile { margin-bottom: 1rem; }
+  .trenner { border: none; border-top: 1px solid var(--border); margin: 1.75rem 0; }
+  .kachel { display: flex; }
   .fahrt { display: flex; flex-direction: column; gap: .5rem; margin: 0 0 1.25rem; }
   .fahrt-felder { display: grid; grid-template-columns: minmax(0, 1fr) 7rem; gap: .5rem .75rem; align-items: center; max-width: 28rem; }
   .fahrt-felder .btn { justify-self: start; }

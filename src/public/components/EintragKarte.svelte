@@ -69,6 +69,8 @@
   dt { color: var(--fg-muted); }
   dd { overflow-wrap: anywhere; }
   .notizzeile { margin-top: .5rem; white-space: pre-line; }
-  .aktionen { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .75rem; }
+  .aktionen { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: auto; padding-top: .75rem; }
+  article { flex: 1; display: flex; min-width: 0; }
+  .card-body { flex: 1; display: flex; flex-direction: column; min-width: 0; }
   .kopf.kompakt + .aktionen { margin-top: .5rem; }
 </style>
