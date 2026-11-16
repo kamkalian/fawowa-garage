@@ -56,15 +56,11 @@ test('Eingabe, die kein Objekt ist, zählt als leer', () => {
   for (const x of [null, undefined, 'text', 5, []]) assert.deepEqual(pruefeEingabe(fahrrad, x).fehler, { name: 'pflicht' });
 });
 
-test('Gespann: Plätze dürfen leer sein, Verweise müssen positive ganze Zahlen sein', () => {
+test('Gespann: Fahrer und Gepäck, Gewichte prüfen', () => {
   const g = GESPANN_FELDER;
   assert.equal(pruefeEingabe(g, {}).fehler, null);
-  assert.deepEqual(pruefeEingabe(g, { fahrrad_id: 0, anhaenger_id: 'x' }).fehler, { fahrrad_id: 'ungueltig', anhaenger_id: 'ungueltig' });
-  const ok = pruefeEingabe(g, { fahrrad_id: '3', anhaenger_id: 4, fahrer_gewicht_kg: 80 });
-  assert.equal(ok.fehler, null);
-  assert.equal(ok.werte.fahrrad_id, 3);
+  assert.equal(pruefeEingabe(g, { fahrer_gewicht_kg: 80, gepaeck_kg: '12,5' }).werte.gepaeck_kg, 12.5);
 });
-
 test('Jedes Feld hat eine Spalte in der Migration, Schlüssel sind eindeutig', () => {
   const sql = MIGRATIONEN.flatMap(m => m.sql);
   const gespann = { tabelle: 'gespanne', felder: GESPANN_FELDER };

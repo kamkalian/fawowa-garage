@@ -20,7 +20,18 @@ async function mitServer(optionen = {}) {
   const token = (await t.anfrage('POST', '/api/v1/garagen', { body: { fahrer_name: 'Anja' } })).json.token;
   const rad = (await t.anfrage('POST', '/api/v1/garage/fahrraeder', { token, body: RAD })).json;
   const wagen = (await t.anfrage('POST', '/api/v1/garage/anhaenger', { token, body: { name: 'Wagen', leergewicht_kg: 40 } })).json;
-  const gespannSetzen = (werte) => t.anfrage('PUT', '/api/v1/garage/gespann', { token, body: { fahrer_gewicht_kg: 80, ...werte } });
+  // Setzt Zugfahrzeug und Anhänger im Gespann (null nimmt den bisherigen heraus)
+  const aktiv = { fahrraeder: null, anhaenger: null };
+  const gespannSetzen = async (werte) => {
+    for (const [feld, art] of [['fahrrad_id', 'fahrraeder'], ['anhaenger_id', 'anhaenger']]) {
+      if (!(feld in werte)) continue;
+      const neu = werte[feld];
+      if (aktiv[art] !== null && aktiv[art] !== neu) await t.anfrage('PUT', '/api/v1/garage/mitglied', { token, body: { art, id: aktiv[art], im: false } });
+      if (neu !== null) await t.anfrage('PUT', '/api/v1/garage/mitglied', { token, body: { art, id: neu, im: true } });
+      aktiv[art] = neu;
+    }
+    return t.anfrage('PUT', '/api/v1/garage/gespann', { token, body: { fahrer_gewicht_kg: 80, ...werte, fahrrad_id: undefined, anhaenger_id: undefined } });
+  };
   return { t, token, rad, wagen, gespannSetzen };
 }
 

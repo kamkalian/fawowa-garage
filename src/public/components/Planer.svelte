@@ -4,6 +4,7 @@
   import { t, zahlText } from '../lib/i18n.js';
   import * as api from '../lib/api.js';
   import { Karte } from '../lib/karte.js';
+  import { gespannFuerRechnung } from '../../../lib/gespann.js';
 
   // Reichweiten-Planer als Vollbild-Seite: die Karte füllt den Bildschirm, Suche, Filter und Ergebnis liegen darüber.
   // Die Rechnung läuft auf dem Server mit dem Gespann der Garage.
@@ -18,9 +19,10 @@
     sportlich: { unterstuetzung: 'sport', geschwindigkeit_kmh: 22, eigenleistung_max_w: 250 }
   };
 
-  const nachId = (liste, id) => liste.find(x => x.id === id) ?? null;
-  const rad = $derived(nachId(daten.fahrraeder, daten.gespann?.fahrrad_id));
-  const wagen = $derived(nachId(daten.anhaenger, daten.gespann?.anhaenger_id));
+  // Alle Zugfahrzeuge und Anhänger im Gespann, zusammengefasst für die Rechnung
+  const kombi = $derived(gespannFuerRechnung(daten.fahrraeder, daten.anhaenger, daten.mitglieder));
+  const rad = $derived(kombi.fahrrad);
+  const wagen = $derived(kombi.anhaenger);
   const motor = $derived(hatMotor(rad));
   const mitZusatzakku = $derived((rad?.zusatzakku_wh ?? 0) > 0 || (wagen?.zusatzakku_wh ?? 0) > 0);
   const mitSolar = $derived((wagen?.solar_wp ?? 0) > 0);

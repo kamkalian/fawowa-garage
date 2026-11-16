@@ -27,7 +27,8 @@
   onMount(laden);
 
   const nachId = (art, nr) => (g[art === 'fahrraeder' ? 'fahrraeder' : 'anhaenger'].find(e => e.id === nr)?.name ?? null);
-  const alleEintraege = $derived(g ? [...g.fahrraeder, ...g.anhaenger, ...(g.gespann ? [g.gespann] : [])] : []);
+  // Geprüft wird pro Stellplatz (Fahrräder und Anhänger); das Gespann selbst wird nicht mehr geprüft
+  const alleEintraege = $derived(g ? [...g.fahrraeder, ...g.anhaenger] : []);
   const ungeprueft = $derived(alleEintraege.filter(e => e.status !== 'geprueft').length);
 
   const ABSCHNITTE = [
@@ -137,17 +138,6 @@
     </section>
   {/each}
 
-  <section class="abschnitt" aria-labelledby="ab-gespann">
-    <h3 id="ab-gespann">Gespann</h3>
-    {#if !g.gespann}
-      <p class="notiz">Noch kein Gespann gespeichert.</p>
-    {:else}
-      <div class="raster">
-        <Eintrag eintrag={g.gespann} felder={GESPANN_FELDER} {nachId}
-          onaendern={(a) => eintragAendern('gespanne', g.gespann, a)} onloeschen={() => (loeschen = { art: 'gespanne', eintrag: g.gespann })} />
-      </div>
-    {/if}
-  </section>
 {/if}
 
 {#if loeschen}

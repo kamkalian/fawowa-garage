@@ -144,7 +144,9 @@ test('Verwaltung: Übersicht, Liste mit Suche und Filter, Detail, Prüfen, Lösc
   const { id: b } = await sp.garageAnlegen(`${kennung} Bernd`);
   const rad = await sp.anlegen(a, 'fahrraeder', werte('fahrraeder', { name: 'Rad', notiz: 'privat' }));
   const wagen = await sp.anlegen(a, 'anhaenger', werte('anhaenger', { name: 'Wagen' }));
-  await sp.gespannSetzen(a, pruefeEingabe(GESPANN_FELDER, { fahrrad_id: rad.id, anhaenger_id: wagen.id, fahrer_gewicht_kg: 80 }).werte);
+  await sp.mitgliedSetzen(a, 'fahrraeder', rad.id, true);
+  await sp.mitgliedSetzen(a, 'anhaenger', wagen.id, true);
+  await sp.gespannSetzen(a, pruefeEingabe(GESPANN_FELDER, { fahrer_gewicht_kg: 80 }).werte);
 
   const u = await sp.adminUebersicht();
   for (const k of ['garagen', 'mit_email', 'fahrraeder', 'anhaenger', 'ungeprueft', 'garagen_mit_ungeprueften']) assert.equal(typeof u[k], 'number', k);
@@ -199,7 +201,7 @@ test('Verwaltung: Übersicht, Liste mit Suche und Filter, Detail, Prüfen, Lösc
   assert.equal((await sp.adminGarage(a)).fahrer_name, `${kennung} Anja K.`);
   assert.equal(await sp.adminEintragLoeschen('anhaenger', wagen.id), true);
   assert.equal(await sp.adminEintragLoeschen('anhaenger', wagen.id), false);
-  assert.equal((await sp.adminGarage(a)).gespann.anhaenger_id, null, 'Platz im Gespann wird leer');
+  assert.deepEqual((await sp.alles(a)).mitglieder.anhaenger, [], 'Platz im Gespann wird leer');
   assert.equal(await sp.adminEintragLoeschen('gespanne', alle.gespann.id), true);
   assert.equal(await sp.adminGarageLoeschen(a), true);
   assert.equal(await sp.adminGarageLoeschen(a), false);
@@ -268,34 +270,31 @@ test('Reihenfolge: neue Einträge ans Ende, gemeinsame Liste umsortieren, fremde
   assert.equal(geaendert.sortierung, 1);
 });
 
-test('Gespann: fremde Verweise abgelehnt, leere Plätze erlaubt, ein Gespann je Garage', opt, async () => {
+test('Gespann: mehrere Zugfahrzeuge und Anhänger, fremde Einträge abgelehnt, ein Gespann je Garage', opt, async () => {
   const { id: a } = await sp.garageAnlegen();
   const { id: b } = await sp.garageAnlegen();
-  const rad = await sp.anlegen(a, 'fahrraeder', werte('fahrraeder', { name: 'Rad' }));
+  const rad1 = await sp.anlegen(a, 'fahrraeder', werte('fahrraeder', { name: 'Rad 1' }));
+  const rad2 = await sp.anlegen(a, 'fahrraeder', werte('fahrraeder', { name: 'Rad 2' }));
   const wagen = await sp.anlegen(a, 'anhaenger', werte('anhaenger', { name: 'Wagen' }));
   const fremd = await sp.anlegen(b, 'fahrraeder', werte('fahrraeder', { name: 'Fremd' }));
   const gw = (eingabe) => { const r = pruefeEingabe(GESPANN_FELDER, eingabe); assert.equal(r.fehler, null); return r.werte; };
 
-  assert.equal((await sp.alles(a)).gespann, null);
-  await assert.rejects(sp.gespannSetzen(a, gw({ fahrrad_id: fremd.id, anhaenger_id: wagen.id })), { status: 400 });
+  assert.deepEqual((await sp.alles(a)).mitglieder, { fahrraeder: [], anhaenger: [] });
+  await assert.rejects(sp.mitgliedSetzen(a, 'fahrraeder', fremd.id, true), { status: 400 });
 
-  const halb = await sp.gespannSetzen(a, gw({ anhaenger_id: wagen.id }));
-  assert.equal(halb.fahrrad_id, null);
-  assert.equal(halb.anhaenger_id, wagen.id);
+  await sp.mitgliedSetzen(a, 'fahrraeder', rad1.id, true);
+  await sp.mitgliedSetzen(a, 'fahrraeder', rad2.id, true);
+  const m = await sp.mitgliedSetzen(a, 'anhaenger', wagen.id, true);
+  assert.deepEqual(m.mitglieder, { fahrraeder: [rad1.id, rad2.id], anhaenger: [wagen.id] });
 
-  const voll = await sp.gespannSetzen(a, gw({ fahrrad_id: rad.id, anhaenger_id: wagen.id, fahrer_gewicht_kg: 80, gepaeck_kg: 12.5 }));
-  assert.equal(voll.id, halb.id);
-  assert.equal(voll.fahrer_gewicht_kg, 80);
-  assert.equal(voll.status, 'ungeprueft');
+  await sp.gespannSetzen(a, gw({ fahrer_gewicht_kg: 80, gepaeck_kg: 12.5 }));
+  await sp.gespannSetzen(a, gw({ fahrer_gewicht_kg: 81 }));
   const [[n]] = await pool.query('SELECT COUNT(*) AS n FROM gespanne WHERE garage_id = ?', [a]);
   assert.equal(Number(n.n), 1);
 
-  // Ein Fahrrad löschen leert nur den Platz
-  assert.equal(await sp.loeschen(a, 'fahrraeder', rad.id), true);
-  const danach = (await sp.alles(a)).gespann;
-  assert.equal(danach.fahrrad_id, null);
-  assert.equal(danach.anhaenger_id, wagen.id);
-  assert.equal(danach.fahrer_gewicht_kg, 80);
+  // Ein Zugfahrzeug löschen nimmt es nur aus dem Gespann
+  assert.equal(await sp.loeschen(a, 'fahrraeder', rad1.id), true);
+  assert.deepEqual((await sp.alles(a)).mitglieder, { fahrraeder: [rad2.id], anhaenger: [wagen.id] });
 });
 
 test('Gespann wird als ungeprüft zurückgesetzt, wenn es geändert wird', opt, async () => {
@@ -319,7 +318,8 @@ test('Garage löschen entfernt alle Einträge einschließlich Gespann', opt, asy
   const { id: g, token } = await sp.garageAnlegen();
   const rad = await sp.anlegen(g, 'fahrraeder', werte('fahrraeder', { name: 'Rad' }));
   const wagen = await sp.anlegen(g, 'anhaenger', werte('anhaenger', { name: 'Wagen' }));
-  await sp.gespannSetzen(g, pruefeEingabe(GESPANN_FELDER, { fahrrad_id: rad.id, anhaenger_id: wagen.id }).werte);
+  await sp.mitgliedSetzen(g, 'fahrraeder', rad.id, true);
+  await sp.mitgliedSetzen(g, 'anhaenger', wagen.id, true);
   await sp.garageLoeschen(g);
   assert.equal(await sp.garageFinden(token), null);
   for (const t of ['fahrraeder', 'anhaenger', 'gespanne']) {

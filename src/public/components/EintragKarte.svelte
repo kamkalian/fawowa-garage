@@ -50,7 +50,7 @@
         {@render aktionen()}
       {:else}
         {#if onGespann}
-          <button type="button" class="btn btn-outline btn-sm" disabled={imGespann} onclick={onGespann}>{t(lang, imGespann ? 'inGespann' : 'toGespann')}</button>
+          <button type="button" class="btn btn-outline btn-sm" onclick={onGespann}>{t(lang, imGespann ? 'removeGespann' : 'toGespann')}</button>
         {/if}
         <button type="button" class="btn btn-outline btn-sm" onclick={onedit}><Icon name="ui-edit" size={14} /> {t(lang, 'edit')}</button>
         <button type="button" class="btn btn-ghost btn-sm" onclick={onremove}><Icon name="ui-trash" size={14} /> {t(lang, 'remove')}</button>

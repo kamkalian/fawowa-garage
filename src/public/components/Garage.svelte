@@ -1,13 +1,12 @@
 <script>
   import { onMount } from 'svelte';
-  import { ARTEN } from '../../../lib/felder.js';
+  import { ARTEN, GESPANN_FELDER } from '../../../lib/felder.js';
   import Icon from '../../shared/Icon.svelte';
-  import { t } from '../lib/i18n.js';
+  import { t, pick } from '../lib/i18n.js';
   import * as api from '../lib/api.js';
   import EintragForm from './EintragForm.svelte';
   import EintragKarte from './EintragKarte.svelte';
   import Fenster from './Fenster.svelte';
-  import GespannBereich from './GespannBereich.svelte';
   import EmailFenster from './EmailFenster.svelte';
   import Planer from './Planer.svelte';
 
@@ -16,9 +15,9 @@
 
   const ARTEN_LISTE = ['fahrraeder', 'anhaenger'];
   const planerAktiv = $derived(!!einst.reichweite?.aktiv);
-  const TABS = ['gespann', 'stellplaetze'];
   let planerOffen = $state(false); // Reichweiten-Planer als Vollbild-Seite, geöffnet über einen Knopf
-  let tab = $state('gespann');
+  let fahrer = $state(null); // Fahrergewicht und Gepäck, gelten für das ganze Gespann
+  let gepaeck = $state(null);
   let status = $state('laden'); // laden | bereit | fehler
   let daten = $state({ fahrraeder: [], anhaenger: [], gespann: null, email: null, email_offen: null });
   let form = $state(null);        // { art, eintrag } oder null
@@ -41,11 +40,39 @@
   const schluessel = (f) => `${f.art}-${f.e.id}`;
   const alleVoll = $derived(ARTEN_LISTE.every(a => daten[a].length >= ARTEN[a].max));
 
-  const imGespann = (art, e) => daten.gespann?.[art === 'fahrraeder' ? 'fahrrad_id' : 'anhaenger_id'] === e.id;
+  const imInGespann = (art, e) => (daten.mitglieder?.[art] ?? []).includes(e.id);
+  const gespannNamen = $derived([
+    ...(daten.mitglieder?.fahrraeder ?? []).map(id => daten.fahrraeder.find(x => x.id === id)?.name),
+    ...(daten.mitglieder?.anhaenger ?? []).map(id => daten.anhaenger.find(x => x.id === id)?.name)
+  ].filter(Boolean).join(' + '));
+
+  /** Ein Stellplatz kommt ins Gespann oder fliegt wieder heraus (beliebig viele Zugfahrzeuge und Anhänger) */
+  async function umschalten(f) {
+    const im = !imInGespann(f.art, f.e);
+    try {
+      daten = await api.mitgliedSetzen(token, f.art, f.e.id, im);
+      melde(t(lang, im ? 'toGespannDone' : 'removeGespannDone'));
+    } catch (e) {
+      melde(fehlerMeldung(e), 'error');
+    }
+  }
+
+  /** Fahrergewicht und Gepäck speichern (gelten für das ganze Gespann) */
+  async function fahrtSpeichern() {
+    try {
+      daten.gespann = await api.gespannSetzen(token, { fahrer_gewicht_kg: fahrer, gepaeck_kg: gepaeck });
+      melde(t(lang, 'saved'));
+    } catch (e) {
+      melde(fehlerMeldung(e), 'error');
+    }
+  }
+
 
   onMount(async () => {
     try {
       daten = await api.garageLaden(token);
+      fahrer = daten.gespann?.fahrer_gewicht_kg ?? null;
+      gepaeck = daten.gespann?.gepaeck_kg ?? null;
       status = 'bereit';
     } catch (e) {
       if (e.status === 401) onungueltig();
@@ -100,21 +127,6 @@
     } catch (err) {
       melde(fehlerMeldung(err), 'error');
       try { daten = await api.garageLaden(token); } catch { /* Anzeige bleibt, wie sie ist */ }
-    }
-  }
-
-  /** Legt ein Fahrzeug auf den passenden Platz im Gespann; Gewichte und der andere Platz bleiben, wie gespeichert */
-  async function insGespann(f) {
-    const g = daten.gespann;
-    try {
-      daten.gespann = await api.gespannSetzen(token, {
-        fahrrad_id: g?.fahrrad_id ?? null, anhaenger_id: g?.anhaenger_id ?? null,
-        fahrer_gewicht_kg: g?.fahrer_gewicht_kg ?? null, gepaeck_kg: g?.gepaeck_kg ?? null,
-        [f.art === 'fahrraeder' ? 'fahrrad_id' : 'anhaenger_id']: f.e.id
-      });
-      melde(t(lang, 'toGespannDone'));
-    } catch (e) {
-      melde(fehlerMeldung(e), 'error');
     }
   }
 
@@ -189,35 +201,33 @@
     {/if}
   </section>
 
-  <div class="tabs" role="tablist" aria-label={t(lang, 'tabs')}>
-    {#each TABS as a (a)}
-      <button type="button" role="tab" class="tab" class:aktiv={tab === a} aria-selected={tab === a} id="tab-{a}" aria-controls="panel-{a}" onclick={() => (tab = a)}>
-        {t(lang, a === 'gespann' ? 'gespannTitle' : 'stellplaetze')}{#if a === 'stellplaetze'} <span class="anzahl">{fahrzeuge.length}</span>{/if}
-      </button>
-    {/each}
-  </div>
-
-  <!-- Beide Bereiche bleiben geladen (nur ausgeblendet), damit nicht gespeicherte Eingaben beim Wechseln erhalten bleiben -->
-  <div id="panel-gespann" role="tabpanel" aria-labelledby="tab-gespann" hidden={tab !== 'gespann'}>
+  <section class="fahrt" aria-label={t(lang, 'fahrtTitle')}>
+    <p class="notiz">{t(lang, 'gespannInfo')} {gespannNamen || t(lang, 'gespannLeer')}</p>
+    <div class="fahrt-felder">
+      <label for="fahrt-fahrer">{pick(GESPANN_FELDER.find(f => f.key === 'fahrer_gewicht_kg').label, lang)} (kg)</label>
+      <input id="fahrt-fahrer" class="input" type="number" inputmode="decimal" min="20" max="250" step="any" bind:value={fahrer} />
+      <label for="fahrt-gepaeck">{pick(GESPANN_FELDER.find(f => f.key === 'gepaeck_kg').label, lang)} (kg)</label>
+      <input id="fahrt-gepaeck" class="input" type="number" inputmode="decimal" min="0" max="500" step="any" bind:value={gepaeck} />
+      <button type="button" class="btn btn-outline btn-sm" onclick={fahrtSpeichern}>{t(lang, 'save')}</button>
+    </div>
     {#if planerAktiv}
       <button type="button" class="btn btn-outline planer-knopf" onclick={() => (planerOffen = true)}>{t(lang, 'p_planerOeffnen')}</button>
     {/if}
-    <GespannBereich {lang} {token} {daten} {melde} />
-  </div>
+  </section>
 
   {#if planerAktiv}
     <Planer {lang} {token} {daten} {einst} offen={planerOffen} zurueck={() => (planerOffen = false)} />
   {/if}
 
-  <div id="panel-stellplaetze" role="tabpanel" aria-labelledby="tab-stellplaetze" hidden={tab !== 'stellplaetze'}>
+  <div class="stellplaetze">
     <p class="notiz hinweis">{t(lang, 'dragHinweis')}</p>
     <div class="liste" role="list">
       {#each fahrzeuge as f (schluessel(f))}
         <div class="kachel" role="listitem" draggable="true" class:gezogen={ziehend?.art === f.art && ziehend?.id === f.e.id} class:ziel={ziel === schluessel(f)}
           ondragstart={(e) => ziehStart(e, f)} ondragend={ziehEnde}
           ondragover={(e) => ueberKachel(e, schluessel(f))} ondrop={(e) => ablegenKachel(e, f)}>
-          <EintragKarte {lang} art={f.art} eintrag={f.e} imGespann={imGespann(f.art, f.e)}
-            onGespann={() => insGespann(f)}
+          <EintragKarte {lang} art={f.art} eintrag={f.e} imGespann={imInGespann(f.art, f.e)}
+            onGespann={() => umschalten(f)}
             onedit={() => (form = { art: f.art, eintrag: f.e })} onremove={() => (loeschen = { art: f.art, eintrag: f.e })} />
         </div>
       {/each}
@@ -299,6 +309,9 @@
   }
   .info:hover .tip, .info:focus-within .tip, .tip.offen { display: block; }
   .planer-knopf { margin-bottom: 1rem; }
+  .fahrt { display: flex; flex-direction: column; gap: .5rem; margin: 0 0 1.25rem; }
+  .fahrt-felder { display: grid; grid-template-columns: minmax(0, 1fr) 7rem; gap: .5rem .75rem; align-items: center; max-width: 28rem; }
+  .fahrt-felder .btn { justify-self: start; }
 
   /* Echte Tabs: eine Linie unter dem Tab-Streifen; der aktive Tab ist oben grün abgesetzt und mit dem Inhalt darunter verbunden */
   .tabs { display: flex; gap: .25rem; margin-bottom: 1.5rem; padding: 0 .5rem; border-bottom: 1px solid var(--border); }

@@ -11,7 +11,8 @@ export class FakeSpeicher {
   constructor() {
     this.garagen = new Map(); // hash -> id
     this.daten = { fahrraeder: [], anhaenger: [] }; // Zeilen mit garage_id
-    this.gespanne = new Map(); // garage_id -> Gespann
+    this.gespanne = new Map(); // garage_id -> Gespann (Fahrer, Gepäck)
+    this.mitglieder = new Map(); // garage_id -> { fahrraeder: Set, anhaenger: Set } (Zugfahrzeuge und Anhänger im Gespann)
     this.namen = new Map(); // garage_id -> Name der Fahrerin oder des Fahrers
     this.emails = new Map(); // garage_id -> bestätigte Adresse
     this.tokens = new Map(); // hash -> { garageId, art, email, bis }
@@ -39,6 +40,7 @@ export class FakeSpeicher {
   async garageLoeschen(garageId) {
     for (const a of Object.keys(this.daten)) this.daten[a] = this.daten[a].filter(z => z.garage_id !== garageId);
     this.gespanne.delete(garageId);
+    this.mitglieder.delete(garageId);
     this.namen.delete(garageId);
     this.emails.delete(garageId);
     for (const [h, t] of this.tokens) if (t.garageId === garageId) this.tokens.delete(h);
@@ -56,6 +58,8 @@ export class FakeSpeicher {
     const r = { fahrer_name: this.namen.get(garageId) ?? null, email: this.emails.get(garageId) ?? null, email_offen: offen?.email ?? null };
     for (const a of Object.keys(this.daten)) r[a] = this.daten[a].filter(z => z.garage_id === garageId).sort((x, y) => x.sortierung - y.sortierung || x.id - y.id).map(z => this._sicht(z));
     r.gespann = this.gespanne.has(garageId) ? { ...this.gespanne.get(garageId) } : null;
+    const m = this._mitgliederVon(garageId);
+    r.mitglieder = { fahrraeder: [...m.fahrraeder], anhaenger: [...m.anhaenger] };
     return r;
   }
 
@@ -217,14 +221,23 @@ export class FakeSpeicher {
   }
 
   async gespannSetzen(garageId, werte) {
-    const felder = {};
-    if (werte.fahrrad_id !== null && !this.daten.fahrraeder.some(z => z.id === werte.fahrrad_id && z.garage_id === garageId)) felder.fahrrad_id = 'ungueltig';
-    if (werte.anhaenger_id !== null && !this.daten.anhaenger.some(z => z.id === werte.anhaenger_id && z.garage_id === garageId)) felder.anhaenger_id = 'ungueltig';
-    if (Object.keys(felder).length) throw new FehlerEingabe('Verweis', 400, { code: 'eingabe', felder });
     const alt = this.gespanne.get(garageId);
     const neu = { id: alt?.id ?? this.naechsteId++, ...werte, status: 'ungeprueft' };
     this.gespanne.set(garageId, neu);
     return { ...neu };
+  }
+
+  async mitgliedSetzen(garageId, art, id, im) {
+    if (!this.daten[art]?.some(z => z.id === id && z.garage_id === garageId)) throw new FehlerEingabe('Dieser Eintrag gehört nicht zu dieser Garage.', 400, { code: 'eingabe' });
+    const m = this._mitgliederVon(garageId);
+    if (im) { m[art].add(id); if (!this.gespanne.has(garageId)) this.gespanne.set(garageId, { id: this.naechsteId++, fahrer_gewicht_kg: null, gepaeck_kg: null, status: 'ungeprueft' }); }
+    else m[art].delete(id);
+    return this.alles(garageId);
+  }
+
+  _mitgliederVon(garageId) {
+    if (!this.mitglieder.has(garageId)) this.mitglieder.set(garageId, { fahrraeder: new Set(), anhaenger: new Set() });
+    return this.mitglieder.get(garageId);
   }
 
   async aendern(garageId, art, id, werte) {
@@ -239,9 +252,7 @@ export class FakeSpeicher {
     const i = this.daten[art].findIndex(z => z.id === id && z.garage_id === garageId);
     if (i < 0) return false;
     this.daten[art].splice(i, 1);
-    const g = this.gespanne.get(garageId);
-    const feld = art === 'fahrraeder' ? 'fahrrad_id' : 'anhaenger_id';
-    if (g && g[feld] === id) g[feld] = null;
+    if (art === 'fahrraeder' || art === 'anhaenger') this._mitgliederVon(garageId)[art].delete(id);
     return true;
   }
 }
