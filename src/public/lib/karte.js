@@ -78,6 +78,8 @@ export class Karte {
     this.laufend = 0;
     this.warteschlange = [];
     this.overlay = null;      // { bild, lat0, lon0, lat1, lon1 }
+    this.routen = null;       // [{ pfad: [[lat, lon, anteil], ...] }] der Reichweiten-Routen
+    this.zeigeRouten = false; // true: Routen als Linien statt Heatmap
     this.start = null;
     this.zeichnenGeplant = false;
     this.zeiger = new Map();
@@ -143,6 +145,10 @@ export class Karte {
   }
 
   setzeStart(lat, lon) { this.start = lat === null ? null : { lat, lon }; this.zeichnen(); }
+
+  /** Routen der Reichweite (Linien); ansicht: true zeigt die Routen, false die Heatmap */
+  setzeRouten(routen) { this.routen = routen ?? null; this.zeichnen(); }
+  setzeAnsicht(alsRouten) { this.zeigeRouten = !!alsRouten; this.zeichnen(); }
 
   /** Wärmekarte aus dem Raster der Antwort (base64, ein Byte je Zelle; Wert = byte / 254 × max) */
   setzeRaster(raster) {
@@ -253,7 +259,8 @@ export class Karte {
       const groesse = TILE * 2 ** (this.zoom - t.z);
       g.drawImage(this._bild(t), x0, y0, groesse, groesse);
     }
-    this._zeichneWaerme(g);
+    if (this.zeigeRouten) this._zeichneRouten(g);
+    else this._zeichneWaerme(g);
     this._zeichneOrte(g);
     this._zeichneStart(g);
     g.font = '10px system-ui, sans-serif';
@@ -339,6 +346,33 @@ export class Karte {
       g.setLineDash((st.strich ?? []).map((v) => v * u.f));
       g.stroke();
       g.setLineDash([]);
+    }
+  }
+
+  /** Routen als Linien, Endpunkt mit Punkt */
+  _zeichneRouten(g) {
+    if (!this.routen) return;
+    const s = this.welt;
+    const [ox, oy] = [this.w / 2 - this.mitte.x * s, this.h / 2 - this.mitte.y * s];
+    g.lineJoin = 'round';
+    g.lineCap = 'round';
+    g.strokeStyle = '#1d4ed8';
+    g.lineWidth = 2.5;
+    g.beginPath();
+    for (const rt of this.routen) {
+      const p = rt.pfad;
+      if (p.length < 2) continue;
+      g.moveTo(weltX(p[0][1]) * s + ox, weltY(p[0][0]) * s + oy);
+      for (let i = 1; i < p.length; i++) g.lineTo(weltX(p[i][1]) * s + ox, weltY(p[i][0]) * s + oy);
+    }
+    g.stroke();
+    g.fillStyle = '#1d4ed8';
+    for (const rt of this.routen) {
+      const e = rt.pfad.at(-1);
+      if (!e) continue;
+      g.beginPath();
+      g.arc(weltX(e[1]) * s + ox, weltY(e[0]) * s + oy, 3.5, 0, Math.PI * 2);
+      g.fill();
     }
   }
 

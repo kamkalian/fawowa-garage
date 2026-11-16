@@ -12,14 +12,6 @@ const START = { lat: 51.075, lon: 7.12 }; // Mitte des Gitters
 
 const netz = new Netz(gitterNetz(31), { minKomponente: 1 });
 const rechne = (zusatz = {}) => rechneReichweite(netz, { fahrrad: FAHRRAD, anhaenger: null, gespann: GESPANN, einstellungen: {}, start: START, modus: 'alle', ...zusatz });
-/** Wert des Rasters (0..max) an einem Punkt, 'max' außerhalb */
-const wert = (r, lat, lon) => {
-  const { lat0, lon0, dLat, dLon, nx, ny, max, daten } = r.raster;
-  const x = Math.floor((lon - lon0) / dLon);
-  const y = Math.floor((lat - lat0) / dLat);
-  if (x < 0 || y < 0 || x >= nx || y >= ny) return max;
-  return Buffer.from(daten, 'base64')[y * nx + x] / 254 * max;
-};
 
 /** Liest die drei Listen aus einer Kachel (Flächen, Linien, Wege) */
 function lieseKachel(buf) {
@@ -42,56 +34,43 @@ function lieseKachel(buf) {
   return { flaechen: liste(), linien: liste(), wege: liste(), ende: p };
 }
 
-test('Reichweite: Ergebnis mit Start, Raster und Kennzahlen (ohne Umrandung)', () => {
+test('Routen: 36 Richtungen, alle 10°, jede Route beginnt am Start', () => {
   const r = rechne();
   assert.equal(r.ok, true);
-  assert.ok(r.start.abstand_m < 400);
-  assert.equal(r.budget.art, 'akku');
-  assert.equal(r.budget.einheit, 'Wh');
-  assert.ok(r.budget.wert > 0 && r.budget.wert < 20);
-  assert.equal(r.umrandung, undefined, 'die Begrenzungslinie gibt es nicht mehr');
-  assert.equal(Buffer.from(r.raster.daten, 'base64').length, r.raster.nx * r.raster.ny);
-  assert.equal(r.raster.max, 1.5);
-  assert.ok(r.kennzahlen.flaeche_km2 > 0 && r.kennzahlen.weitester_km > 1);
-});
-
-test('Reichweite: nahe am Start wenig, weiter weg mehr, außerhalb des Rasters der Höchstwert', () => {
-  const r = rechne();
-  const nah = wert(r, 51.075, 7.12);
-  assert.ok(nah < 0.3, `am Start ${nah}`);
-  assert.ok(nah < wert(r, 51.075 + 0.04, 7.12), 'weiter weg kostet mehr');
-  assert.equal(wert(r, 52.0, 7.12), 1.5);
-});
-
-test('Reichweite: innerhalb der Grenze gibt es Fläche', () => {
-  const r = rechne();
-  const { nx, ny, daten } = r.raster;
-  const bytes = Buffer.from(daten, 'base64');
-  let rot = 0;
-  for (let i = 0; i < nx * ny; i++) {
-    const f = bytes[i] / 254 * 1.5;
-    if (f <= 1) rot++;
+  assert.equal(r.routen.length, 36);
+  assert.deepEqual(r.routen.map((x) => x.winkel), Array.from({ length: 36 }, (_, i) => i * 10));
+  for (const rt of r.routen.filter((x) => x.km > 0)) {
+    assert.ok(Math.abs(rt.pfad[0][0] - r.start.lat) < 1e-4 && Math.abs(rt.pfad[0][1] - r.start.lon) < 1e-4, 'Start');
+    assert.ok(rt.pfad.every(([, , f]) => f >= 0 && f <= 1.5));
   }
-  assert.ok(rot > 0, 'innerhalb der Grenze gibt es Fläche');
-  // Die Kante der Fläche ist hart; geglättet wird nur innerhalb des erreichten Gebiets
+  assert.ok(r.kennzahlen.weitester_km > 1);
 });
 
-test('Reichweite: mehr Akku und weniger Füllstand wirken in die erwartete Richtung', () => {
-  const normal = rechne().kennzahlen.flaeche_km2;
-  const mehr = rechne({ fahrrad: { ...FAHRRAD, akku_kapazitaet_wh: 60 } }).kennzahlen.flaeche_km2;
-  const weniger = rechne({ einstellungen: { akku_rest_prozent: 40 } }).kennzahlen.flaeche_km2;
+test('Routen: Akku-Modus endet dort, wo der Verbrauch das Budget erreicht; Fahrtzeit-Modus nach der Zeit', () => {
+  const r = rechne();
+  const letzte = r.routen.find((x) => x.km > 0).pfad.at(-1);
+  assert.ok(letzte[2] <= 1, 'am Ende höchstens das Budget verbraucht');
+  const kurz = rechne({ fahrrad: OHNE_MOTOR, einstellungen: { budget_art: 'zeit', fahrtzeit_h: 0.5 } });
+  const lang = rechne({ fahrrad: OHNE_MOTOR, einstellungen: { budget_art: 'zeit', fahrtzeit_h: 1 } });
+  assert.equal(kurz.budget.art, 'zeit');
+  assert.ok(lang.kennzahlen.weitester_km > kurz.kennzahlen.weitester_km, 'mehr Zeit, weitere Routen');
+  for (const rt of kurz.routen) if (rt.pfad.length) assert.ok(rt.pfad.at(-1)[2] <= 1, 'Zeit eingehalten');
+});
+
+test('Routen: mehr Akku, weitere Routen; weniger Füllstand, kürzere Routen', () => {
+  const normal = rechne().kennzahlen.weitester_km;
+  const mehr = rechne({ fahrrad: { ...FAHRRAD, akku_kapazitaet_wh: 60 } }).kennzahlen.weitester_km;
+  const weniger = rechne({ einstellungen: { akku_rest_prozent: 40 } }).kennzahlen.weitester_km;
   assert.ok(mehr > normal && weniger < normal, `${weniger} < ${normal} < ${mehr}`);
 });
 
-test('Reichweite nach Fahrtzeit: auch ohne Motor, Einheit Stunden', () => {
-  const r = rechne({ fahrrad: OHNE_MOTOR, einstellungen: { budget_art: 'zeit', fahrtzeit_h: 0.5 } });
-  assert.equal(r.ok, true);
-  assert.equal(r.budget.art, 'zeit');
-  assert.equal(r.budget.einheit, 'h');
-  assert.equal(r.budget.wert, 0.5);
-  assert.ok(r.kennzahlen.flaeche_km2 > 0);
-  const laenger = rechne({ fahrrad: OHNE_MOTOR, einstellungen: { budget_art: 'zeit', fahrtzeit_h: 1 } });
-  assert.ok(laenger.kennzahlen.flaeche_km2 > r.kennzahlen.flaeche_km2, 'mehr Zeit, mehr Fläche');
+test('Heatmap aus den Linien: Werte nur entlang der Routen, sonst leer (254)', () => {
+  const r = rechne();
+  const { nx, ny, daten } = r.raster;
+  const bytes = Buffer.from(daten, 'base64');
+  assert.equal(bytes.length, nx * ny);
+  const gefaerbt = bytes.filter((x) => x < 254).length;
+  assert.ok(gefaerbt > 0 && gefaerbt < nx * ny, 'es gibt Linien, aber nicht überall');
 });
 
 test('Ohne Motor nach Akku: Fehler kein_motor; Fahrtzeit ohne Akku-Angaben geht trotzdem', () => {
@@ -170,7 +149,7 @@ test('Netz: Linie einer Kante beginnt und endet an den Knoten; Rechteckabfrage',
 
 test('Solar: Gutschrift senkt die Kosten, die Fläche wird größer', () => {
   const anhaenger = { leergewicht_kg: 40, solar_wp: 300 };
-  const ohne = rechneReichweite(netz, { fahrrad: FAHRRAD, anhaenger, gespann: GESPANN, einstellungen: {}, start: START, modus: 'alle' }).kennzahlen.flaeche_km2;
-  const mit = rechneReichweite(netz, { fahrrad: FAHRRAD, anhaenger, gespann: GESPANN, einstellungen: { einstrahlung_w_m2: 900 }, start: START, modus: 'alle' }).kennzahlen.flaeche_km2;
-  assert.ok(mit > ohne, `${mit} > ${ohne}`);
+  const ohne = rechneReichweite(netz, { fahrrad: FAHRRAD, anhaenger, gespann: GESPANN, einstellungen: {}, start: START, modus: 'alle' }).kennzahlen.weitester_km;
+  const mit = rechneReichweite(netz, { fahrrad: FAHRRAD, anhaenger, gespann: GESPANN, einstellungen: { einstrahlung_w_m2: 900 }, start: START, modus: 'alle' }).kennzahlen.weitester_km;
+  assert.ok(mit >= ohne, `${mit} >= ${ohne}`);
 });

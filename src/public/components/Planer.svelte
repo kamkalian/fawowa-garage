@@ -57,6 +57,7 @@
   let suchOffen = $state(false);
   let rechnet = $state(false);
   let ergebnis = $state(null);
+  let ansicht = $state('heatmap'); // 'heatmap' (Standard) oder 'routen'
   let meldungFehler = $state('');
   let zaehler = 0;
   let timer;
@@ -121,6 +122,7 @@
       if (nr !== zaehler) return;
       ergebnis = r;
       karte.setzeRaster(r.raster);
+      karte.setzeRouten(r.routen);
       karte.setzeStart(r.start.lat, r.start.lon);
       if (anpassen) {
         const R = r.raster;
@@ -174,6 +176,7 @@
     };
   });
   $effect(() => { if (karte) { karte.opt.quelle = t(lang, 'kartenQuelle'); karte.zeichnen(); } });
+  $effect(() => { if (karte) karte.setzeAnsicht(ansicht === 'routen'); });
 
   const annahmeText = (k) => {
     const w = { fahrer_gewicht_kg: ANNAHMEN.fahrer_gewicht_kg, gewicht_kg: ANNAHMEN.fahrrad_gewicht_kg, leergewicht_kg: ANNAHMEN.anhaenger_leergewicht_kg,
@@ -336,10 +339,14 @@
   {#if ergebnis}
     <section class="karte-karte ergebnis" aria-label={t(lang, 'p_ergebnis')}>
       <div class="legende" aria-hidden="true"><span>0</span><span class="balken"></span><span>{zahlText(lang, ergebnis.budget.wert)} {ergebnis.budget.einheit}</span></div>
-      <p class="notiz">{t(lang, 'p_legende')}</p>
+      <div class="ansicht" role="group" aria-label={t(lang, 'p_ansicht')}>
+        <button type="button" class="wahl" aria-pressed={ansicht === 'heatmap'} onclick={() => (ansicht = 'heatmap')}>{t(lang, 'p_ansichtHeatmap')}</button>
+        <button type="button" class="wahl" aria-pressed={ansicht === 'routen'} onclick={() => (ansicht = 'routen')}>{t(lang, 'p_ansichtRouten')}</button>
+      </div>
+      {#if ansicht === 'heatmap'}<p class="notiz">{t(lang, 'p_legende')}</p>{:else}<p class="notiz">{t(lang, 'p_routenHinweis')}</p>{/if}
       <dl>
-        <div><dt>{t(lang, 'p_flaeche')}</dt><dd>{zahlText(lang, ergebnis.kennzahlen.flaeche_km2)} km²</dd></div>
         <div><dt>{t(lang, 'p_weitester')}</dt><dd>{zahlText(lang, ergebnis.kennzahlen.weitester_km)} km</dd></div>
+        <div><dt>{t(lang, 'p_mittel')}</dt><dd>{zahlText(lang, ergebnis.kennzahlen.mittel_km)} km</dd></div>
         {#if ergebnis.budget.art === 'akku'}
           <div><dt>{t(lang, 'p_energie')}</dt><dd>{zahlText(lang, ergebnis.budget.wert)} Wh</dd></div>
         {:else}
@@ -402,7 +409,9 @@
   .wahl { padding: .45rem .6rem; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-input); color: var(--fg);
     font: inherit; font-size: .8125rem; cursor: pointer; transition: all .15s; }
   .wahl:hover:not(:disabled) { border-color: var(--primary); }
-  .wahl[aria-checked="true"] { border-color: var(--primary); background: var(--primary-bg); color: var(--primary); font-weight: 600; }
+  .wahl[aria-checked="true"], .wahl[aria-pressed="true"] { border-color: var(--primary); background: var(--primary-bg); color: var(--primary); font-weight: 600; }
+  .ansicht { display: flex; gap: .375rem; }
+  .ansicht .wahl { flex: 1; }
   .wahl:disabled { opacity: .5; cursor: not-allowed; }
   .wahl:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
   details summary { cursor: pointer; font-size: .8125rem; color: var(--fg-muted); padding: .25rem 0; }

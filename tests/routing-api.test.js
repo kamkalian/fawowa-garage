@@ -83,7 +83,7 @@ test('Reichweite: braucht Schlüssel, Gespann mit Fahrrad und gültige Angaben',
     assert.equal(r.status, 200);
     assert.equal(r.json.ok, true);
     assert.equal(r.headers.get('cache-control'), 'no-store');
-    assert.ok(r.json.kennzahlen.flaeche_km2 > 0 && r.json.raster.nx > 0 && r.json.budget.art === 'akku');
+    assert.ok(r.json.kennzahlen.weitester_km > 0 && r.json.routen.length === 36 && r.json.raster.nx > 0 && r.json.budget.art === 'akku');
     assert.ok(r.json.modell.masse_kg >= 25 + 80 + 40, 'Gewichte aus Fahrrad, Anhänger und Gespann');
 
     // Ohne Anhänger im Gespann
