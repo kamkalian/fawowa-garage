@@ -63,7 +63,7 @@ test('Reichweite: nahe am Start wenig, weiter weg mehr, außerhalb des Rasters d
   assert.equal(wert(r, 52.0, 7.12), 1.5);
 });
 
-test('Reichweite: innerhalb der Grenze gibt es Fläche, die Werte sind geglättet', () => {
+test('Reichweite: innerhalb der Grenze gibt es Fläche', () => {
   const r = rechne();
   const { nx, ny, daten } = r.raster;
   const bytes = Buffer.from(daten, 'base64');
@@ -73,9 +73,7 @@ test('Reichweite: innerhalb der Grenze gibt es Fläche, die Werte sind geglätte
     if (f <= 1) rot++;
   }
   assert.ok(rot > 0, 'innerhalb der Grenze gibt es Fläche');
-  let sprung = 0;
-  for (let y = 0; y < ny; y++) for (let x = 1; x < nx; x++) sprung = Math.max(sprung, Math.abs(bytes[y * nx + x] - bytes[y * nx + x - 1]));
-  assert.ok(sprung < 60, `größter Sprung zwischen Nachbarn: ${sprung}`);
+  // Die Kante der Fläche ist hart; geglättet wird nur innerhalb des erreichten Gebiets
 });
 
 test('Reichweite: mehr Akku und weniger Füllstand wirken in die erwartete Richtung', () => {

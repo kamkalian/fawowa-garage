@@ -53,9 +53,7 @@ function waermeRgba(f) {
     const t = Math.max(0, f);
     const a = [22, 163, 74]; const b = [234, 179, 8]; const c = [220, 38, 38];
     const [x, y, u] = t < 0.5 ? [a, b, t * 2] : [b, c, (t - 0.5) * 2];
-    // Kurz vor der Grenze wird die Farbe weich durchsichtig
-    const alpha = f <= 0.85 ? 110 : Math.round(110 * (1 - f) / 0.15);
-    return [Math.round(x[0] + (y[0] - x[0]) * u), Math.round(x[1] + (y[1] - x[1]) * u), Math.round(x[2] + (y[2] - x[2]) * u), alpha];
+    return [Math.round(x[0] + (y[0] - x[0]) * u), Math.round(x[1] + (y[1] - x[1]) * u), Math.round(x[2] + (y[2] - x[2]) * u), 110];
   }
   return [0, 0, 0, 0]; // jenseits der Grenze keine Färbung
 }
