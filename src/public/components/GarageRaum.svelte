@@ -32,6 +32,8 @@
 
   <div class="dunkel" aria-hidden="true"></div>
   <div class="inhalt">
+    <!-- Freier Streifen unter dem Lichtschalter: hier beginnen die Stellplätze, damit nie eine Kachel über dem Schalter liegt -->
+    <div class="platz" aria-hidden="true"></div>
     {@render children()}
   </div>
 </div>
@@ -80,5 +82,7 @@
     48% { filter: brightness(.7); } 60% { filter: none; } 74% { filter: brightness(.9); } 100% { filter: none; }
   }
   .inhalt { position: relative; z-index: 2; padding: 1rem; }
+  /* Prozent-Abstand bezieht sich auf die Breite; das Schalterband liegt bei etwa 33 % der Breite */
+  .platz { padding-top: 34%; }
   @media (prefers-reduced-motion: reduce) { .flackern .glanz, .flackern .bild img { animation: none; } }
 </style>
