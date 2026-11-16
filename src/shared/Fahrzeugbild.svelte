@@ -35,7 +35,7 @@
     </svg>
   {/if}
   {#if motor}
-    <span class="blitz" aria-label="Motor"><svg viewBox="0 0 48 48" fill="currentColor" stroke="none"><path d="M36 2 L27 16 H34 L30 26 L42 10 H35 Z"/></svg></span>
+    <span class="blitz" aria-label="Motor"><svg viewBox="0 0 48 48"><path d="M30 2 L12 27 H23 L18 46 L37 19 H26 Z"/></svg></span>
   {/if}
 </div>
 
@@ -43,6 +43,7 @@
   .bild { position: relative; width: 6rem; height: 6rem; flex-shrink: 0; border-radius: var(--radius-sm); background: var(--bg-input); color: var(--primary); display: flex; align-items: center; justify-content: center; overflow: hidden; }
   .bild svg { width: 3.5rem; height: 3.5rem; }
   .bild img { width: 100%; height: 100%; object-fit: cover; }
-  .blitz { position: absolute; bottom: .15rem; right: .15rem; width: 1.6rem; height: 1.6rem; color: #eab308; background: var(--bg-card); border-radius: 999px; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 0 1px var(--border); }
-  .blitz svg { width: 1.1rem; height: 1.1rem; }
+  /* Blitz ohne Hintergrund: kräftiges Gelb mit dunkler Kontur, damit er auf hell und dunkel gut sichtbar ist */
+  .blitz { position: absolute; bottom: .1rem; right: .1rem; width: 1.9rem; height: 1.9rem; pointer-events: none; }
+  .blitz svg { width: 100%; height: 100%; fill: #facc15; stroke: #713f12; stroke-width: 2; stroke-linejoin: round; opacity: 1; }
 </style>

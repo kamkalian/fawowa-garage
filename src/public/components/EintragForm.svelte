@@ -16,9 +16,9 @@
   // svelte-ignore state_referenced_locally
   const werte = $state(Object.fromEntries(cfg.felder.map(f => [f.key, eintrag?.[f.key] ?? (f.typ === 'zahl' || f.typ === 'ganzzahl' ? null : '')])));
   // svelte-ignore state_referenced_locally
-  let motoren = $state((eintrag?.motoren ?? []).map(m => ({ motor_art: m.motor_art, leistung_w: m.leistung_w })));
+  let motoren = $state((eintrag?.motoren ?? []).map(m => ({ motor_art: m.motor_art, leistung_w: m.leistung_w, spannung_v: m.spannung_v ?? null, getriebe: m.getriebe ?? null })));
   // svelte-ignore state_referenced_locally
-  let akkus = $state((eintrag?.akkus ?? []).map(a => ({ kapazitaet_wh: a.kapazitaet_wh })));
+  let akkus = $state((eintrag?.akkus ?? []).map(a => ({ kapazitaet_wh: a.kapazitaet_wh, spannung_v: a.spannung_v ?? null })));
   // Bei Anhängern mit fester Achsenzahl gibt die Art die Anzahl der Räder vor
   $effect(() => { if (art === 'anhaenger') anzahlRaederAbleiten(werte); });
   const feldGesperrt = (f) => art === 'anhaenger' && f.key === 'anzahl_raeder' && ANZAHL_RAEDER_AUS_AUFBAU[werte.aufbau] !== undefined;
@@ -49,8 +49,8 @@
     allgemein = '';
     try {
       await onsave({ ...werte }, {
-        motoren: motoren.map(m => ({ motor_art: m.motor_art, leistung_w: m.leistung_w === '' ? null : m.leistung_w })),
-        akkus: akkus.map(a => ({ kapazitaet_wh: a.kapazitaet_wh }))
+        motoren: motoren.map(m => ({ motor_art: m.motor_art, leistung_w: m.leistung_w === '' ? null : m.leistung_w, spannung_v: m.spannung_v === '' ? null : m.spannung_v, getriebe: m.getriebe || null })),
+        akkus: akkus.map(a => ({ kapazitaet_wh: a.kapazitaet_wh, spannung_v: a.spannung_v === '' ? null : a.spannung_v }))
       });
     } catch (err) {
       if (err instanceof ApiFehler && err.felder) fehler = err.felder;

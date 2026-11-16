@@ -15,6 +15,7 @@
   const motoren = $derived(eintrag.motoren ?? []);
   const akkus = $derived(eintrag.akkus ?? []);
   const motorName = (wert) => pick(MOTOR_ARTEN.find(o => o.wert === wert), lang) || wert;
+  const getriebeName = (wert) => (wert === 'getriebe' ? pick({ de: 'Getriebe', en: 'Geared' }, lang) : wert === 'direkt' ? pick({ de: 'Direktläufer', en: 'Direct drive' }, lang) : null);
 
   function wert(f) {
     const v = eintrag[f.key];
@@ -52,11 +53,11 @@
             {/each}
             {#if !kompakt && motoren.length}
               <dt>{pick({ de: 'Motoren', en: 'Motors' }, lang)}</dt>
-              <dd>{motoren.map(m => `${motorName(m.motor_art)}${m.leistung_w ? ` · ${zahlText(lang, m.leistung_w)} W` : ''}`).join(', ')}</dd>
+              <dd>{motoren.map(m => [motorName(m.motor_art), m.leistung_w ? `${zahlText(lang, m.leistung_w)} W` : null, m.spannung_v ? `${m.spannung_v} V` : null, getriebeName(m.getriebe)].filter(Boolean).join(' · ')).join(', ')}</dd>
             {/if}
             {#if !kompakt && akkus.length}
               <dt>{pick({ de: 'Akkus', en: 'Batteries' }, lang)}</dt>
-              <dd>{akkus.map(a => `${zahlText(lang, a.kapazitaet_wh)} Wh`).join(', ')}</dd>
+              <dd>{akkus.map(a => [`${zahlText(lang, a.kapazitaet_wh)} Wh`, a.spannung_v ? `${a.spannung_v} V` : null].filter(Boolean).join(' · ')).join(', ')}</dd>
             {/if}
           </dl>
         {/if}
