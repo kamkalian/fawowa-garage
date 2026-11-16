@@ -16,7 +16,8 @@
 
   const ARTEN_LISTE = ['fahrraeder', 'anhaenger'];
   const planerAktiv = $derived(!!einst.reichweite?.aktiv);
-  const TABS = $derived(planerAktiv ? ['gespann', 'stellplaetze', 'planer'] : ['gespann', 'stellplaetze']);
+  const TABS = ['gespann', 'stellplaetze'];
+  let planerOffen = $state(false); // Reichweiten-Planer als Vollbild-Seite, geöffnet über einen Knopf
   let tab = $state('gespann');
   let status = $state('laden'); // laden | bereit | fehler
   let daten = $state({ fahrraeder: [], anhaenger: [], gespann: null, email: null, email_offen: null });
@@ -191,20 +192,21 @@
   <div class="tabs" role="tablist" aria-label={t(lang, 'tabs')}>
     {#each TABS as a (a)}
       <button type="button" role="tab" class="tab" class:aktiv={tab === a} aria-selected={tab === a} id="tab-{a}" aria-controls="panel-{a}" onclick={() => (tab = a)}>
-        {t(lang, a === 'gespann' ? 'gespannTitle' : a === 'planer' ? 'tabPlaner' : 'stellplaetze')}{#if a === 'stellplaetze'} <span class="anzahl">{fahrzeuge.length}</span>{/if}
+        {t(lang, a === 'gespann' ? 'gespannTitle' : 'stellplaetze')}{#if a === 'stellplaetze'} <span class="anzahl">{fahrzeuge.length}</span>{/if}
       </button>
     {/each}
   </div>
 
   <!-- Beide Bereiche bleiben geladen (nur ausgeblendet), damit nicht gespeicherte Eingaben beim Wechseln erhalten bleiben -->
   <div id="panel-gespann" role="tabpanel" aria-labelledby="tab-gespann" hidden={tab !== 'gespann'}>
+    {#if planerAktiv}
+      <button type="button" class="btn btn-outline planer-knopf" onclick={() => (planerOffen = true)}>{t(lang, 'p_planerOeffnen')}</button>
+    {/if}
     <GespannBereich {lang} {token} {daten} {melde} />
   </div>
 
   {#if planerAktiv}
-    <div id="panel-planer" role="tabpanel" aria-labelledby="tab-planer" hidden={tab !== 'planer'}>
-      <Planer {lang} {token} {daten} {einst} sichtbar={tab === 'planer'} {melde} zumGespann={() => (tab = 'gespann')} />
-    </div>
+    <Planer {lang} {token} {daten} {einst} offen={planerOffen} zurueck={() => (planerOffen = false)} />
   {/if}
 
   <div id="panel-stellplaetze" role="tabpanel" aria-labelledby="tab-stellplaetze" hidden={tab !== 'stellplaetze'}>
@@ -296,6 +298,8 @@
     box-shadow: 0 4px 12px rgba(0,0,0,.3); font-size: .8125rem; line-height: 1.5; color: var(--fg-muted);
   }
   .info:hover .tip, .info:focus-within .tip, .tip.offen { display: block; }
+  .planer-knopf { margin-bottom: 1rem; }
+
   /* Echte Tabs: eine Linie unter dem Tab-Streifen; der aktive Tab ist oben grün abgesetzt und mit dem Inhalt darunter verbunden */
   .tabs { display: flex; gap: .25rem; margin-bottom: 1.5rem; padding: 0 .5rem; border-bottom: 1px solid var(--border); }
   .tab {

@@ -41,7 +41,7 @@ export function parseKachel(buf) {
   return { flaechen: liste(), linien: liste(), wege: liste() };
 }
 
-/** Farbe und Deckkraft der Wärmekarte. f: Anteil des Budgets (1 = Grenze). Bis 1 grün, gelb, rot; danach grau, das auslaufen soll. */
+/** Farbe und Deckkraft der Wärmekarte. f: Anteil des Budgets (1 = Grenze). Bis 1 grün, gelb, rot; darüber transparent. */
 function waermeRgba(f) {
   if (f <= 1) {
     const t = Math.max(0, f);
@@ -49,9 +49,7 @@ function waermeRgba(f) {
     const [x, y, u] = t < 0.5 ? [a, b, t * 2] : [b, c, (t - 0.5) * 2];
     return [Math.round(x[0] + (y[0] - x[0]) * u), Math.round(x[1] + (y[1] - x[1]) * u), Math.round(x[2] + (y[2] - x[2]) * u), 110];
   }
-  if (f <= 1.15) return [110, 110, 110, 95];
-  if (f < 1.5) return [110, 110, 110, Math.round(95 * (1.5 - f) / 0.35)];
-  return [0, 0, 0, 0];
+  return [0, 0, 0, 0]; // jenseits der Grenze keine Färbung
 }
 
 export class Karte {

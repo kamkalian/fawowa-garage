@@ -63,7 +63,7 @@ test('Reichweite: nahe am Start wenig, weiter weg mehr, außerhalb des Rasters d
   assert.equal(wert(r, 52.0, 7.12), 1.5);
 });
 
-test('Reichweite: es gibt einen grauen Rand über der Grenze und die Werte sind geglättet', () => {
+test('Reichweite: es gibt Werte über der Grenze (weiche Kante, nicht eingefärbt) und die Werte sind geglättet', () => {
   const r = rechne();
   const { nx, ny, daten } = r.raster;
   const bytes = Buffer.from(daten, 'base64');
@@ -137,12 +137,14 @@ test('Grundkarte: Kachel als Binärformat mit drei Listen, Koordinaten in den Ka
   for (const w of k.wege) for (const [la, lo] of w.pts) assert.ok(la > 50.9 && la < 51.3 && lo > 6.9 && lo < 7.4, `${la}, ${lo}`);
 });
 
-test('Kachel bei kleinem Zoom: das Gitter (nur 500-m-Straßen) zeigt bei Zoom 8 nichts', () => {
+test('Kachel bei kleinem Zoom: Straßen bleiben sichtbar (Haupt- und Nebenstraßen ab 500 m), Radwege nicht', () => {
   const z = 8;
   const n = 2 ** z;
   const x = Math.floor((START.lon + 180) / 360 * n);
   const y = Math.floor((1 - Math.log(Math.tan(START.lat * Math.PI / 180) + 1 / Math.cos(START.lat * Math.PI / 180)) / Math.PI) / 2 * n);
-  assert.equal(lieseKachel(kachelKarte(netz, null, z, x, y)).wege.length, 0);
+  const wege = lieseKachel(kachelKarte(netz, null, z, x, y)).wege;
+  assert.ok(wege.length > 0, 'die Details verschwinden beim Herauszoomen nicht');
+  assert.ok(wege.every((w) => w.cls <= 2), 'bei Zoom 8 nur Haupt- und Nebenstraßen');
 });
 
 test('Darstellungsart: Hauptstraße, Nebenstraße, Radweg, Weg', () => {
