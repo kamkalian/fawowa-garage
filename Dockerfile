@@ -29,7 +29,8 @@ COPY --from=build /app/dist ./dist
 COPY package.json server.js ./
 COPY lib/ ./lib/
 
-# Die Anwendung speichert nichts im Dateisystem (alles liegt in der Datenbank) und läuft ohne Rechte
+# Die Anwendung speichert Fotos im Ordner fotos (als Volume eingebunden); sonst liegt alles in der Datenbank. Sie läuft ohne Rechte
+RUN mkdir -p /app/fotos && chown node:node /app/fotos
 USER node
 
 EXPOSE 3470

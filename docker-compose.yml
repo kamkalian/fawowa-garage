@@ -27,6 +27,8 @@ services:
       - NETZ_DIR=/app/netz
     volumes:
       - ./data/netz:/app/netz:ro
+      # Fotos der Stellplätze (Docker-Volume, bleibt bei Neustarts erhalten)
+      - fotos:/app/fotos
     read_only: true
     tmpfs:
       - /tmp
@@ -79,6 +81,9 @@ services:
         max-file: "3"
     networks:
       - intern
+
+volumes:
+  fotos:
 
 networks:
   caddy-net:

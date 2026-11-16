@@ -3,6 +3,7 @@
   import { ARTEN, GESPANN_FELDER } from '../../../lib/felder.js';
   import Icon from '../../shared/Icon.svelte';
   import { t, pick } from '../lib/i18n.js';
+  import { verkleinern } from '../lib/foto.js';
   import * as api from '../lib/api.js';
   import EintragForm from './EintragForm.svelte';
   import EintragKarte from './EintragKarte.svelte';
@@ -16,6 +17,9 @@
   const ARTEN_LISTE = ['fahrraeder', 'anhaenger'];
   const planerAktiv = $derived(!!einst.reichweite?.aktiv);
   let planerOffen = $state(false); // Reichweiten-Planer als Vollbild-Seite, geöffnet über einen Knopf
+  let fotos = $state({}); // Anzeige der Fotos je Stellplatz (Schlüssel art-id)
+  let fotoZiel = null;
+  let fotoInput;
   let fahrer = $state(null); // Fahrergewicht und Gepäck, gelten für das ganze Gespann
   let gepaeck = $state(null);
   let status = $state('laden'); // laden | bereit | fehler
@@ -73,6 +77,7 @@
       daten = await api.garageLaden(token);
       fahrer = daten.gespann?.fahrer_gewicht_kg ?? null;
       gepaeck = daten.gespann?.gepaeck_kg ?? null;
+      await ladeFotos();
       status = 'bereit';
     } catch (e) {
       if (e.status === 401) onungueltig();
@@ -127,6 +132,50 @@
     } catch (err) {
       melde(fehlerMeldung(err), 'error');
       try { daten = await api.garageLaden(token); } catch { /* Anzeige bleibt, wie sie ist */ }
+    }
+  }
+
+  // --- Fotos der Stellplätze: Anzeige mit dem Zugangsschlüssel laden, hochladen (verkleinert) und entfernen ---
+  async function ladeFotos() {
+    const neu = {};
+    for (const f of fahrzeuge) {
+      if (!f.e.foto_vorhanden) continue;
+      try { neu[schluessel(f)] = await api.fotoLaden(token, f.art, f.e.id); } catch { /* ohne Foto zeigt die Kachel das Icon */ }
+    }
+    fotos = neu;
+  }
+
+  function fotoWaehlen(f) {
+    fotoZiel = f;
+    fotoInput?.click();
+  }
+
+  async function fotoGewaehlt(e) {
+    const datei = e.currentTarget.files?.[0];
+    e.currentTarget.value = '';
+    if (!datei || !fotoZiel) return;
+    const ziel = fotoZiel;
+    if (!datei.type.startsWith('image/')) { melde(t(lang, 'photoBad'), 'error'); return; }
+    try {
+      const klein = await verkleinern(datei);
+      await api.fotoHochladen(token, ziel.art, ziel.e.id, klein);
+      daten[ziel.art] = daten[ziel.art].map(x => (x.id === ziel.e.id ? { ...x, foto_vorhanden: true } : x));
+      await ladeFotos();
+      melde(t(lang, 'saved'));
+    } catch (err) {
+      melde(err?.code === 'foto_ungueltig' ? t(lang, 'photoBad') : fehlerMeldung(err), 'error');
+    }
+  }
+
+  async function fotoEntfernen(f) {
+    try {
+      await api.fotoLoeschen(token, f.art, f.e.id);
+      daten[f.art] = daten[f.art].map(x => (x.id === f.e.id ? { ...x, foto_vorhanden: false } : x));
+      const { [schluessel(f)]: _alt, ...rest } = fotos; // eslint-disable-line no-unused-vars
+      fotos = rest;
+      melde(t(lang, 'deleted'));
+    } catch (err) {
+      melde(fehlerMeldung(err), 'error');
     }
   }
 
@@ -212,12 +261,13 @@
   {/if}
 
   <div class="stellplaetze">
+    <input bind:this={fotoInput} type="file" accept="image/*" hidden onchange={fotoGewaehlt} />
     <div class="liste" role="list">
       {#each fahrzeuge as f (schluessel(f))}
         <div class="kachel" role="listitem" draggable="true" class:gezogen={ziehend?.art === f.art && ziehend?.id === f.e.id} class:ziel={ziel === schluessel(f)}
           ondragstart={(e) => ziehStart(e, f)} ondragend={ziehEnde}
           ondragover={(e) => ueberKachel(e, schluessel(f))} ondrop={(e) => ablegenKachel(e, f)}>
-          <EintragKarte {lang} art={f.art} eintrag={f.e} imGespann={imInGespann(f.art, f.e)}
+          <EintragKarte {lang} art={f.art} eintrag={f.e} imGespann={imInGespann(f.art, f.e)} foto={fotos[schluessel(f)] ?? null} onfoto={() => fotoWaehlen(f)} onfotoloeschen={() => fotoEntfernen(f)}
             onGespann={() => umschalten(f)}
             onedit={() => (form = { art: f.art, eintrag: f.e })} onremove={() => (loeschen = { art: f.art, eintrag: f.e })} />
         </div>

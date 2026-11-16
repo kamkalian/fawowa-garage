@@ -55,3 +55,18 @@ export async function karteKachel(z, x, y) {
   if (!res.ok) throw new ApiFehler(res.status, null);
   return res.arrayBuffer();
 }
+
+// Fotos eines Stellplatzes (Bild als Körper der Anfrage; zum Anzeigen wird es mit dem Zugangsschlüssel geladen)
+export async function fotoHochladen(token, art, id, datei) {
+  const res = await fetch(`/api/v1/garage/foto/${art}/${id}`, { method: 'PUT', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'image/jpeg' }, body: datei });
+  if (!res.ok) throw new ApiFehler(res.status, null);
+}
+export async function fotoLaden(token, art, id) {
+  const res = await fetch(`/api/v1/garage/foto/${art}/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+  if (!res.ok) return null;
+  return URL.createObjectURL(await res.blob());
+}
+export async function fotoLoeschen(token, art, id) {
+  const res = await fetch(`/api/v1/garage/foto/${art}/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+  if (!res.ok) throw new ApiFehler(res.status, null);
+}

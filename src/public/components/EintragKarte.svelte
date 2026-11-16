@@ -8,7 +8,7 @@
   // Karte eines Fahrrads oder Anhängers: Name, Prüfstatus und die ausgefüllten Angaben.
   // kompakt: nur Name und Prüfstatus, keine Angaben (für den Platz im Gespann); flach: ohne eigenen Rahmen und ohne Symbol (liegt schon in einer Karte mit Überschrift und Symbol);
   // aktionen: eigene Knöpfe statt Bearbeiten/Löschen
-  let { lang, art, eintrag, kompakt = false, flach = false, imGespann = false, onedit, onremove, onGespann, aktionen } = $props();
+  let { lang, art, eintrag, kompakt = false, flach = false, imGespann = false, onedit, onremove, onGespann, aktionen, foto = null, onfoto, onfotoloeschen } = $props();
 
   const cfg = $derived(ARTEN[art]);
 
@@ -28,7 +28,7 @@
 <article class:card={!flach}>
   <div class:card-body={!flach}>
     <div class="zeile">
-      <Fahrzeugbild art={art} bauart={eintrag.bauart} aufbau={eintrag.aufbau} motor={art === 'fahrraeder' && hatMotor(eintrag)} foto={eintrag.foto_url ?? null} alt={eintrag.name} />
+      <Fahrzeugbild art={art} bauart={eintrag.bauart} aufbau={eintrag.aufbau} motor={art === 'fahrraeder' && hatMotor(eintrag)} foto={foto} alt={eintrag.name} />
       <div class="inhalt">
     <div class="kopf" class:kompakt>
       <h3>{#if !flach}<span class="symbol"><Icon name={art === 'fahrraeder' ? 'veh-bike' : 'veh-trailer'} size={24} /></span>{/if}{eintrag.name}</h3>
@@ -54,6 +54,12 @@
       {#if aktionen}
         {@render aktionen()}
       {:else}
+        {#if onfoto}
+          <button type="button" class="btn btn-outline btn-sm" onclick={onfoto}><Icon name="ui-plus" size={14} /> {t(lang, foto ? 'photoChange' : 'photoAdd')}</button>
+        {/if}
+        {#if foto && onfotoloeschen}
+          <button type="button" class="btn btn-ghost btn-sm" onclick={onfotoloeschen}>{t(lang, 'photoRemove')}</button>
+        {/if}
         {#if onGespann}
           <button type="button" class="btn btn-outline btn-sm" onclick={onGespann}>{t(lang, imGespann ? 'removeGespann' : 'toGespann')}</button>
         {/if}
