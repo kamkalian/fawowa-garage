@@ -177,13 +177,17 @@ export class Karte {
     const ctx = bild.getContext('2d');
     const bd = ctx.createImageData(raster.nx, raster.ny);
     const max = raster.max ?? 1.5;
+    // Deckkraft je Feld (fehlt sie, ist jedes Feld voll deckend)
+    const deck = raster.deckkraft ? atob(raster.deckkraft) : null;
     for (let y = 0; y < raster.ny; y++) {
       for (let x = 0; x < raster.nx; x++) {
-        const f = bin.charCodeAt(y * raster.nx + x) / 254 * max;
+        const k = y * raster.nx + x;
+        const f = bin.charCodeAt(k) / 254 * max;
         // Zeile 0 liegt im Süden, im Bild oben ist Norden
         const o = ((raster.ny - 1 - y) * raster.nx + x) * 4;
         const [r, g, b, a] = waermeRgba(f);
-        bd.data[o] = r; bd.data[o + 1] = g; bd.data[o + 2] = b; bd.data[o + 3] = a;
+        bd.data[o] = r; bd.data[o + 1] = g; bd.data[o + 2] = b;
+        bd.data[o + 3] = deck ? Math.round(a * deck.charCodeAt(k) / 255) : a;
       }
     }
     ctx.putImageData(bd, 0, 0);
