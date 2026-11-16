@@ -57,8 +57,6 @@
   let suchOffen = $state(false);
   let rechnet = $state(false);
   let ergebnis = $state(null);
-  let ansicht = $state('heatmap'); // 'heatmap' (Standard) oder 'routen'
-  let schritte = $state(false);    // die 1-km-Schritte als rote Punkte
   let meldungFehler = $state('');
   let zaehler = 0;
   let timer;
@@ -123,8 +121,6 @@
       if (nr !== zaehler) return;
       ergebnis = r;
       karte.setzeRaster(r.raster);
-      karte.setzeRouten(r.linien);
-      karte.setzeGitter(r.schritte);
       karte.setzeStart(r.start.lat, r.start.lon);
       if (anpassen) {
         const R = r.raster;
@@ -178,8 +174,6 @@
     };
   });
   $effect(() => { if (karte) { karte.opt.quelle = t(lang, 'kartenQuelle'); karte.zeichnen(); } });
-  $effect(() => { if (karte) karte.setzeAnsicht(ansicht === 'routen'); });
-  $effect(() => { if (karte) karte.setzeSchritte(schritte); });
 
   const annahmeText = (k) => {
     const w = { fahrer_gewicht_kg: ANNAHMEN.fahrer_gewicht_kg, gewicht_kg: ANNAHMEN.fahrrad_gewicht_kg, leergewicht_kg: ANNAHMEN.anhaenger_leergewicht_kg,
@@ -342,12 +336,7 @@
   {#if ergebnis}
     <section class="karte-karte ergebnis" aria-label={t(lang, 'p_ergebnis')}>
       <div class="legende" aria-hidden="true"><span>0</span><span class="balken"></span><span>{zahlText(lang, ergebnis.budget.wert)} {ergebnis.budget.einheit}</span></div>
-      <div class="ansicht" role="group" aria-label={t(lang, 'p_ansicht')}>
-        <button type="button" class="wahl" aria-pressed={ansicht === 'heatmap'} onclick={() => (ansicht = 'heatmap')}>{t(lang, 'p_ansichtHeatmap')}</button>
-        <button type="button" class="wahl" aria-pressed={ansicht === 'routen'} onclick={() => (ansicht = 'routen')}>{t(lang, 'p_ansichtRouten')}</button>
-      </div>
-      <label class="haken"><input type="checkbox" bind:checked={schritte} /> {t(lang, 'p_schritte')}</label>
-      {#if ansicht === 'heatmap'}<p class="notiz">{t(lang, 'p_legende')}</p>{:else}<p class="notiz">{t(lang, 'p_routenHinweis')}</p>{/if}
+      <p class="notiz">{t(lang, 'p_legende')}</p>
       <dl>
         <div><dt>{t(lang, 'p_weitester')}</dt><dd>{zahlText(lang, ergebnis.kennzahlen.weitester_km)} km</dd></div>
         <div><dt>{t(lang, 'p_machbar')}</dt><dd>{zahlText(lang, ergebnis.kennzahlen.punkte_machbar)} / {zahlText(lang, ergebnis.kennzahlen.punkte_gesamt)}</dd></div>
