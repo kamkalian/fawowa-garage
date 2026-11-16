@@ -266,7 +266,7 @@ export class Karte {
   }
 
   /** Breite der Wege und Linien in CSS-Pixeln je Zoomstufe der Kachel */
-  _breite(z) { return Math.min(2.2, Math.max(0.9, 0.9 + (z - this.zoomMin) * 0.25)); }
+  _breite(z) { return Math.min(1.6, Math.max(0.35, 0.35 + (z - this.zoomMin) * 0.2)); }
 
   _zeichne() {
     const g = this.g;
