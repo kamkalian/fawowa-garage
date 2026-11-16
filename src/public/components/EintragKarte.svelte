@@ -1,4 +1,6 @@
 <script>
+  import Fahrzeugbild from '../../shared/Fahrzeugbild.svelte';
+  import { hatMotor } from '../../../lib/rechenmodell.js';
   import { ARTEN } from '../../../lib/felder.js';
   import Icon from '../../shared/Icon.svelte';
   import { t, pick, zahlText } from '../lib/i18n.js';
@@ -25,6 +27,9 @@
 
 <article class:card={!flach}>
   <div class:card-body={!flach}>
+    <div class="zeile">
+      <Fahrzeugbild art={art} bauart={eintrag.bauart} aufbau={eintrag.aufbau} motor={art === 'fahrraeder' && hatMotor(eintrag)} foto={eintrag.foto_url ?? null} alt={eintrag.name} />
+      <div class="inhalt">
     <div class="kopf" class:kompakt>
       <h3>{#if !flach}<span class="symbol"><Icon name={art === 'fahrraeder' ? 'veh-bike' : 'veh-trailer'} size={24} /></span>{/if}{eintrag.name}</h3>
       <div class="marken">
@@ -56,10 +61,14 @@
         <button type="button" class="btn btn-ghost btn-sm" onclick={onremove}><Icon name="ui-trash" size={14} /> {t(lang, 'remove')}</button>
       {/if}
     </div>
+      </div>
+    </div>
   </div>
 </article>
 
 <style>
+  .zeile { display: flex; gap: .75rem; align-items: stretch; }
+  .inhalt { flex: 1; min-width: 0; display: flex; flex-direction: column; }
   .kopf { display: flex; align-items: flex-start; justify-content: space-between; gap: .5rem; margin-bottom: .5rem; }
   .kopf.kompakt { margin-bottom: 0; align-items: center; }
   .marken { display: flex; flex-wrap: wrap; gap: .25rem; justify-content: flex-end; }

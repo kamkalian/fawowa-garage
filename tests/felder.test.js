@@ -69,7 +69,8 @@ test('Jedes Feld hat eine Spalte in der Migration, Schlüssel sind eindeutig', (
     assert.ok(tabelle, `Tabelle ${cfg.tabelle} fehlt`);
     const keys = cfg.felder.map(f => f.key);
     assert.equal(new Set(keys).size, keys.length, `${art}: doppelte Schlüssel`);
-    for (const k of keys) assert.ok(tabelle.includes(`\`${k}\``), `${art}: Spalte ${k} fehlt in der Migration`);
+    // Spalten stehen im CREATE oder in einer späteren Änderung (ALTER) der Tabelle
+    for (const k of keys) assert.ok(sql.some(z => z.includes(cfg.tabelle) && z.includes('`' + k + '`')), art + ': Spalte ' + k + ' fehlt in der Migration');
     for (const f of cfg.felder) {
       assert.ok(f.label?.de && f.label?.en, `${art}.${f.key}: Beschriftung de/en fehlt`);
       if (f.typ === 'auswahl') for (const o of f.optionen) assert.ok(o.de && o.en, `${art}.${f.key}.${o.wert}: Text fehlt`);

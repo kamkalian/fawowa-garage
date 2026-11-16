@@ -49,8 +49,8 @@ export class FakeSpeicher {
 
   _sicht(z) {
     // Wie die Datenbankabfrage: ohne Garage-Nummer und ohne Angaben des Betreibers (Prüfdatum, Prüfnotiz)
-    const { garage_id, pruefnotiz, geprueft_am, ...rest } = z; // eslint-disable-line no-unused-vars
-    return rest;
+    const { garage_id, pruefnotiz, geprueft_am, foto_datei, ...rest } = z; // eslint-disable-line no-unused-vars
+    return { ...rest, foto_vorhanden: !!foto_datei };
   }
 
   async alles(garageId) {
@@ -218,6 +218,18 @@ export class FakeSpeicher {
       const zeile = this.daten[x.art].find(z => z.id === x.id && z.garage_id === garageId);
       if (zeile) zeile.sortierung = i + 1;
     });
+  }
+
+  async fotoDatei(garageId, art, id) {
+    const z = this.daten[art]?.find(x => x.id === id && x.garage_id === garageId);
+    return z ? (z.foto_datei ?? null) : undefined;
+  }
+
+  async fotoSetzen(garageId, art, id, datei) {
+    const alt = await this.fotoDatei(garageId, art, id);
+    if (alt === undefined) return undefined;
+    this.daten[art].find(x => x.id === id && x.garage_id === garageId).foto_datei = datei;
+    return alt;
   }
 
   async gespannSetzen(garageId, werte) {
