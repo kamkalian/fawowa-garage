@@ -231,7 +231,7 @@ export class Karte {
     this.farben = { fg: f('--fg'), muted: f('--fg-muted'), bg: f('--bg') };
   }
 
-  _breitenFaktor() { return Math.min(2.2, Math.max(0.45, 0.45 + (this.zoom - this.zoomMin) * 0.3)); }
+  _breitenFaktor() { return Math.min(2.2, Math.max(0.9, 0.9 + (this.zoom - this.zoomMin) * 0.25)); }
 
   _zeichne() {
     const g = this.g;

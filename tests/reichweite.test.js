@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Netz } from '../lib/netz.js';
 import { rechneReichweite } from '../lib/reichweite.js';
-import { kachelKarte, kachelGrenzen, darstellungsart } from '../lib/karte-daten.js';
+import { kachelKarte, kachelGrenzen, darstellungsart, zeigen } from '../lib/karte-daten.js';
 import { gitterNetz, testNetz } from './hilfen-netz.js';
 
 const FAHRRAD = { motor_art: 'mittelmotor', motor_nennleistung_w: 250, akku_kapazitaet_wh: 18, schaltung_art: 'kette', gewicht_kg: 25 };
@@ -137,14 +137,22 @@ test('Grundkarte: Kachel als Binärformat mit drei Listen, Koordinaten in den Ka
   for (const w of k.wege) for (const [la, lo] of w.pts) assert.ok(la > 50.9 && la < 51.3 && lo > 6.9 && lo < 7.4, `${la}, ${lo}`);
 });
 
-test('Kachel bei kleinem Zoom: Straßen bleiben sichtbar (Haupt- und Nebenstraßen ab 500 m), Radwege nicht', () => {
-  const z = 8;
-  const n = 2 ** z;
-  const x = Math.floor((START.lon + 180) / 360 * n);
-  const y = Math.floor((1 - Math.log(Math.tan(START.lat * Math.PI / 180) + 1 / Math.cos(START.lat * Math.PI / 180)) / Math.PI) / 2 * n);
-  const wege = lieseKachel(kachelKarte(netz, null, z, x, y)).wege;
-  assert.ok(wege.length > 0, 'die Details verschwinden beim Herauszoomen nicht');
-  assert.ok(wege.every((w) => w.cls <= 2), 'bei Zoom 8 nur Haupt- und Nebenstraßen');
+test('Kachel: bei Zoom 8 fehlen kurze Straßen (500 m, auf dem Bildschirm zu klein), bei Zoom 14 sind sie da', () => {
+  const kachel = (z) => {
+    const n = 2 ** z;
+    const x = Math.floor((START.lon + 180) / 360 * n);
+    const y = Math.floor((1 - Math.log(Math.tan(START.lat * Math.PI / 180) + 1 / Math.cos(START.lat * Math.PI / 180)) / Math.PI) / 2 * n);
+    return lieseKachel(kachelKarte(netz, null, z, x, y)).wege;
+  };
+  assert.equal(kachel(8).length, 0, 'bei Zoom 8 sind 500-m-Straßen unter einem Pixel-Schwellwert');
+  assert.ok(kachel(14).length > 0, 'bei Zoom 14 erscheinen sie');
+});
+
+test('Sichtbarkeit wächst mit dem Zoom: ein Weg wird mit steigendem Zoom bei immer kürzerer Länge gezeigt', () => {
+  assert.equal(zeigen(8, 2, 500, 51), false);
+  assert.equal(zeigen(12, 2, 500, 51), true);
+  assert.equal(zeigen(10, 2, 60, 51), false);
+  assert.equal(zeigen(14, 2, 60, 51), true);
 });
 
 test('Darstellungsart: Hauptstraße, Nebenstraße, Radweg, Weg', () => {
