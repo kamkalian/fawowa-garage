@@ -21,7 +21,7 @@
     </div>
 
     <div class="bild">
-      <Fahrzeugbild art={art} bauart={eintrag.bauart} aufbau={eintrag.aufbau} motor={art === 'fahrraeder' && motoren.length > 0} akku={akkus.length > 0} foto={foto} alt={eintrag.name} />
+      <Fahrzeugbild art={art} bauart={eintrag.bauart} aufbau={eintrag.aufbau} motor={art === 'fahrraeder' && motoren.length > 0} akku={akkus.length > 0} foto={foto} alt={eintrag.name} groesse="4.5rem" />
     </div>
 
     <div class="fuss">
@@ -29,7 +29,7 @@
         <button type="button" class="btn btn-outline btn-sm" onclick={onGespann} aria-label={imGespann ? pick({ de: 'Aus dem Gespann nehmen', en: 'Remove from convoy' }, lang) : pick({ de: 'Ins Gespann', en: 'Add to convoy' }, lang)}><Icon name={imGespann ? 'ui-minus' : 'ui-plus'} size={14} /> Gespann</button>
       {/if}
       {#if onedit}
-        <button type="button" class="btn btn-outline btn-sm" onclick={onedit}><Icon name="ui-edit" size={14} /> {t(lang, 'edit')}</button>
+        <button type="button" class="btn btn-outline btn-sm" onclick={onedit} aria-label={t(lang, 'edit')} title={t(lang, 'edit')}><Icon name="ui-edit" size={14} /></button>
       {/if}
       {#if ungeprueft}
         <span class="warn" role="note" aria-label={t(lang, 'uncheckedHint')}>!<span class="tipp" role="tooltip">{t(lang, 'uncheckedHint')}</span></span>
@@ -44,7 +44,7 @@
   article.card { background: color-mix(in srgb, var(--bg-card) 78%, transparent); backdrop-filter: blur(3px); }
   .card-body { flex: 1; display: flex; flex-direction: column; min-width: 0; position: relative; padding: .625rem; gap: .5rem; overflow: hidden; }
   /* Die Kopfzeile hat immer dieselbe Höhe; die Gespann-Marke liegt darüber, damit sich das Bild nie verschiebt */
-  .kopf { height: 2.6rem; min-width: 0; }
+  .kopf { height: 2rem; min-width: 0; }
   h3 { font-size: .9375rem; overflow-wrap: anywhere; min-width: 0; line-height: 1.25; padding-right: 5rem; }
   .gespann { position: absolute; top: .625rem; right: .625rem; font-size: .7rem; }
   /* Bild oder Icon genau mittig in der Kachel (horizontal und vertikal) */

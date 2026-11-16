@@ -2,7 +2,8 @@
   // Bild eines Stellplatzes: Foto, wenn eines hochgeladen ist, sonst ein großes Icon für die Bauart.
   // Mit Motor erscheint in der Ecke ein Blitz (außerhalb des Icons).
   // akku: mit mindestens einem Akku leuchtet der Blitz grün
-  let { art, bauart = null, aufbau = null, motor = false, akku = false, foto = null, alt = '' } = $props();
+  // groesse: Kantenlänge des Bildes (Standard 6 rem); in kleinen Kacheln kleiner
+  let { art, bauart = null, aufbau = null, motor = false, akku = false, foto = null, alt = '', groesse = '6rem' } = $props();
 
   // Strichzeichnungen im Raster 48 × 48, Farbe über currentColor
   const ICONS = {
@@ -27,7 +28,7 @@
   const svg = $derived(ICONS[schluessel] ?? ICONS.sonstiges);
 </script>
 
-<div class="bild">
+<div class="bild" style="--groesse: {groesse}">
   {#if foto}
     <img src={foto} alt={alt} loading="lazy" />
   {:else}
@@ -41,8 +42,8 @@
 </div>
 
 <style>
-  .bild { position: relative; width: 6rem; height: 6rem; flex-shrink: 0; border-radius: var(--radius-sm); background: var(--bg-input); color: var(--primary); display: flex; align-items: center; justify-content: center; overflow: hidden; }
-  .bild svg { width: 3.5rem; height: 3.5rem; }
+  .bild { position: relative; width: var(--groesse, 6rem); height: var(--groesse, 6rem); flex-shrink: 0; border-radius: var(--radius-sm); background: var(--bg-input); color: var(--primary); display: flex; align-items: center; justify-content: center; overflow: hidden; }
+  .bild svg { width: 58%; height: 58%; }
   .bild img { width: 100%; height: 100%; object-fit: cover; }
   /* Blitz ohne Hintergrund: kräftiges Gelb mit dunkler Kontur, damit er auf hell und dunkel gut sichtbar ist */
   .blitz { position: absolute; bottom: .15rem; right: .15rem; width: 1.4rem; height: 1.4rem; pointer-events: none; }

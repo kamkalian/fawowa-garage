@@ -27,6 +27,9 @@
     <div class="glanz"></div>
   </div>
 
+  <!-- Verlängerung unter dem Foto: die unterste Zeile der mittleren zwei Drittel, nach unten wiederholt (public/garage-unten.png) -->
+  <div class="verlaengerung" aria-hidden="true"></div>
+
   <!-- Schalterebene: liegt über den Kacheln, damit der Schalter immer erreichbar ist -->
   <div class="schalterebene">
     <button type="button" class="schalter" class:leuchtet={!licht} onclick={schalten} aria-pressed={licht}
@@ -49,6 +52,10 @@
   /* Das Foto liegt hinter allem: oben im Bereich, nach unten in den dunklen Hintergrund übergehend */
   .bild { position: absolute; top: 0; left: 0; right: 0; aspect-ratio: 2000 / 1125; z-index: 0; pointer-events: none; }
   .bild img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transition: filter .4s; }
+  /* Verlängerung: unter dem Foto, der Streifen wird nach unten wiederholt; bei Bedarf so lang wie der Raum */
+  .verlaengerung { position: absolute; left: 0; right: 0; top: 56.25cqw; bottom: 0; z-index: 0; pointer-events: none;
+    background: url(/garage-unten.png) 0 0 / 100% auto repeat-y; }
+  .aus .verlaengerung { filter: brightness(.25) saturate(.6); }
   /* Licht aus: das Foto wird sehr dunkel */
   .aus .bild img { filter: brightness(.25) saturate(.6); }
   /* Glanz unter der Röhre (Position passend zum Foto) */
@@ -62,7 +69,7 @@
   .schalterebene { position: absolute; top: 0; left: 0; right: 0; aspect-ratio: 2000 / 1125; z-index: 3; pointer-events: none; }
   /* Schalter: Knopf über dem Schalter im Foto; leuchtet schwach, wenn das Licht aus ist */
   .schalter {
-    pointer-events: auto; position: absolute; left: 78%; top: 51%; width: max(2.6cqw, 1.8rem); height: max(3.4cqw, 2.4rem); padding: 0;
+    pointer-events: auto; position: absolute; left: calc(78cqw - .5cqw); top: calc(28.6875cqw + .6cqw); width: max(2.6cqw, 1.8rem); height: max(3.4cqw, 2.4rem); padding: 0;
     transform: translate(-50%, -50%); background: transparent; border: 0; border-radius: 4px; cursor: pointer; padding: 0;
     transition: box-shadow .3s, background-color .3s;
   }
@@ -79,7 +86,7 @@
     mask-composite: intersect;
     background-image: url(/garage.webp); background-repeat: no-repeat;
     background-size: 100cqw 56.25cqw;
-    background-position: calc(-78cqw + 1.3cqw) calc(-28.6875cqw + 1.6875cqw);
+    background-position: calc(-77.5cqw + 1.3cqw) calc(-29.2875cqw + 1.6875cqw);
     transition: box-shadow .3s;
   }
   /* Licht aus: der Schalter leuchtet mit einem weichen Schein */
