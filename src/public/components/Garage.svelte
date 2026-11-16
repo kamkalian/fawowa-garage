@@ -7,6 +7,7 @@
   import * as api from '../lib/api.js';
   import EintragForm from './EintragForm.svelte';
   import EintragKarte from './EintragKarte.svelte';
+  import GarageRaum from './GarageRaum.svelte';
   import Fenster from './Fenster.svelte';
   import EmailFenster from './EmailFenster.svelte';
   import Planer from './Planer.svelte';
@@ -279,6 +280,7 @@
     </div>
   {/if}
 
+  <GarageRaum {lang}>
   <div class="stellplaetze">
     <input bind:this={fotoInput} type="file" accept="image/*" hidden onchange={fotoGewaehlt} />
     <div class="liste" role="list">
@@ -300,7 +302,7 @@
       </div>
     </div>
   </div>
-
+  </GarageRaum>
 
   <hr class="trenner" />
 
@@ -406,13 +408,13 @@
   }
   .tab.aktiv .anzahl { background: var(--primary-bg); border-color: var(--primary); color: var(--primary); }
   .hinweis { margin-bottom: 1rem; }
-  .liste { display: grid; grid-template-columns: 1fr; gap: 1rem; }
-  .kachel { cursor: grab; border-radius: var(--radius); }
+  .liste { display: grid; grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr)); gap: 1rem; padding: .75rem; }
+  .kachel { cursor: grab; border-radius: var(--radius); aspect-ratio: 1 / 1; display: flex; }
   .kachel:active { cursor: grabbing; }
   .kachel > :global(article) { height: 100%; }
   .gezogen { opacity: .4; }
   .ziel { outline: 2px dashed var(--primary); outline-offset: 3px; }
-  .plus-wrap { display: flex; }
+  .plus-wrap { display: flex; aspect-ratio: 1 / 1; }
   .plus-kachel {
     flex: 1;
     min-height: 9rem; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .5rem;
