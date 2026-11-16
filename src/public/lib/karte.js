@@ -152,16 +152,17 @@ export class Karte {
   setzeAnsicht(alsRouten) { this.zeigeRouten = !!alsRouten; this.zeichnen(); }
   setzeSchritte(an) { this.zeigeSchritte = !!an; this.zeichnen(); }
 
-  /** Die 1-km-Schritte der Routen als rote Punkte (machbare und nicht machbare) */
+  /** Die 1-km-Schritte der Routen als Punkte: grün machbar, rot nicht machbar */
   _zeichneSchritte(g) {
     if (!this.routen) return;
     const s = this.welt;
     const [ox, oy] = [this.w / 2 - this.mitte.x * s, this.h / 2 - this.mitte.y * s];
-    g.fillStyle = '#dc2626';
+    // Grün: es gibt eine Route zu diesem Schritt (machbar), rot: keine Route im Budget
     for (const rt of this.routen) {
-      for (const [la, lo] of rt.schritte ?? []) {
+      for (const [la, lo, machbar] of rt.schritte ?? []) {
+        g.fillStyle = machbar ? '#16a34a' : '#dc2626';
         g.beginPath();
-        g.arc(weltX(lo) * s + ox, weltY(la) * s + oy, 2.2, 0, Math.PI * 2);
+        g.arc(weltX(lo) * s + ox, weltY(la) * s + oy, 2.6, 0, Math.PI * 2);
         g.fill();
       }
     }
