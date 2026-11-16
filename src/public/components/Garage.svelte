@@ -97,7 +97,10 @@
     const neu = eintrag
       ? await api.eintragAendern(token, art, eintrag.id, werte)
       : await api.eintragAnlegen(token, art, werte);
-    daten[art] = eintrag ? daten[art].map(x => (x.id === neu.id ? neu : x)) : [...daten[art], neu];
+    // Die Serverantwort enthält keine Motoren, Akkus und keine Fotoangabe: die bisherigen Werte bleiben erhalten
+    daten[art] = eintrag
+      ? daten[art].map(x => (x.id === neu.id ? { ...x, ...neu } : x))
+      : [...daten[art], { motoren: [], akkus: [], foto_vorhanden: false, ...neu }];
     form = null;
     melde(t(lang, 'saved'));
   }
@@ -145,6 +148,18 @@
       try { neu[schluessel(f)] = await api.fotoLaden(token, f.art, f.e.id); } catch { /* ohne Foto zeigt die Kachel das Icon */ }
     }
     fotos = neu;
+  }
+
+  /** Weitere Angaben im Bearbeiten-Fenster: Foto, Motor & Akku, Entfernen. Sie schließen das Bearbeiten-Fenster und öffnen das jeweilige Fenster. */
+  function formAktionen() {
+    const f = { art: form.art, e: form.eintrag };
+    return {
+      fotoVorhanden: !!form.eintrag.foto_vorhanden,
+      onfoto: () => { form = null; fotoWaehlen(f); },
+      onfotoloeschen: () => { form = null; fotoEntfernen(f); },
+      onantrieb: () => { antrieb = { art: f.art, eintrag: f.e }; form = null; },
+      onloeschen: () => { loeschen = { art: f.art, eintrag: f.e }; form = null; }
+    };
   }
 
   /** Motoren und Akkus eines Fahrrads oder Anhängers speichern; bei einem Fehler bleibt das Fenster offen */
@@ -282,10 +297,9 @@
         <div class="kachel" role="listitem" draggable="true" class:gezogen={ziehend?.art === f.art && ziehend?.id === f.e.id} class:ziel={ziel === schluessel(f)}
           ondragstart={(e) => ziehStart(e, f)} ondragend={ziehEnde}
           ondragover={(e) => ueberKachel(e, schluessel(f))} ondrop={(e) => ablegenKachel(e, f)}>
-          <EintragKarte {lang} art={f.art} eintrag={f.e} imGespann={imInGespann(f.art, f.e)} foto={fotos[schluessel(f)] ?? null} onfoto={() => fotoWaehlen(f)} onfotoloeschen={() => fotoEntfernen(f)}
+          <EintragKarte {lang} art={f.art} eintrag={f.e} imGespann={imInGespann(f.art, f.e)} foto={fotos[schluessel(f)] ?? null}
             onGespann={() => umschalten(f)}
-            onedit={() => (form = { art: f.art, eintrag: f.e })} onremove={() => (loeschen = { art: f.art, eintrag: f.e })}
-            onantrieb={() => (antrieb = { art: f.art, eintrag: f.e })} />
+            onedit={() => (form = { art: f.art, eintrag: f.e })} />
         </div>
       {/each}
       <div class="plus-wrap" role="listitem" ondragover={(e) => ueberKachel(e, 'ende')} ondrop={(e) => ablegenKachel(e, null)}>
@@ -333,7 +347,7 @@
 {/if}
 
 {#if form}
-  <EintragForm {lang} art={form.art} eintrag={form.eintrag} onsave={speichere} onclose={() => (form = null)} />
+  <EintragForm {lang} art={form.art} eintrag={form.eintrag} onsave={speichere} onclose={() => (form = null)} aktionen={form.eintrag ? formAktionen() : null} />
 {/if}
 
 {#if antrieb}

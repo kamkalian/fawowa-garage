@@ -5,10 +5,10 @@
   import Icon from '../../shared/Icon.svelte';
   import { t, pick, zahlText } from '../lib/i18n.js';
 
-  // Karte eines Fahrrads oder Anhängers: Name, Prüfstatus und die ausgefüllten Angaben.
-  // kompakt: nur Name und Prüfstatus, keine Angaben (für den Platz im Gespann); flach: ohne eigenen Rahmen und ohne Symbol (liegt schon in einer Karte mit Überschrift und Symbol);
-  // aktionen: eigene Knöpfe statt Bearbeiten/Löschen
-  let { lang, art, eintrag, kompakt = false, flach = false, imGespann = false, onedit, onremove, onGespann, aktionen, foto = null, onfoto, onfotoloeschen, onantrieb } = $props();
+  // Karte eines Fahrrads oder Anhängers: Bild, Name, Prüfstatus und die ausgefüllten Angaben.
+  // Knöpfe in der Kachel: Bearbeiten und Ins Gespann; alles Weitere (Foto, Motor & Akku, Entfernen) steht im Bearbeiten-Fenster.
+  // kompakt: nur Name und Prüfstatus, keine Angaben (für den Platz im Gespann); flach: ohne eigenen Rahmen (liegt schon in einer Karte)
+  let { lang, art, eintrag, kompakt = false, flach = false, imGespann = false, onedit, onGespann, foto = null } = $props();
 
   const cfg = $derived(ARTEN[art]);
   // Motoren und Akkus stehen in eigenen Listen (mehrere je Fahrzeug)
@@ -19,7 +19,7 @@
   function wert(f) {
     const v = eintrag[f.key];
     if (v === null || v === undefined || v === '') return null;
-    if (f.typ === 'zahl' || f.typ === 'ganzzahl') return `${zahlText(lang, v)}${f.einheit ? ' ' + f.einheit : ''}`;
+    if (f.typ === 'zahl' || f.typ === 'ganzzahl') return `${zahlText(lang, v)}${f.einheit ? ' ' + f.einheit : ''}`;
     if (f.typ === 'auswahl') return pick(f.optionen.find(o => o.wert === v), lang) || v;
     return v;
   }
@@ -34,54 +34,42 @@
     <div class="zeile">
       <Fahrzeugbild art={art} bauart={eintrag.bauart} aufbau={eintrag.aufbau} motor={art === 'fahrraeder' && motoren.length > 0} foto={foto} alt={eintrag.name} />
       <div class="inhalt">
-    <div class="kopf" class:kompakt>
-      <h3>{#if !flach}<span class="symbol"><Icon name={art === 'fahrraeder' ? 'veh-bike' : 'veh-trailer'} size={24} /></span>{/if}{eintrag.name}</h3>
-      <div class="marken">
-        {#if imGespann}<span class="badge badge-active">{t(lang, 'inGespann')}</span>{/if}
-        <span class="badge {eintrag.status === 'geprueft' ? 'badge-active' : 'badge-check'}" title={t(lang, eintrag.status === 'geprueft' ? 'checkedHint' : 'uncheckedHint')}>
-          {t(lang, eintrag.status === 'geprueft' ? 'checked' : 'unchecked')}
-        </span>
-      </div>
-    </div>
+        <div class="kopf" class:kompakt>
+          <h3>{eintrag.name}</h3>
+          <div class="marken">
+            {#if imGespann}<span class="badge badge-active">{t(lang, 'inGespann')}</span>{/if}
+            <span class="badge {eintrag.status === 'geprueft' ? 'badge-active' : 'badge-check'}" title={t(lang, eintrag.status === 'geprueft' ? 'checkedHint' : 'uncheckedHint')}>
+              {t(lang, eintrag.status === 'geprueft' ? 'checked' : 'unchecked')}
+            </span>
+          </div>
+        </div>
 
-    {#if zeilen.length || (!kompakt && (motoren.length || akkus.length))}
-      <dl>
-        {#each zeilen as z (z.f.key)}
-          <dt>{pick(z.f.label, lang)}</dt>
-          <dd>{z.w}</dd>
-        {/each}
-        {#if !kompakt && motoren.length}
-          <dt>{pick({ de: 'Motoren', en: 'Motors' }, lang)}</dt>
-          <dd>{motoren.map(m => `${motorName(m.motor_art)}${m.leistung_w ? ` · ${zahlText(lang, m.leistung_w)} W` : ''}`).join(', ')}</dd>
+        {#if zeilen.length || (!kompakt && (motoren.length || akkus.length))}
+          <dl>
+            {#each zeilen as z (z.f.key)}
+              <dt>{pick(z.f.label, lang)}</dt>
+              <dd>{z.w}</dd>
+            {/each}
+            {#if !kompakt && motoren.length}
+              <dt>{pick({ de: 'Motoren', en: 'Motors' }, lang)}</dt>
+              <dd>{motoren.map(m => `${motorName(m.motor_art)}${m.leistung_w ? ` · ${zahlText(lang, m.leistung_w)} W` : ''}`).join(', ')}</dd>
+            {/if}
+            {#if !kompakt && akkus.length}
+              <dt>{pick({ de: 'Akkus', en: 'Batteries' }, lang)}</dt>
+              <dd>{akkus.map(a => `${zahlText(lang, a.kapazitaet_wh)} Wh`).join(', ')}</dd>
+            {/if}
+          </dl>
         {/if}
-        {#if !kompakt && akkus.length}
-          <dt>{pick({ de: 'Akkus', en: 'Batteries' }, lang)}</dt>
-          <dd>{akkus.map(a => `${zahlText(lang, a.kapazitaet_wh)} Wh`).join(', ')}</dd>
-        {/if}
-      </dl>
-    {/if}
-    {#if eintrag.notiz && !kompakt}<p class="notiz notizzeile">{eintrag.notiz}</p>{/if}
+        {#if eintrag.notiz && !kompakt}<p class="notiz notizzeile">{eintrag.notiz}</p>{/if}
 
-    <div class="aktionen">
-      {#if aktionen}
-        {@render aktionen()}
-      {:else}
-        {#if onfoto}
-          <button type="button" class="btn btn-outline btn-sm" onclick={onfoto}><Icon name="ui-plus" size={14} /> {t(lang, foto ? 'photoChange' : 'photoAdd')}</button>
-        {/if}
-        {#if foto && onfotoloeschen}
-          <button type="button" class="btn btn-ghost btn-sm" onclick={onfotoloeschen}>{t(lang, 'photoRemove')}</button>
-        {/if}
-        {#if onGespann}
-          <button type="button" class="btn btn-outline btn-sm" onclick={onGespann}>{t(lang, imGespann ? 'removeGespann' : 'toGespann')}</button>
-        {/if}
-        {#if onantrieb}
-          <button type="button" class="btn btn-outline btn-sm" onclick={onantrieb}>{pick({ de: 'Motor & Akku', en: 'Motor & battery' }, lang)}</button>
-        {/if}
-        <button type="button" class="btn btn-outline btn-sm" onclick={onedit}><Icon name="ui-edit" size={14} /> {t(lang, 'edit')}</button>
-        <button type="button" class="btn btn-ghost btn-sm" onclick={onremove}><Icon name="ui-trash" size={14} /> {t(lang, 'remove')}</button>
-      {/if}
-    </div>
+        <div class="aktionen">
+          {#if onGespann}
+            <button type="button" class="btn btn-outline btn-sm" onclick={onGespann}>{t(lang, imGespann ? 'removeGespann' : 'toGespann')}</button>
+          {/if}
+          {#if onedit}
+            <button type="button" class="btn btn-outline btn-sm" onclick={onedit}><Icon name="ui-edit" size={14} /> {t(lang, 'edit')}</button>
+          {/if}
+        </div>
       </div>
     </div>
   </div>
@@ -93,8 +81,7 @@
   .kopf { display: flex; align-items: flex-start; justify-content: space-between; gap: .5rem; margin-bottom: .5rem; }
   .kopf.kompakt { margin-bottom: 0; align-items: center; }
   .marken { display: flex; flex-wrap: wrap; gap: .25rem; justify-content: flex-end; }
-  h3 { display: flex; align-items: center; gap: .5rem; font-size: 1rem; overflow-wrap: anywhere; min-width: 0; }
-  .symbol { display: inline-flex; flex-shrink: 0; color: var(--primary); }
+  h3 { font-size: 1rem; overflow-wrap: anywhere; min-width: 0; }
   dl { display: grid; grid-template-columns: minmax(6rem, 42%) 1fr; gap: .15rem .75rem; font-size: .8125rem; }
   dt { color: var(--fg-muted); }
   dd { overflow-wrap: anywhere; }

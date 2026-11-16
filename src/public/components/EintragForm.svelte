@@ -1,18 +1,23 @@
 <script>
-  import { ARTEN, GRUPPEN } from '../../../lib/felder.js';
+  import { ARTEN, GRUPPEN, ANZAHL_RAEDER_AUS_AUFBAU, anzahlRaederAbleiten } from '../../../lib/felder.js';
   import { t, pick } from '../lib/i18n.js';
   import { ApiFehler } from '../lib/api.js';
   import Fenster from './Fenster.svelte';
 
-  // Formular für Fahrrad, Anhänger und Gespann; die Felder kommen aus lib/felder.js.
+  // Formular für Fahrrad und Anhänger; die Felder kommen aus lib/felder.js.
   // onsave(werte) legt an oder ändert und wirft bei Fehlern einen ApiFehler.
-  let { lang, art, eintrag = null, onsave, onclose } = $props();
+  // aktionen (nur beim Bearbeiten): { fotoVorhanden, onfoto, onfotoloeschen, onantrieb, onloeschen } für die weiteren Angaben unten
+  let { lang, art, eintrag = null, onsave, onclose, aktionen = null } = $props();
 
   // Das Formular wird für genau einen Eintrag geöffnet und danach geschlossen: Art und Anfangswerte werden nur einmal gelesen
   // svelte-ignore state_referenced_locally
   const cfg = ARTEN[art];
   // svelte-ignore state_referenced_locally
   const werte = $state(Object.fromEntries(cfg.felder.map(f => [f.key, eintrag?.[f.key] ?? (f.typ === 'zahl' || f.typ === 'ganzzahl' ? null : '')])));
+  // Bei Anhängern mit fester Achsenzahl gibt die Art die Anzahl der Räder vor
+  $effect(() => { if (art === 'anhaenger') anzahlRaederAbleiten(werte); });
+  const feldGesperrt = (f) => art === 'anhaenger' && f.key === 'anzahl_raeder' && ANZAHL_RAEDER_AUS_AUFBAU[werte.aufbau] !== undefined;
+
   let fehler = $state({});
   let allgemein = $state('');
   let laeuft = $state(false);
@@ -64,7 +69,7 @@
                 <textarea id="f-{f.key}" class="input" rows="3" maxlength={f.max} aria-invalid={!!fehler[f.key]} aria-describedby="h-{f.key}" bind:value={werte[f.key]}></textarea>
               {:else if f.typ === 'zahl' || f.typ === 'ganzzahl'}
                 <input id="f-{f.key}" class="input" type="number" inputmode={f.typ === 'zahl' ? 'decimal' : 'numeric'}
-                  min={f.min} max={f.max} step={f.typ === 'zahl' ? 'any' : 1} aria-invalid={!!fehler[f.key]} aria-describedby="h-{f.key}" bind:value={werte[f.key]} />
+                  min={f.min} max={f.max} step={f.typ === 'zahl' ? 'any' : 1} disabled={feldGesperrt(f)} aria-invalid={!!fehler[f.key]} aria-describedby="h-{f.key}" bind:value={werte[f.key]} />
               {:else if f.typ === 'auswahl'}
                 <select id="f-{f.key}" class="input" aria-invalid={!!fehler[f.key]} aria-describedby="h-{f.key}" bind:value={werte[f.key]}>
                   <option value="">–</option>
@@ -77,6 +82,22 @@
         </div>
       </fieldset>
     {/each}
+
+    {#if aktionen}
+      <fieldset class="weitere">
+        <legend>{pick({ de: 'Weitere Angaben', en: 'More details' }, lang)}</legend>
+        <div class="knoepfe">
+          <button type="button" class="btn btn-outline btn-sm" onclick={aktionen.onfoto}>
+            {pick(aktionen.fotoVorhanden ? { de: 'Foto ändern', en: 'Change photo' } : { de: 'Foto hochladen', en: 'Upload photo' }, lang)}
+          </button>
+          {#if aktionen.fotoVorhanden}
+            <button type="button" class="btn btn-ghost btn-sm" onclick={aktionen.onfotoloeschen}>{pick({ de: 'Foto entfernen', en: 'Remove photo' }, lang)}</button>
+          {/if}
+          <button type="button" class="btn btn-outline btn-sm" onclick={aktionen.onantrieb}>{pick({ de: 'Motor & Akku', en: 'Motor & battery' }, lang)}</button>
+          <button type="button" class="btn btn-ghost btn-sm" onclick={aktionen.onloeschen}>{t(lang, 'remove')}</button>
+        </div>
+      </fieldset>
+    {/if}
 
     {#if eintrag}<p class="notiz">{t(lang, 'formResetNote')}</p>{/if}
     {#if allgemein}<p class="fehler" role="alert">{allgemein}</p>{/if}
@@ -97,5 +118,6 @@
   .feld.voll { grid-column: 1 / -1; }
   .notiz { min-height: 1.1rem; margin-top: .125rem; }
   .aktionen { display: flex; gap: .5rem; justify-content: flex-end; margin-top: 1rem; }
+  .knoepfe { display: flex; flex-wrap: wrap; gap: .5rem; }
   @media (max-width: 520px) { .raster { grid-template-columns: 1fr; } }
 </style>
