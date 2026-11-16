@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   G, baueModell, berechneSegment, reichweiteEntlang, verbrauchProKm, luftdichte, rollwiderstandsbeiwert, gegenwindAnteil,
-  pruefeEinstellungen, EINSTELLUNGEN_STANDARD, UNTERSTUETZUNG
+  pruefeEinstellungen, EINSTELLUNGEN_STANDARD, UNTERSTUETZUNG, haltKosten
 } from '../lib/rechenmodell.js';
 
 // Ein typisches Gespann: Lastenrad mit Mittelmotor, Wohnwagen-Anhänger mit Solar
@@ -112,18 +112,16 @@ test('Zu steil: langsamer, bei sehr steil Schieben', () => {
   const e = m.einstellungen;
   const grenze = m.eta_kette * (e.eigenleistung_max_w + Math.min(m.motor.spitze_w, UNTERSTUETZUNG.tour * e.eigenleistung_max_w));
   assert.ok(mittel.leistung_rad_w <= grenze + 1e-6);
-  assert.ok(mittel.eigenleistung_w <= e.eigenleistung_max_w + 1e-9 && mittel.eigenleistung_w >= e.eigenleistung_w);
+  assert.ok(mittel.eigenleistung_w <= e.eigenleistung_max_w + 1e-9, 'der Fahrer tritt nie mehr als seine Höchstleistung');
 });
 
-test('Der Fahrer tritt auf der Ebene nur die Grundleistung und bergauf mehr, aber nie mehr als die Höchstleistung', () => {
-  const m = modell({ geschwindigkeit_kmh: 12 });
-  assert.equal(berechneSegment(m, eben).eigenleistung_w, m.einstellungen.eigenleistung_w, 'bei 12 km/h reicht die Grundleistung');
-  const berg = berechneSegment(m, { ...eben, steigung: 0.03 });
-  assert.ok(berg.eigenleistung_w > m.einstellungen.eigenleistung_w);
+test('Die Fahrerleistung ist das Ergebnis: auf der Ebene wenig, bergauf mehr, nie über die Höchstleistung', () => {
+  const m = modell({ geschwindigkeit_kmh: 16 });
+  const eben_ = berechneSegment(m, eben).eigenleistung_w;
+  const berg = berechneSegment(m, { ...eben, steigung: 0.03 }).eigenleistung_w;
+  assert.ok(eben_ > 0 && eben_ < berg, `Ebene ${eben_} W, Berg ${berg} W`);
   assert.ok(berechneSegment(m, { ...eben, steigung: 0.2 }).eigenleistung_w <= m.einstellungen.eigenleistung_max_w + 1e-9);
-  // Höchstleistung unter der Grundleistung gilt als Grundleistung
-  const klein = modell({ eigenleistung_w: 100, eigenleistung_max_w: 50 });
-  assert.ok(berechneSegment(klein, { ...eben, steigung: 0.2 }).eigenleistung_w <= 100 + 1e-9);
+  assert.equal(berechneSegment(m, { ...eben, steigung: -0.05 }).eigenleistung_w, 0, 'bergab tritt der Fahrer nicht');
 });
 
 test('Unterstützungsstufe: höhere Stufe schafft Steigungen schneller, ohne Motor gar nicht mit schwerem Gespann', () => {
@@ -140,10 +138,25 @@ test('Wirkungsgrade: Nabenmotor und Nabenschaltung kosten mehr Energie', () => {
   assert.ok(berechneSegment(modell({}, { ...RAD, schaltung_art: 'stufenlos' }), eben).wh_pro_km > basis);
 });
 
-test('Eigenleistung: je mehr der Fahrer tritt, desto weniger zieht der Motor', () => {
-  const wenig = berechneSegment(modell({ eigenleistung_w: 40 }), eben).wh_pro_km;
-  const viel = berechneSegment(modell({ eigenleistung_w: 150, unterstuetzung: 'max' }), eben).wh_pro_km;
-  assert.ok(viel < wenig);
+test('Unterstützung ist proportional zur Fahrerleistung: stärkere Stufe kostet bergauf mehr Akku', () => {
+  const steil = { ...eben, steigung: 0.05 };
+  const eco = berechneSegment(modell({ unterstuetzung: 'eco', geschwindigkeit_kmh: 16 }), steil).wh_pro_km;
+  const sport = berechneSegment(modell({ unterstuetzung: 'sport', geschwindigkeit_kmh: 16 }), steil).wh_pro_km;
+  assert.ok(sport > eco, `sport ${sport} > eco ${eco}`);
+});
+
+test('Motor: nie mehr als die Nennleistung (250 W)', () => {
+  const m = modell({ unterstuetzung: 'max', geschwindigkeit_kmh: 20 });
+  for (const st of [0.03, 0.08]) {
+    const r = berechneSegment(m, { ...eben, steigung: st });
+    assert.ok(r.motor_wh / (r.zeit_s / 3600) <= 250 / (m.motor.eta * 0.95) + 1e-6, 'Akkuleistung nie über 250 W Motor');
+  }
+});
+
+test('Halte: Ampel kostet mehr als Kreuzung, und ohne Motor kostet ein Halt keinen Akku', () => {
+  const h = haltKosten(modell());
+  assert.ok(h[0].wh > h[4].wh && h[0].s > h[4].s);
+  assert.equal(haltKosten(modell({ unterstuetzung: 'aus' }))[0].wh, 0);
 });
 
 test('Solar: senkt den Netto-Verbrauch, kann den Akku laden, Wirkung ist null ohne Einstrahlung', () => {
@@ -297,10 +310,10 @@ test('Einstellungen prüfen: Standardwerte, Grenzen, Komma, unbekannte Felder, A
   assert.ok(!('foo' in ok.werte));
 
   const schlecht = pruefeEinstellungen({
-    akku_rest_prozent: 101, reserve_prozent: -1, geschwindigkeit_kmh: 'schnell', eigenleistung_w: NaN, wind_ms: Infinity, unterstuetzung: 'raketen', oberflaeche: 100
+    akku_rest_prozent: 101, reserve_prozent: -1, geschwindigkeit_kmh: 'schnell', wind_ms: Infinity, unterstuetzung: 'raketen', oberflaeche: 100
   });
   assert.deepEqual(schlecht.fehler, {
-    akku_rest_prozent: 'zu_gross', reserve_prozent: 'zu_klein', geschwindigkeit_kmh: 'ungueltig', eigenleistung_w: 'ungueltig',
+    akku_rest_prozent: 'zu_gross', reserve_prozent: 'zu_klein', geschwindigkeit_kmh: 'ungueltig',
     wind_ms: 'ungueltig', unterstuetzung: 'ungueltig', oberflaeche: 'zu_gross'
   });
   // Auch Namen aus der Prototypkette sind keine gültigen Stufen

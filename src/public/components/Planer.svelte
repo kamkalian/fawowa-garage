@@ -1,6 +1,6 @@
 <script>
   import { onMount, untrack } from 'svelte';
-  import { EINSTELLUNGEN_GRENZEN, UNTERSTUETZUNG, ANNAHMEN, hatMotor } from '../../../lib/rechenmodell.js';
+  import { EINSTELLUNGEN_GRENZEN, ANNAHMEN, hatMotor } from '../../../lib/rechenmodell.js';
   import { t, zahlText } from '../lib/i18n.js';
   import * as api from '../lib/api.js';
   import { Karte } from '../lib/karte.js';
@@ -12,16 +12,10 @@
   const cfg = $derived(einst.reichweite);
   const WIND = [['N', 0], ['NO', 45], ['O', 90], ['SO', 135], ['S', 180], ['SW', 225], ['W', 270], ['NW', 315]];
   const SONNE = [0, 150, 400, 800];
-  // Grobe Fahrt: Motor mit Unterstützung, oder ohne Motor nur die eigene Kraft
+  // Fahrt: gemütlich oder sportlich. Die Unterstützung und die Höchstleistung des Fahrers folgen daraus (ohne Motor nur die Höchstleistung).
   const STIL = {
-    gemuetlich: {
-      mit: { unterstuetzung: 'eco', geschwindigkeit_kmh: 16, eigenleistung_w: 60, eigenleistung_max_w: 110 },
-      ohne: { geschwindigkeit_kmh: 16, eigenleistung_w: 80, eigenleistung_max_w: 120 }
-    },
-    sportlich: {
-      mit: { unterstuetzung: 'sport', geschwindigkeit_kmh: 22, eigenleistung_w: 110, eigenleistung_max_w: 220 },
-      ohne: { geschwindigkeit_kmh: 22, eigenleistung_w: 140, eigenleistung_max_w: 260 }
-    }
+    gemuetlich: { unterstuetzung: 'eco', geschwindigkeit_kmh: 16, eigenleistung_max_w: 150 },
+    sportlich: { unterstuetzung: 'sport', geschwindigkeit_kmh: 22, eigenleistung_max_w: 250 }
   };
 
   const nachId = (liste, id) => liste.find(x => x.id === id) ?? null;
@@ -40,7 +34,7 @@
   let stil = $state('gemuetlich');
   let e = $state({
     akku_rest_prozent: 100, zusatz_rest_prozent: null, fahrtzeit_h: 3, reserve_prozent: 5,
-    unterstuetzung: 'eco', geschwindigkeit_kmh: 16, eigenleistung_w: 60, eigenleistung_max_w: 110,
+    ...STIL.gemuetlich,
     wind_ms: 0, wind_richtung_grad: 270, einstrahlung_w_m2: 0, temperatur_c: 15, hoehe_m: 100, oberflaeche: 1
   });
   let modus = $state('alle');
@@ -48,18 +42,11 @@
   let weitere = $state(false);
   let filterOffen = $state(true);
 
-  /** Grobe Fahrt setzen; ohne Motor bleiben Unterstützung und Motorwerte unberührt */
+  /** Fahrt setzen (gemütlich oder sportlich) */
   function stilSetzen(name) {
     stil = name;
-    const p = STIL[name][motor ? 'mit' : 'ohne'];
-    Object.assign(e, p);
+    Object.assign(e, STIL[name]);
   }
-
-  // Beim Wechsel zwischen Gespann mit und ohne Motor die passenden Werte einstellen
-  $effect(() => {
-    const m = motor;
-    untrack(() => { Object.assign(e, STIL[stil][m ? 'mit' : 'ohne']); });
-  });
 
   // ---------- Zustand ----------
   let leinwand;
@@ -115,7 +102,7 @@
 
   // ---------- Berechnen ----------
   function einstellungen() {
-    const r = { ...e, budget_art: nachAkku ? 'akku' : 'zeit', unterstuetzung: motor ? e.unterstuetzung : 'aus' };
+    const r = { ...e, budget_art: nachAkku ? 'akku' : 'zeit', unterstuetzung: motor ? STIL[stil].unterstuetzung : 'aus' };
     if (r.budget_art === 'akku') delete r.fahrtzeit_h;
     else { delete r.akku_rest_prozent; delete r.zusatz_rest_prozent; delete r.reserve_prozent; }
     if (!mitZusatzakku || r.zusatz_rest_prozent === null) delete r.zusatz_rest_prozent;
@@ -278,23 +265,7 @@
           <details bind:open={weitere}>
             <summary>{t(lang, 'p_weitere')}</summary>
             <div class="feinteile">
-              {#if motor}
-                <label for="p-stufe">{t(lang, 'p_stufe')}</label>
-                <select id="p-stufe" class="input" bind:value={e.unterstuetzung}>
-                  {#each Object.keys(UNTERSTUETZUNG) as s (s)}<option value={s}>{t(lang, `stufe_${s}`)}</option>{/each}
-                </select>
-              {/if}
-              <label for="p-tempo">{t(lang, 'p_tempo')}: <strong>{e.geschwindigkeit_kmh} km/h</strong></label>
-              <input id="p-tempo" type="range" min={EINSTELLUNGEN_GRENZEN.geschwindigkeit_kmh[0]} max={EINSTELLUNGEN_GRENZEN.geschwindigkeit_kmh[1]} step="1" bind:value={e.geschwindigkeit_kmh} />
               <div class="zwei">
-                <div>
-                  <label for="p-eigen">{t(lang, 'p_eigen')} (W)</label>
-                  <input id="p-eigen" class="input" type="number" min={EINSTELLUNGEN_GRENZEN.eigenleistung_w[0]} max={EINSTELLUNGEN_GRENZEN.eigenleistung_w[1]} step="5" bind:value={e.eigenleistung_w} />
-                </div>
-                <div>
-                  <label for="p-eigenmax">{t(lang, 'p_eigenMax')} (W)</label>
-                  <input id="p-eigenmax" class="input" type="number" min={EINSTELLUNGEN_GRENZEN.eigenleistung_max_w[0]} max={EINSTELLUNGEN_GRENZEN.eigenleistung_max_w[1]} step="5" bind:value={e.eigenleistung_max_w} />
-                </div>
                 {#if nachAkku}
                   <div>
                     <label for="p-reserve">{t(lang, 'p_reserve')} (%)</label>

@@ -64,12 +64,17 @@ log('Lese', pbfDatei);
 let letzteId = 0;
 // Orte für die Beschriftung der Karte und die Suche nach dem Startpunkt
 const ORTS_ARTEN = new Set(['city', 'town', 'village', 'suburb']);
+// Knoten mit Halt-Regel (OSM highway=*): Bits 1 Ampel, 2 Haltestelle, 4 Vorfahrt achten, 8 Überweg
+const HALT_ARTEN = { traffic_signals: 1, stop: 2, give_way: 4, crossing: 8 };
+const haltOsm = new Map(); // OSM-Knoten-ID -> Bits
 const orte = [];
 
 leseDatei(pbfDatei, {
-  knotenSchluessel: new Set(['place', 'name']),
+  knotenSchluessel: new Set(['place', 'name', 'highway']),
   knotenTags: (id, lat, lon, tags) => {
     if (tags.name && ORTS_ARTEN.has(tags.place)) orte.push([tags.name, tags.place, Math.round(lat * 1e5) / 1e5, Math.round(lon * 1e5) / 1e5]);
+    const art = HALT_ARTEN[tags.highway];
+    if (art) haltOsm.set(id, art);
   },
   knoten: (ids, lat, lon, n) => {
     if (wegeBegonnen) throw new Error('Knoten nach den Wegen: die Datei ist nicht nach Typ sortiert');
@@ -219,7 +224,7 @@ for (let w = 0; w < nWege; w++) {
   let kantenStart = 0;
   for (let i = 1; i < n; i++) {
     const knoten = WK[s + i];
-    const istKreuzung = nutzung[knoten] >= 2 || i === n - 1;
+    const istKreuzung = nutzung[knoten] >= 2 || i === n - 1 || haltOsm.has(knotenIds[knoten]);
     if (!istKreuzung) continue;
 
     const a = knotenNr(WK[s + kantenStart]);
@@ -279,6 +284,17 @@ for (let e = 0; e < E; e++) {
   adj[fuell[B[e]]++] = e * 2 + 1;   // verlässt b in Richtung a
 }
 
+// Knotenart je Knoten im Netz: 0 keine, 1 Ampel, 2 Haltestelle, 3 Vorfahrt achten, 4 Überweg, 5 Kreuzung ohne Regel
+const knotenTyp = new Uint8Array(N);
+for (let idx = 0; idx < nKnoten; idx++) {
+  const n = neuNr[idx];
+  if (n < 0) continue;
+  const f = haltOsm.get(knotenIds[idx]) ?? 0;
+  const grad3 = grad[n + 1] - grad[n] >= 3;
+  knotenTyp[n] = (f & 1) ? 1 : (f & 2) ? 2 : (f & 4) ? 3 : (f & 8) ? 4 : grad3 ? 5 : 0;
+}
+log(`Knotenarten: Ampel ${knotenTyp.filter((t) => t === 1).length}, Haltestelle ${knotenTyp.filter((t) => t === 2).length}, Vorfahrt ${knotenTyp.filter((t) => t === 3).length}, Überweg ${knotenTyp.filter((t) => t === 4).length}, Kreuzung ${knotenTyp.filter((t) => t === 5).length}`);
+
 // ---------- 5. Schreiben ----------
 writeFileSync(join(ausgabe, 'orte.json'), JSON.stringify(orte));
 log(`Orte: ${orte.length}`);
@@ -286,7 +302,7 @@ const dateien = {
   'knoten_lat.i32': nLat.fertig(), 'knoten_lon.i32': nLon.fertig(), 'adj_start.u32': grad, 'adj.u32': adj,
   'kante_a.u32': A, 'kante_b.u32': B, 'kante_flags.u8': eFlags.fertig(), 'kante_belag.u8': eBelag.fertig(),
   'kante_leg_start.u32': eLegStart.fertig(), 'kante_leg_n.u8': eLegN.fertig(),
-  'leg_len.u16': legLen.fertig(), 'leg_grad.i8': legGrad.fertig(), 'leg_kurs.u8': legKurs.fertig()
+  'leg_len.u16': legLen.fertig(), 'leg_grad.i8': legGrad.fertig(), 'leg_kurs.u8': legKurs.fertig(), 'knoten_typ.u8': knotenTyp
 };
 const groessen = {};
 for (const [name, arr] of Object.entries(dateien)) {
