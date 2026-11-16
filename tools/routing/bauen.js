@@ -19,7 +19,7 @@ if (!pbfDatei || !hgtOrdner || !ausgabe) {
 mkdirSync(ausgabe, { recursive: true });
 
 const LEG_MAX_M = 120;        // Teilstücke werden nach dieser Länge abgeschlossen
-const GLAETTUNG_M = 60;       // Breite des gleitenden Mittels für die Höhen
+const GLAETTUNG_M = 400;      // Breite des gleitenden Mittels für die Höhen (SRTM-Fehler sind über Dutzende Meter korreliert)
 const GRADIENT_MAX = 0.4;
 const zeit0 = Date.now();
 const sek = () => ((Date.now() - zeit0) / 1000).toFixed(0).padStart(4) + ' s';

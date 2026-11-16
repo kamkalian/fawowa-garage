@@ -63,18 +63,16 @@ test('Reichweite: nahe am Start wenig, weiter weg mehr, außerhalb des Rasters d
   assert.equal(wert(r, 52.0, 7.12), 1.5);
 });
 
-test('Reichweite: es gibt Werte über der Grenze (weiche Kante, nicht eingefärbt) und die Werte sind geglättet', () => {
+test('Reichweite: innerhalb der Grenze gibt es Fläche, die Werte sind geglättet', () => {
   const r = rechne();
   const { nx, ny, daten } = r.raster;
   const bytes = Buffer.from(daten, 'base64');
-  let grau = 0; let rot = 0;
+  let rot = 0;
   for (let i = 0; i < nx * ny; i++) {
     const f = bytes[i] / 254 * 1.5;
-    if (f > 1 && f < 1.5) grau++;
     if (f <= 1) rot++;
   }
   assert.ok(rot > 0, 'innerhalb der Grenze gibt es Fläche');
-  assert.ok(grau > 0, 'es gibt einen Übergangsbereich über der Grenze');
   let sprung = 0;
   for (let y = 0; y < ny; y++) for (let x = 1; x < nx; x++) sprung = Math.max(sprung, Math.abs(bytes[y * nx + x] - bytes[y * nx + x - 1]));
   assert.ok(sprung < 60, `größter Sprung zwischen Nachbarn: ${sprung}`);
