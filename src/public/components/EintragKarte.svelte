@@ -21,7 +21,7 @@
     </div>
 
     <div class="bild">
-      <Fahrzeugbild art={art} bauart={eintrag.bauart} aufbau={eintrag.aufbau} motor={art === 'fahrraeder' && motoren.length > 0} akku={akkus.length > 0} foto={foto} alt={eintrag.name} groesse="5.5rem" />
+      <Fahrzeugbild art={art} bauart={eintrag.bauart} aufbau={eintrag.aufbau} motor={art === 'fahrraeder' && motoren.length > 0} akku={akkus.length > 0} foto={foto} alt={eintrag.name} groesse="6rem" />
     </div>
 
     <div class="fuss">
@@ -42,9 +42,9 @@
   article { flex: 1; display: flex; min-width: 0; height: 100%; }
   /* Leicht transparent, damit das Garagenbild durchscheint */
   article.card { background: color-mix(in srgb, var(--bg-card) 78%, transparent); backdrop-filter: blur(3px); }
-  .card-body { flex: 1; display: flex; flex-direction: column; min-width: 0; position: relative; padding: .625rem; gap: .5rem; overflow: hidden; }
+  .card-body { flex: 1; display: flex; flex-direction: column; min-width: 0; position: relative; padding: .5rem; gap: .3rem; overflow: hidden; }
   /* Die Kopfzeile hat immer dieselbe Höhe; die Gespann-Marke liegt darüber, damit sich das Bild nie verschiebt */
-  .kopf { height: 1.75rem; min-width: 0; }
+  .kopf { height: 1.5rem; min-width: 0; }
   h3 { font-size: .9375rem; overflow-wrap: anywhere; min-width: 0; line-height: 1.25; padding-right: 5rem; }
   .gespann { position: absolute; top: .625rem; right: .625rem; font-size: .7rem; }
   /* Bild oder Icon genau mittig in der Kachel (horizontal und vertikal) */
