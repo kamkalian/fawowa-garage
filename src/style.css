@@ -41,6 +41,8 @@ a{color:var(--primary)}
 .header h1{font-size:1.25rem;font-weight:700;text-shadow:var(--glow)}
 .header-sub{font-size:.8125rem;color:var(--fg-muted)}
 .header-tools{display:flex;gap:.5rem;align-items:center;margin-left:auto;flex-wrap:wrap}
+.kopf-aktionen{display:flex;gap:.5rem;align-items:center}
+.kopf-aktionen:empty{display:none}
 .lang-switch{display:inline-flex;gap:.125rem}
 
 /* Knöpfe */

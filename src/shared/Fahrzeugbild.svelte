@@ -29,7 +29,7 @@
   const svg = $derived(ICONS[schluessel] ?? ICONS.sonstiges);
 </script>
 
-<div class="bild" style="--groesse: {groesse}">
+<div class="bild" class:voll={!!foto} style="--groesse: {groesse}">
   {#if foto}
     <img src={foto} alt={alt} loading="lazy" />
   {:else}
@@ -46,6 +46,8 @@
   .bild { position: relative; width: var(--groesse, 6rem); height: var(--groesse, 6rem); flex-shrink: 0; border-radius: var(--radius-sm); background: var(--bg-input); color: var(--primary); display: flex; align-items: center; justify-content: center; overflow: hidden; }
   .bild svg { width: 58%; height: 58%; }
   .bild img { width: 100%; height: 100%; object-fit: cover; }
+  /* Mit Foto füllt das Bild die ganze Fläche der Kachel aus (bis an den Rand) */
+  .bild.voll { width: 100%; height: 100%; border-radius: 0; }
   /* Blitz ohne Hintergrund: kräftiges Gelb mit dunkler Kontur, damit er auf hell und dunkel gut sichtbar ist */
   .blitz { position: absolute; bottom: .15rem; right: .15rem; width: 1.4rem; height: 1.4rem; pointer-events: none; }
   .blitz svg { width: 100%; height: 100%; fill: #facc15; stroke: #713f12; stroke-width: 2; stroke-linejoin: round; opacity: 1; }

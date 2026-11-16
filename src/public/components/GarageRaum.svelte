@@ -105,7 +105,7 @@
   /* Heller Modus der Seite: Licht immer an, das Bild wird nicht verdunkelt und läuft hell zum Rand aus; Schalter ohne Wirkung */
   :global([data-theme="light"]) .raum .bild img { filter: none; }
   :global([data-theme="light"]) .raum .glanz { opacity: 1; }
-  :global([data-theme="light"]) .raum .dunkel { background: radial-gradient(ellipse at 50% 40%, transparent 45%, rgba(244, 241, 234, .92) 100%); }
+  :global([data-theme="light"]) .raum .dunkel { background: radial-gradient(ellipse at 50% 40%, rgba(251, 250, 247, 0) 22%, rgba(251, 250, 247, .85) 62%, #fbfaf7 100%); }
   :global([data-theme="light"]) .raum .schalter { pointer-events: none; cursor: default; }
   @media (prefers-reduced-motion: reduce) { .flackern .glanz, .flackern .bild img { animation: none; } }
 </style>

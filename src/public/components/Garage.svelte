@@ -8,6 +8,7 @@
   import EintragForm from './EintragForm.svelte';
   import EintragKarte from './EintragKarte.svelte';
   import GarageRaum from './GarageRaum.svelte';
+  import { portal } from '../lib/portal.js';
   import Fenster from './Fenster.svelte';
   import EmailFenster from './EmailFenster.svelte';
   import Planer from './Planer.svelte';
@@ -284,7 +285,7 @@
   {/if}
 
   {#snippet profilKnopf()}
-    <button type="button" class="profil-knopf" aria-label={pick({ de: 'Fahrer und Gewicht', en: 'Rider and weight' }, lang)}
+    <button type="button" class="profil-knopf" use:portal={'kopf-aktionen'} aria-label={pick({ de: 'Fahrer und Gewicht', en: 'Rider and weight' }, lang)}
       title={pick({ de: 'Fahrer und Gewicht', en: 'Rider and weight' }, lang)} onclick={() => (profilOffen = true)}>
       <Icon name="ui-user" size={20} />
     </button>
@@ -300,7 +301,8 @@
           ondragover={(e) => ueberKachel(e, schluessel(f))} ondrop={(e) => ablegenKachel(e, f)}>
           <EintragKarte {lang} art={f.art} eintrag={f.e} imGespann={imInGespann(f.art, f.e)} foto={fotos[schluessel(f)] ?? null}
             onGespann={() => umschalten(f)}
-            onedit={() => (form = { art: f.art, eintrag: f.e })} />
+            onedit={() => (form = { art: f.art, eintrag: f.e })}
+            onremove={() => (loeschen = { art: f.art, eintrag: f.e })} />
         </div>
       {/each}
       <div class="plus-wrap" role="listitem" ondragover={(e) => ueberKachel(e, 'ende')} ondrop={(e) => ablegenKachel(e, null)}>

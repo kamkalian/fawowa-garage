@@ -122,6 +122,8 @@
         <button class="btn btn-sm {lang === 'de' ? 'btn-primary' : 'btn-ghost'}" aria-pressed={lang === 'de'} onclick={() => setLang('de')}>DE</button>
         <button class="btn btn-sm {lang === 'en' ? 'btn-primary' : 'btn-ghost'}" aria-pressed={lang === 'en'} onclick={() => setLang('en')}>EN</button>
       </div>
+      <!-- Platz für Knöpfe der Garage (Fahrer und Gewicht), direkt links neben dem Hell-Dunkel-Schalter -->
+      <div id="kopf-aktionen" class="kopf-aktionen"></div>
       <button class="btn btn-ghost btn-icon" title={t(lang, 'themeToggle')} aria-label={t(lang, 'themeToggle')} onclick={toggleTheme}>
         <Icon name="ui-moon" size={16} />
       </button>

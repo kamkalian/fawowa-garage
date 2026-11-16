@@ -6,7 +6,7 @@
   // Stellplatz-Kachel (quadratisch, leicht transparent): Name oben links, Gespann-Marke oben rechts; in der Mitte Bild oder Icon;
   // unten die Knöpfe Gespann und Bearbeiten und, bei ungeprüften Einträgen, das Ausrufezeichen mit Hinweis.
   // Keine Angaben in der Kachel: die stehen im Bearbeiten-Fenster.
-  let { lang, art, eintrag, flach = false, imGespann = false, onedit, onGespann, foto = null } = $props();
+  let { lang, art, eintrag, flach = false, imGespann = false, onedit, onGespann, onremove, foto = null } = $props();
 
   const motoren = $derived(eintrag.motoren ?? []);
   const akkus = $derived(eintrag.akkus ?? []);
@@ -20,7 +20,7 @@
       {#if imGespann}<span class="badge badge-active gespann">{t(lang, 'inGespann')}</span>{/if}
     </div>
 
-    <div class="bild">
+    <div class="bild" class:mit-foto={!!foto}>
       <Fahrzeugbild art={art} bauart={eintrag.bauart} aufbau={eintrag.aufbau} motor={art === 'fahrraeder' && motoren.length > 0} akku={akkus.length > 0} foto={foto} alt={eintrag.name} groesse="8rem" />
       {#if art === 'gepaecke' && eintrag.gewicht_kg != null}
         <span class="kg">{zahlText(lang, eintrag.gewicht_kg)} kg</span>
@@ -28,6 +28,9 @@
     </div>
 
     <div class="fuss">
+      {#if onremove}
+        <button type="button" class="btn btn-ghost btn-sm" onclick={onremove} aria-label={t(lang, 'remove')} title={t(lang, 'remove')}><Icon name="ui-trash" size={14} /></button>
+      {/if}
       {#if onGespann}
         <button type="button" class="btn btn-outline btn-sm" onclick={onGespann} aria-label={imGespann ? pick({ de: 'Aus dem Gespann nehmen', en: 'Remove from convoy' }, lang) : pick({ de: 'Ins Gespann', en: 'Add to convoy' }, lang)}><Icon name={imGespann ? 'ui-minus' : 'ui-plus'} size={14} /> Gespann</button>
       {/if}
@@ -52,6 +55,8 @@
   .gespann { position: absolute; top: .625rem; right: .625rem; font-size: .7rem; }
   /* Bild oder Icon genau mittig in der Kachel (horizontal und vertikal) */
   .bild { flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .15rem; }
+  /* Mit Foto: das Bild reicht bis an den linken und rechten Rand der Kachel */
+  .bild.mit-foto { margin: 0 -.5rem; }
   .kg { font-size: .75rem; color: var(--fg-muted); }
   .fuss { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; margin-top: auto; }
   /* Ausrufezeichen unten rechts; der Hinweis erscheint beim Darüberfahren */
