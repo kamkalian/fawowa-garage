@@ -347,8 +347,7 @@ export class Karte {
     if (!o) return;
     const [x0, y0] = this.px(weltX(o.lon0), weltY(o.lat1));
     const [x1, y1] = this.px(weltX(o.lon1), weltY(o.lat0));
-    g.imageSmoothingEnabled = true;
-    g.imageSmoothingQuality = 'high';
+    g.imageSmoothingEnabled = false; // harte Kanten: jede Zelle bleibt eine Fläche, nichts wird weichgezeichnet
     g.drawImage(o.bild, x0, y0, x1 - x0, y1 - y0);
   }
 
