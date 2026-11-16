@@ -1,18 +1,27 @@
 <script>
   import { pick } from '../lib/i18n.js';
 
-  // Die Stellplätze liegen vor einem Garagenfoto (public/garage.webp, KI-erzeugt). Das Foto ist der Hintergrund.
-  // Die Kacheln stehen links oben; rechts davon bleibt der Bereich mit dem Lichtschalter frei.
-  // Der Lichtschalter liegt auf einer eigenen Ebene über den Kacheln und ist ein echter Knopf: Klick schaltet das Licht.
-  // Beim Einschalten flackert das Licht kurz. Ausgeschaltet wird das Bild sehr dunkel, und der Schalter leuchtet schwach.
-  let { lang, children } = $props();
+  // Die Stellplätze liegen vor einem Garagenfoto (public/garage.webp, KI-erzeugt) in voller Größe.
+  // Zu Beginn ist es immer dunkel. Der Lichtschalter ist ein unsichtbarer Knopf an der Stelle des Schalters im Foto:
+  // Klick schaltet das Licht, beim Einschalten flackert es kurz. Der Status wird im Cookie „garage_licht“ gespeichert.
+  // Die Kacheln liegen im Bereich links und scrollen innerhalb des Bildes. kopf: Inhalt oben rechts (z. B. das Profil-Icon).
+  let { lang, children, kopf = null } = $props();
 
-  let licht = $state(true);
+  const COOKIE = 'garage_licht';
+  let licht = $state(false);
   let flackert = $state(false);
+
+  // Cookie schreiben; ohne Cookie-Unterstützung gilt der Status nur für diesen Besuch
+  function speichereStatus(an) {
+    try {
+      document.cookie = `${COOKIE}=${an ? '1' : '0'}; max-age=31536000; path=/; SameSite=Lax`;
+    } catch { /* kein Cookie möglich */ }
+  }
 
   function schalten() {
     licht = !licht;
     flackert = licht; // nur beim Einschalten flackern
+    speichereStatus(licht);
   }
 
   function ende(e) {
@@ -27,81 +36,59 @@
     <div class="glanz"></div>
   </div>
 
-  <!-- Verlängerung unter dem Foto: die unterste Zeile der mittleren zwei Drittel, nach unten wiederholt (public/garage-unten.png) -->
-  <div class="verlaengerung" aria-hidden="true"></div>
-
-  <!-- Schalterebene: liegt über den Kacheln, damit der Schalter immer erreichbar ist -->
+  <!-- Schalterebene: liegt über den Kacheln; der Schalter ist der einzige klickbare Teil an dieser Stelle -->
   <div class="schalterebene">
-    <button type="button" class="schalter" class:leuchtet={!licht} onclick={schalten} aria-pressed={licht}
+    <button type="button" class="schalter" onclick={schalten} aria-pressed={licht}
       aria-label={pick({ de: 'Licht ein- und ausschalten', en: 'Switch light on or off' }, lang)}
-      title={pick({ de: 'Licht', en: 'Light' }, lang)}>
-      <!-- Der Schalter selbst aus dem Foto, unverdunkelt; leuchtet bei ausgeschaltetem Licht -->
-      <span class="schalterbild" aria-hidden="true"></span>
-    </button>
+      title={pick({ de: 'Licht', en: 'Light' }, lang)}></button>
   </div>
 
   <div class="dunkel" aria-hidden="true"></div>
+
+  {#if kopf}
+    <div class="kopf">{@render kopf()}</div>
+  {/if}
+
   <div class="inhalt">
     {@render children()}
   </div>
 </div>
 
 <style>
-  /* cqw-Einheiten beziehen sich auf die Breite des Raums; das Foto ist genau so breit */
-  /* Foto-Vergrößerung: Foto und Schalterebene werden um denselben Ursprung skaliert, damit der Schalter am Foto bleibt */
-  .raum { --foto-skala: 1.2; position: relative; isolation: isolate; container-type: inline-size; border-radius: var(--radius); overflow: hidden; margin-bottom: 1.5rem; background: #15171b; }
-  /* Das Foto liegt hinter allem: oben im Bereich, nach unten in den dunklen Hintergrund übergehend */
-  .bild { position: absolute; top: 0; left: 0; right: 0; aspect-ratio: 2000 / 1125; z-index: 0; pointer-events: none; transform: scale(var(--foto-skala)); transform-origin: 50% 0; }
+  /* Das Bild ist genau so groß wie der Bereich: in voller Größe sichtbar, nichts wird abgeschnitten */
+  .raum {
+    position: relative; isolation: isolate; container-type: inline-size; aspect-ratio: 2000 / 1125;
+    border-radius: var(--radius); overflow: hidden; margin-bottom: 1.5rem; background: #15171b;
+  }
+  .bild { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
   .bild img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transition: filter .4s; }
-  /* Verlängerung: unter dem Foto, der Streifen wird nach unten wiederholt; bei Bedarf so lang wie der Raum */
-  .verlaengerung { position: absolute; left: 0; right: 0; top: calc(56.25cqw * var(--foto-skala)); bottom: 0; z-index: 0; pointer-events: none;
-    background: url(/garage-unten.png) 0 0 / 100% auto repeat-y; }
-  .aus .verlaengerung { filter: brightness(.25) saturate(.6); }
-  /* Licht aus: das Foto wird sehr dunkel */
+  /* Zu Beginn und bei ausgeschaltetem Licht: sehr dunkel, aber nicht schwarz */
   .aus .bild img { filter: brightness(.25) saturate(.6); }
-  /* Glanz unter der Röhre (Position passend zum Foto) */
   .glanz {
     position: absolute; left: 30%; top: 2%; width: 40%; height: 22%; pointer-events: none;
     background: radial-gradient(ellipse at 50% 20%, rgba(255, 255, 240, .35), transparent 70%);
     transition: opacity .25s;
   }
   .aus .glanz { opacity: 0; }
-  /* Schalterebene: dieselbe Fläche wie das Foto, damit die Prozentwerte am Foto liegen */
-  .schalterebene { position: absolute; top: 0; left: 0; right: 0; aspect-ratio: 2000 / 1125; z-index: 3; pointer-events: none; transform: scale(var(--foto-skala)); transform-origin: 50% 0; }
-  /* Schalter: Knopf über dem Schalter im Foto; leuchtet schwach, wenn das Licht aus ist */
+  /* Schalter: nur ein klickbares Element ohne Rahmen; Größe in Prozent der Garagenbreite, Mitte an der Stelle im Foto */
+  .schalterebene { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
   .schalter {
-    pointer-events: auto; position: absolute; left: calc(78cqw - .5cqw + 7px); top: calc(28.6875cqw + .6cqw - 7px); width: max(2.6cqw, 1.8rem); height: max(3.4cqw, 2.4rem); padding: 0;
-    transform: translate(-50%, -50%); background: transparent; border: 0; border-radius: 4px; cursor: pointer; padding: 0;
-    transition: box-shadow .3s, background-color .3s;
+    pointer-events: auto; position: absolute; left: calc(78cqw - .5cqw + 7px); top: calc(28.6875cqw + .6cqw - 7px);
+    width: max(2.6cqw, 1.8rem); height: max(3.4cqw, 2.4rem); transform: translate(-50%, -50%);
+    background: transparent; border: 0; border-radius: 4px; padding: 0; cursor: pointer;
   }
-  .schalter:hover { background: rgba(255, 255, 255, .12); }
+  /* Tastaturfokus sichtbar machen, ohne dass ein Rahmen zu sehen ist, wenn nur geklickt wird */
+  .schalter:focus:not(:focus-visible) { outline: none; }
   .schalter:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
-  /* Der Schalter aus dem Foto: genau der Ausschnitt an der Stelle des Schalters (78 % Breite, 51 % Höhe des Fotos), unverdunkelt */
-  .schalterbild {
-    position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
-    width: 2.6cqw; height: 3.375cqw; border-radius: 2px;
-    /* rechteckig mit weichen Kanten: an allen vier Seiten läuft das Foto aus, ohne Rundung */
-    -webkit-mask-image: linear-gradient(to right, transparent, #000 15%, #000 85%, transparent), linear-gradient(to bottom, transparent, #000 15%, #000 85%, transparent);
-    -webkit-mask-composite: source-in;
-    mask-image: linear-gradient(to right, transparent, #000 15%, #000 85%, transparent), linear-gradient(to bottom, transparent, #000 15%, #000 85%, transparent);
-    mask-composite: intersect;
-    background-image: url(/garage.webp); background-repeat: no-repeat;
-    background-size: 100cqw 56.25cqw;
-    background-position: calc(-77.5cqw + 1.3cqw) calc(-29.2875cqw + 1.6875cqw);
-    transition: box-shadow .3s;
-  }
-  /* Licht aus: der Schalter leuchtet mit einem weichen Schein */
-  .schalter.leuchtet .schalterbild { box-shadow: 0 0 14px 5px rgba(255, 235, 160, .55); }
-  /* Rand und unterer Bereich dunkel auslaufen lassen */
   .dunkel {
     position: absolute; inset: 0; z-index: 1; pointer-events: none;
-    background:
-      linear-gradient(to bottom, transparent 35%, rgba(21, 23, 27, .95) 100%),
-      radial-gradient(ellipse at 50% 35%, transparent 45%, rgba(0, 0, 0, .55) 100%);
-    transition: background-color .4s;
+    background: radial-gradient(ellipse at 50% 40%, transparent 55%, rgba(0, 0, 0, .45) 100%);
   }
-  /* Licht aus: sehr dunkel, aber nicht schwarz */
-  .aus .dunkel { background: linear-gradient(to bottom, rgba(10, 11, 13, .6), rgba(10, 11, 13, .85)); }
+  .aus .dunkel { background: linear-gradient(to bottom, rgba(10, 11, 13, .35), rgba(10, 11, 13, .6)); }
+  /* Profil-Icon oben rechts, außerhalb des scrollenden Bereichs */
+  .kopf { position: absolute; top: .6rem; right: .6rem; z-index: 4; }
+  /* Die Kacheln scrollen innerhalb des Bildbereichs */
+  .inhalt { position: absolute; inset: 0; z-index: 2; overflow-y: auto; padding: .75rem 1rem 1rem; }
   /* Flackern beim Einschalten */
   .flackern .glanz { animation: flackern .6s steps(1) 1; }
   .flackern .bild img { animation: flackern-bild .6s steps(1) 1; }
@@ -113,6 +100,5 @@
     0% { filter: brightness(.45); } 12% { filter: none; } 22% { filter: brightness(.6); } 34% { filter: none; }
     48% { filter: brightness(.7); } 60% { filter: none; } 74% { filter: brightness(.9); } 100% { filter: none; }
   }
-  .inhalt { position: relative; z-index: 2; padding: .5rem 1rem 1rem; }
   @media (prefers-reduced-motion: reduce) { .flackern .glanz, .flackern .bild img { animation: none; } }
 </style>

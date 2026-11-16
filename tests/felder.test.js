@@ -59,7 +59,10 @@ test('Eingabe, die kein Objekt ist, zählt als leer', () => {
 test('Gespann: Fahrer und Gepäck, Gewichte prüfen', () => {
   const g = GESPANN_FELDER;
   assert.equal(pruefeEingabe(g, {}).fehler, null);
-  assert.equal(pruefeEingabe(g, { fahrer_gewicht_kg: 80, gepaeck_kg: '12,5' }).werte.gepaeck_kg, 12.5);
+  // Gepäck ist keine Gespann-Angabe mehr (eigene Kachel)
+  const ohneGepaeck = pruefeEingabe(g, { fahrer_gewicht_kg: 80, gepaeck_kg: '12,5' }).werte;
+  assert.equal(ohneGepaeck.fahrer_gewicht_kg, 80);
+  assert.ok(!('gepaeck_kg' in ohneGepaeck));
 });
 test('Jedes Feld hat eine Spalte in der Migration, Schlüssel sind eindeutig', () => {
   const sql = MIGRATIONEN.flatMap(m => m.sql);

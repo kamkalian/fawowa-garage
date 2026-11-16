@@ -1,6 +1,6 @@
 <script>
   import Fahrzeugbild from '../../shared/Fahrzeugbild.svelte';
-  import { t, pick } from '../lib/i18n.js';
+  import { t, pick, zahlText } from '../lib/i18n.js';
   import Icon from '../../shared/Icon.svelte';
 
   // Stellplatz-Kachel (quadratisch, leicht transparent): Name oben links, Gespann-Marke oben rechts; in der Mitte Bild oder Icon;
@@ -22,6 +22,9 @@
 
     <div class="bild">
       <Fahrzeugbild art={art} bauart={eintrag.bauart} aufbau={eintrag.aufbau} motor={art === 'fahrraeder' && motoren.length > 0} akku={akkus.length > 0} foto={foto} alt={eintrag.name} groesse="8rem" />
+      {#if art === 'gepaecke' && eintrag.gewicht_kg != null}
+        <span class="kg">{zahlText(lang, eintrag.gewicht_kg)} kg</span>
+      {/if}
     </div>
 
     <div class="fuss">
@@ -48,7 +51,8 @@
   h3 { font-size: .9375rem; overflow-wrap: anywhere; min-width: 0; line-height: 1.25; padding-right: 5rem; }
   .gespann { position: absolute; top: .625rem; right: .625rem; font-size: .7rem; }
   /* Bild oder Icon genau mittig in der Kachel (horizontal und vertikal) */
-  .bild { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; }
+  .bild { flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .15rem; }
+  .kg { font-size: .75rem; color: var(--fg-muted); }
   .fuss { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; margin-top: auto; }
   /* Ausrufezeichen unten rechts; der Hinweis erscheint beim Darüberfahren */
   .warn { position: relative; margin-left: auto; width: 1.5rem; height: 1.5rem; border-radius: 999px; background: #f59e0b; color: #fff; font-weight: 700; font-size: .875rem; display: flex; align-items: center; justify-content: center; cursor: help; flex-shrink: 0; }

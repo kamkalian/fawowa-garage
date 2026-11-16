@@ -15,16 +15,16 @@
   // Die Garage eines Nutzers: zwei Tabs. „Gespann“ (Standard) und „Stellplätze“ (alle Fahrräder und Anhänger als Kacheln, per Drag and Drop ordnen)
   let { lang, token, melde, onungueltig, ongeloescht, emailAktiv = false, einst = {} } = $props();
 
-  const ARTEN_LISTE = ['fahrraeder', 'anhaenger'];
+  const ARTEN_LISTE = ['fahrraeder', 'anhaenger', 'gepaecke'];
   const planerAktiv = $derived(!!einst.reichweite?.aktiv);
   let planerOffen = $state(false); // Reichweiten-Planer als Vollbild-Seite, geöffnet über einen Knopf
   let fotos = $state({}); // Anzeige der Fotos je Stellplatz (Schlüssel art-id)
   let fotoZiel = null;
   let fotoInput;
-  let fahrer = $state(null); // Fahrergewicht und Gepäck, gelten für das ganze Gespann
-  let gepaeck = $state(null);
+  let fahrer = $state(null); // Fahrergewicht, gilt für das ganze Gespann (Profil oben rechts)
+  let profilOffen = $state(false);
   let status = $state('laden'); // laden | bereit | fehler
-  let daten = $state({ fahrraeder: [], anhaenger: [], gespann: null, email: null, email_offen: null });
+  let daten = $state({ fahrraeder: [], anhaenger: [], gepaecke: [], gespann: null, email: null, email_offen: null });
   let form = $state(null);        // { art, eintrag } oder null
   let loeschen = $state(null);    // { art, eintrag } oder null
   let garageLoeschen = $state(false);
@@ -38,10 +38,12 @@
 
   const link = $derived(`${location.origin}/#g=${token}`);
   // Alle Fahrzeuge in einer gemeinsamen Reihenfolge; bei gleicher Nummer Fahrräder vor Anhängern, dann nach Nummer
+  const rang = { fahrraeder: 0, anhaenger: 1, gepaecke: 2 };
   const fahrzeuge = $derived([
     ...daten.fahrraeder.map(e => ({ art: 'fahrraeder', e })),
-    ...daten.anhaenger.map(e => ({ art: 'anhaenger', e }))
-  ].sort((a, b) => a.e.sortierung - b.e.sortierung || (a.art === b.art ? a.e.id - b.e.id : a.art === 'fahrraeder' ? -1 : 1)));
+    ...daten.anhaenger.map(e => ({ art: 'anhaenger', e })),
+    ...(daten.gepaecke ?? []).map(e => ({ art: 'gepaecke', e }))
+  ].sort((a, b) => a.e.sortierung - b.e.sortierung || (a.art === b.art ? a.e.id - b.e.id : rang[a.art] - rang[b.art])));
   const schluessel = (f) => `${f.art}-${f.e.id}`;
   const alleVoll = $derived(ARTEN_LISTE.every(a => daten[a].length >= ARTEN[a].max));
 
@@ -62,13 +64,15 @@
     }
   }
 
-  /** Fahrergewicht und Gepäck speichern (gelten für das ganze Gespann) */
-  async function fahrtSpeichern() {
+  /** Fahrergewicht speichern (gilt für das ganze Gespann) */
+  async function profilSpeichern(e) {
+    e.preventDefault();
     try {
-      daten.gespann = await api.gespannSetzen(token, { fahrer_gewicht_kg: fahrer, gepaeck_kg: gepaeck });
+      daten.gespann = await api.gespannSetzen(token, { fahrer_gewicht_kg: fahrer });
+      profilOffen = false;
       melde(t(lang, 'saved'));
-    } catch (e) {
-      melde(fehlerMeldung(e), 'error');
+    } catch (err) {
+      melde(fehlerMeldung(err), 'error');
     }
   }
 
@@ -77,7 +81,6 @@
     try {
       daten = await api.garageLaden(token);
       fahrer = daten.gespann?.fahrer_gewicht_kg ?? null;
-      gepaeck = daten.gespann?.gepaeck_kg ?? null;
       await ladeFotos();
       status = 'bereit';
     } catch (e) {
@@ -97,7 +100,8 @@
     const neu = eintrag
       ? await api.eintragAendern(token, art, eintrag.id, werte)
       : await api.eintragAnlegen(token, art, werte);
-    const antrieb = await api.antriebSetzen(token, art, neu.id, antriebe);
+    // Gepäck hat keine Motoren und Akkus
+    const antrieb = art === 'gepaecke' ? { motoren: [], akkus: [] } : await api.antriebSetzen(token, art, neu.id, antriebe);
     // Die Serverantwort enthält keine Motoren, Akkus und keine Fotoangabe: die bisherigen Werte bleiben erhalten
     const eintragNeu = { ...neu, motoren: antrieb.motoren, akkus: antrieb.akkus };
     daten[art] = eintrag
@@ -146,7 +150,7 @@
   async function ladeFotos() {
     const neu = {};
     for (const f of fahrzeuge) {
-      if (!f.e.foto_vorhanden) continue;
+      if (!f.e.foto_vorhanden || f.art === 'gepaecke') continue;
       try { neu[schluessel(f)] = await api.fotoLaden(token, f.art, f.e.id); } catch { /* ohne Foto zeigt die Kachel das Icon */ }
     }
     fotos = neu;
@@ -157,10 +161,12 @@
     const f = { art: form.art, e: form.eintrag };
     // Den aktuellen Stand aus der Liste nehmen: ein Foto-Upload ändert die Anzeige, während das Fenster offen ist
     const aktuell = daten[f.art].find(x => x.id === f.e.id) ?? f.e;
+    // Gepäck hat kein Foto: dann fehlen die Foto-Aktionen im Fenster
+    const mitFoto = f.art !== 'gepaecke';
     return {
       fotoVorhanden: !!aktuell.foto_vorhanden,
-      onfoto: () => fotoWaehlen(f),
-      onfotoloeschen: () => fotoEntfernen(f),
+      onfoto: mitFoto ? () => fotoWaehlen(f) : undefined,
+      onfotoloeschen: mitFoto ? () => fotoEntfernen(f) : undefined,
       onloeschen: () => { loeschen = { art: f.art, eintrag: f.e }; form = null; }
     };
   }
@@ -261,6 +267,9 @@
     </div>
     <input id="garage-link" class="input" type="text" readonly value={link} onfocus={(e) => e.currentTarget.select()} />
     <button type="button" class="btn btn-outline btn-sm" onclick={kopieren}><Icon name="ui-copy" size={14} /> {kopiert ? t(lang, 'copied') : t(lang, 'copy')}</button>
+    {#if planerAktiv}
+      <button type="button" class="btn btn-outline planer-knopf" onclick={() => (planerOffen = true)}>{t(lang, 'p_planerOeffnen')}</button>
+    {/if}
     {#if emailAktiv}
       <button type="button" class="btn btn-outline btn-sm emailknopf" class:ok={!!daten.email} class:offen={!daten.email && !!daten.email_offen}
         title={daten.email ?? daten.email_offen ?? undefined} onclick={() => (emailFenster = true)}>
@@ -274,13 +283,14 @@
     <Planer {lang} {token} {daten} {einst} offen={planerOffen} zurueck={() => (planerOffen = false)} />
   {/if}
 
-  {#if planerAktiv}
-    <div class="planer-zeile">
-      <button type="button" class="btn btn-outline planer-knopf" onclick={() => (planerOffen = true)}>{t(lang, 'p_planerOeffnen')}</button>
-    </div>
-  {/if}
+  {#snippet profilKnopf()}
+    <button type="button" class="profil-knopf" aria-label={pick({ de: 'Fahrer und Gewicht', en: 'Rider and weight' }, lang)}
+      title={pick({ de: 'Fahrer und Gewicht', en: 'Rider and weight' }, lang)} onclick={() => (profilOffen = true)}>
+      <Icon name="ui-user" size={20} />
+    </button>
+  {/snippet}
 
-  <GarageRaum {lang}>
+  <GarageRaum {lang} kopf={profilKnopf}>
   <div class="stellplaetze">
     <input bind:this={fotoInput} type="file" accept="image/*" hidden onchange={fotoGewaehlt} />
     <div class="liste" role="list">
@@ -304,18 +314,6 @@
   </div>
   </GarageRaum>
 
-  <hr class="trenner" />
-
-  <section class="fahrt" aria-label={t(lang, 'fahrtTitle')}>
-    <div class="fahrt-felder">
-      <label for="fahrt-fahrer">{pick(GESPANN_FELDER.find(f => f.key === 'fahrer_gewicht_kg').label, lang)} (kg)</label>
-      <input id="fahrt-fahrer" class="input" type="number" inputmode="decimal" min="20" max="250" step="any" bind:value={fahrer} />
-      <label for="fahrt-gepaeck">{pick(GESPANN_FELDER.find(f => f.key === 'gepaeck_kg').label, lang)} (kg)</label>
-      <input id="fahrt-gepaeck" class="input" type="number" inputmode="decimal" min="0" max="500" step="any" bind:value={gepaeck} />
-      <button type="button" class="btn btn-outline btn-sm" onclick={fahrtSpeichern}>{t(lang, 'save')}</button>
-    </div>
-  </section>
-
   <p class="unten"><button type="button" class="btn btn-ghost btn-sm" onclick={() => (garageLoeschen = true)}><Icon name="ui-trash" size={14} /> {t(lang, 'deleteGarage')}</button></p>
 {/if}
 
@@ -329,11 +327,25 @@
       {#each ARTEN_LISTE as art (art)}
         <button type="button" class="artknopf" disabled={daten[art].length >= ARTEN[art].max}
           onclick={() => { artWahl = false; form = { art, eintrag: null }; }}>
-          <Icon name={art === 'fahrraeder' ? 'veh-bike' : 'veh-trailer'} size={48} />
-          <span>{t(lang, `slot_${art}`)}</span>
+          <Icon name={art === 'fahrraeder' ? 'veh-bike' : art === 'anhaenger' ? 'veh-trailer' : 'ui-box'} size={48} />
+          <span>{art === 'gepaecke' ? pick({ de: 'Gepäck', en: 'Luggage' }, lang) : t(lang, `slot_${art}`)}</span>
         </button>
       {/each}
     </div>
+  </Fenster>
+{/if}
+
+{#if profilOffen}
+  <Fenster {lang} titel={pick({ de: 'Fahrer und Gewicht', en: 'Rider and weight' }, lang)} onclose={() => (profilOffen = false)}>
+    <form class="profil-form" onsubmit={profilSpeichern}>
+      <label for="profil-gewicht">{pick(GESPANN_FELDER[0].label, lang)} (kg)</label>
+      <input id="profil-gewicht" class="input" type="number" inputmode="decimal" min="20" max="250" step="any" bind:value={fahrer} />
+      <p class="profil-hinweis">{pick({ de: 'Gilt für das ganze Gespann. Das Gepäck ist eine eigene Kachel.', en: 'Applies to the whole convoy. Luggage is its own tile.' }, lang)}</p>
+      <div class="profil-aktionen">
+        <button type="button" class="btn btn-ghost" onclick={() => (profilOffen = false)}>{t(lang, 'cancel')}</button>
+        <button type="submit" class="btn btn-primary">{t(lang, 'save')}</button>
+      </div>
+    </form>
   </Fenster>
 {/if}
 
@@ -367,7 +379,9 @@
   .link { position: relative; display: flex; align-items: center; gap: .5rem .75rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
   .linkkopf { display: flex; align-items: center; gap: .25rem; }
   .linkkopf label { margin: 0; white-space: nowrap; }
-  .link .input { flex: 1; min-width: 12rem; font-family: ui-monospace, monospace; }
+  /* Link, Kopieren und Reichweitenplaner: alle gleich hoch wie das Textfeld */
+  .link .input { flex: 1; min-width: 12rem; height: 2.5rem; font-family: ui-monospace, monospace; }
+  .link .btn { height: 2.5rem; display: inline-flex; align-items: center; }
   .info { display: inline-flex; }
   .emailknopf.ok { border-color: var(--primary); color: var(--primary); }
   .emailknopf.offen { border-color: var(--amber); color: var(--amber); }
@@ -383,13 +397,18 @@
     box-shadow: 0 4px 12px rgba(0,0,0,.3); font-size: .8125rem; line-height: 1.5; color: var(--fg-muted);
   }
   .info:hover .tip, .info:focus-within .tip, .tip.offen { display: block; }
-  .planer-knopf { margin-bottom: 1rem; }
-  .planer-zeile { margin-bottom: 1rem; }
-  .trenner { border: none; border-top: 1px solid var(--border); margin: 1.75rem 0; }
+  .planer-knopf { margin: 0; }
   .kachel { display: flex; }
-  .fahrt { display: flex; flex-direction: column; gap: .5rem; margin: 0 0 1.25rem; }
-  .fahrt-felder { display: grid; grid-template-columns: minmax(0, 1fr) 7rem; gap: .5rem .75rem; align-items: center; max-width: 28rem; }
-  .fahrt-felder .btn { justify-self: start; }
+  /* Profil oben rechts im Garagenbild: Fahrergewicht */
+  .profil-knopf {
+    width: 2.4rem; height: 2.4rem; border-radius: 999px; padding: 0; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: color-mix(in srgb, var(--bg-card) 85%, transparent); color: var(--fg); border: 1px solid var(--border);
+  }
+  .profil-knopf:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+  .profil-form { display: flex; flex-direction: column; gap: .5rem; }
+  .profil-hinweis { font-size: .8125rem; color: var(--fg-muted); margin: 0; }
+  .profil-aktionen { display: flex; justify-content: flex-end; gap: .5rem; margin-top: .5rem; }
 
   /* Echte Tabs: eine Linie unter dem Tab-Streifen; der aktive Tab ist oben grün abgesetzt und mit dem Inhalt darunter verbunden */
   .tabs { display: flex; gap: .25rem; margin-bottom: 1.5rem; padding: 0 .5rem; border-bottom: 1px solid var(--border); }

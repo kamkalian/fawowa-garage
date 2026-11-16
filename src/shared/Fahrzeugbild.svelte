@@ -21,10 +21,11 @@
     drehschemel: '<rect x="6" y="14" width="30" height="16" rx="2"/><circle cx="14" cy="36" r="5"/><circle cx="26" cy="36" r="5"/><circle cx="40" cy="22" r="4"/><path d="M36 22 H38"/>',
     lastenanhaenger: '<rect x="8" y="8" width="32" height="22" rx="2"/><path d="M8 14 H40 M8 20 H40"/><circle cx="18" cy="36" r="5"/><circle cx="30" cy="36" r="5"/>',
     wohnkabine: '<rect x="8" y="18" width="32" height="18" rx="2"/><path d="M6 18 L24 6 L42 18"/><rect x="14" y="23" width="8" height="6"/><circle cx="16" cy="39" r="4"/><circle cx="32" cy="39" r="4"/>',
-    sonstiges: '<rect x="8" y="16" width="32" height="16" rx="2"/><circle cx="24" cy="36" r="5"/>'
+    sonstiges: '<rect x="8" y="16" width="32" height="16" rx="2"/><circle cx="24" cy="36" r="5"/>',
+    gepaeck: '<rect x="8" y="14" width="32" height="24" rx="3"/><path d="M8 22 H40 M19 14 V10 H29 V14"/>'
   };
 
-  const schluessel = $derived(art === 'fahrraeder' ? (bauart ?? 'fahrrad') : (aufbau ?? 'sonstiges'));
+  const schluessel = $derived(art === 'fahrraeder' ? (bauart ?? 'fahrrad') : art === 'gepaecke' ? 'gepaeck' : (aufbau ?? 'sonstiges'));
   const svg = $derived(ICONS[schluessel] ?? ICONS.sonstiges);
 </script>
 

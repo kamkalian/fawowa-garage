@@ -10,9 +10,9 @@ import { Begrenzung } from '../lib/begrenzung.js';
 export class FakeSpeicher {
   constructor() {
     this.garagen = new Map(); // hash -> id
-    this.daten = { fahrraeder: [], anhaenger: [] }; // Zeilen mit garage_id
+    this.daten = { fahrraeder: [], anhaenger: [], gepaecke: [] }; // Zeilen mit garage_id
     this.gespanne = new Map(); // garage_id -> Gespann (Fahrer, Gepäck)
-    this.mitglieder = new Map(); // garage_id -> { fahrraeder: Set, anhaenger: Set } (Zugfahrzeuge und Anhänger im Gespann)
+    this.mitglieder = new Map(); // garage_id -> { fahrraeder: Set, anhaenger: Set, gepaecke: Set } (Zugfahrzeuge, Anhänger und Gepäck im Gespann)
     this.namen = new Map(); // garage_id -> Name der Fahrerin oder des Fahrers
     this.emails = new Map(); // garage_id -> bestätigte Adresse
     this.tokens = new Map(); // hash -> { garageId, art, email, bis }
@@ -59,7 +59,7 @@ export class FakeSpeicher {
     for (const a of Object.keys(this.daten)) r[a] = this.daten[a].filter(z => z.garage_id === garageId).sort((x, y) => x.sortierung - y.sortierung || x.id - y.id).map(z => this._sicht(z));
     r.gespann = this.gespanne.has(garageId) ? { ...this.gespanne.get(garageId) } : null;
     const m = this._mitgliederVon(garageId);
-    r.mitglieder = { fahrraeder: [...m.fahrraeder], anhaenger: [...m.anhaenger] };
+    r.mitglieder = { fahrraeder: [...m.fahrraeder], anhaenger: [...m.anhaenger], gepaecke: [...m.gepaecke] };
     return r;
   }
 
@@ -256,7 +256,7 @@ export class FakeSpeicher {
   }
 
   _mitgliederVon(garageId) {
-    if (!this.mitglieder.has(garageId)) this.mitglieder.set(garageId, { fahrraeder: new Set(), anhaenger: new Set() });
+    if (!this.mitglieder.has(garageId)) this.mitglieder.set(garageId, { fahrraeder: new Set(), anhaenger: new Set(), gepaecke: new Set() });
     return this.mitglieder.get(garageId);
   }
 
@@ -272,7 +272,7 @@ export class FakeSpeicher {
     const i = this.daten[art].findIndex(z => z.id === id && z.garage_id === garageId);
     if (i < 0) return false;
     this.daten[art].splice(i, 1);
-    if (art === 'fahrraeder' || art === 'anhaenger') this._mitgliederVon(garageId)[art].delete(id);
+    if (['fahrraeder', 'anhaenger', 'gepaecke'].includes(art)) this._mitgliederVon(garageId)[art].delete(id);
     return true;
   }
 }

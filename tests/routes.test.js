@@ -34,7 +34,7 @@ test('Health: 200, bei ausgefallener Datenbank 503', async () => {
 test('Einstellungen enthalten die Grenzen und keine Geheimnisse', async () => {
   const r = await s.anfrage('GET', '/api/v1/einstellungen');
   assert.equal(r.status, 200);
-  assert.deepEqual(r.json.grenzen, { fahrraeder: 20, anhaenger: 20 });
+  assert.deepEqual(r.json.grenzen, { fahrraeder: 20, anhaenger: 20, gepaecke: 10 });
   assert.equal(r.json.testinstanz, false);
 });
 
@@ -52,7 +52,7 @@ test('Garage-Antworten werden nicht zwischengespeichert', async () => {
   const r = await s.anfrage('GET', '/api/v1/garage', { token });
   assert.equal(r.status, 200);
   assert.equal(r.headers.get('cache-control'), 'no-store');
-  assert.deepEqual(r.json, { fahrer_name: 'Anja', email: null, email_offen: null, fahrraeder: [], anhaenger: [], gespann: null, mitglieder: { fahrraeder: [], anhaenger: [] } });
+  assert.deepEqual(r.json, { fahrer_name: 'Anja', email: null, email_offen: null, fahrraeder: [], anhaenger: [], gepaecke: [], gespann: null, mitglieder: { fahrraeder: [], anhaenger: [], gepaecke: [] } });
 });
 
 test('Garage anlegen braucht den Namen der Fahrerin oder des Fahrers', async () => {
@@ -175,19 +175,19 @@ test('Gespann: beliebig viele Zugfahrzeuge und Anhänger, Fahrer und Gepäck; nu
   await s.anfrage('PUT', '/api/v1/garage/mitglied', { token: a, body: { art: 'fahrraeder', id: rad2.id, im: true } });
   const z = await s.anfrage('PUT', '/api/v1/garage/mitglied', { token: a, body: { art: 'anhaenger', id: wagen1.id, im: true } });
   assert.equal(z.status, 200);
-  assert.deepEqual(z.json.mitglieder, { fahrraeder: [rad1.id, rad2.id], anhaenger: [wagen1.id] }, 'zwei Zugfahrzeuge, ein Anhänger');
+  assert.deepEqual(z.json.mitglieder, { fahrraeder: [rad1.id, rad2.id], anhaenger: [wagen1.id], gepaecke: [] }, 'zwei Zugfahrzeuge, ein Anhänger');
   await s.anfrage('PUT', '/api/v1/garage/mitglied', { token: a, body: { art: 'anhaenger', id: wagen2.id, im: true } });
   await s.anfrage('PUT', '/api/v1/garage/mitglied', { token: a, body: { art: 'anhaenger', id: wagen1.id, im: false } });
-  assert.deepEqual((await s.anfrage('GET', '/api/v1/garage', { token: a })).json.mitglieder, { fahrraeder: [rad1.id, rad2.id], anhaenger: [wagen2.id] });
+  assert.deepEqual((await s.anfrage('GET', '/api/v1/garage', { token: a })).json.mitglieder, { fahrraeder: [rad1.id, rad2.id], anhaenger: [wagen2.id], gepaecke: [] });
 
-  const voll = await s.anfrage('PUT', '/api/v1/garage/gespann', { token: a, body: { fahrer_gewicht_kg: 75, gepaeck_kg: '12,5' } });
+  const voll = await s.anfrage('PUT', '/api/v1/garage/gespann', { token: a, body: { fahrer_gewicht_kg: 75 } });
   assert.equal(voll.status, 200);
-  assert.equal(voll.json.gepaeck_kg, 12.5);
+  assert.equal(voll.json.fahrer_gewicht_kg, 75);
   assert.equal((await s.anfrage('GET', '/api/v1/garage', { token: b })).json.mitglieder.fahrraeder.length, 0);
 
-  const ungueltig = await s.anfrage('PUT', '/api/v1/garage/gespann', { token: a, body: { fahrer_gewicht_kg: 5, gepaeck_kg: 'viel' } });
+  const ungueltig = await s.anfrage('PUT', '/api/v1/garage/gespann', { token: a, body: { fahrer_gewicht_kg: 5 } });
   assert.equal(ungueltig.status, 400);
-  assert.deepEqual(ungueltig.json.felder, { fahrer_gewicht_kg: 'zu_klein', gepaeck_kg: 'ungueltig' });
+  assert.deepEqual(ungueltig.json.felder, { fahrer_gewicht_kg: 'zu_klein' });
 });
 
 test('Fahrrad oder Anhänger löschen nimmt es aus dem Gespann', async () => {
@@ -199,7 +199,7 @@ test('Fahrrad oder Anhänger löschen nimmt es aus dem Gespann', async () => {
 
   assert.equal((await s.anfrage('DELETE', `/api/v1/garage/fahrraeder/${rad.id}`, { token })).status, 204);
   const m = (await s.anfrage('GET', '/api/v1/garage', { token })).json.mitglieder;
-  assert.deepEqual(m, { fahrraeder: [], anhaenger: [wagen.id] });
+  assert.deepEqual(m, { fahrraeder: [], anhaenger: [wagen.id], gepaecke: [] });
 });
 
 test('Gespann ist keine Eintragsart: POST darauf gibt es nicht', async () => {

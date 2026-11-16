@@ -28,5 +28,5 @@ test('Gespann: ohne Motor und ohne Akku bleiben die Felder leer', () => {
 });
 
 test('Gespann: leeres Gespann ergibt kein Fahrrad', () => {
-  assert.deepEqual(gespannFuerRechnung([RAD_A], [WAGEN], {}), { fahrrad: null, anhaenger: null, zugfahrzeuge: 0, anhaengerAnzahl: 0 });
+  assert.deepEqual(gespannFuerRechnung([RAD_A], [WAGEN], {}), { fahrrad: null, anhaenger: null, zugfahrzeuge: 0, anhaengerAnzahl: 0, gepaeck_kg: null });
 });

@@ -64,7 +64,7 @@
 
 <Fenster {lang} breit titel={t(lang, eintrag ? 'formEdit' : 'formNew', pick(cfg.name, lang))} {onclose}>
   <form onsubmit={senden} novalidate>
-    {#if aktionen}
+    {#if aktionen?.onfoto}
       <div class="foto">
         <span class="foto-titel">{pick({ de: 'Foto', en: 'Photo' }, lang)}</span>
         <button type="button" class="btn btn-outline btn-sm" onclick={aktionen.onfoto}>
@@ -103,10 +103,12 @@
       </fieldset>
     {/each}
 
-    <fieldset>
-      <legend>{pick({ de: 'Motor & Akku', en: 'Motor & battery' }, lang)}</legend>
-      <AntriebEditor {lang} bind:motoren bind:akkus />
-    </fieldset>
+    {#if art !== 'gepaecke'}
+      <fieldset>
+        <legend>{pick({ de: 'Motor & Akku', en: 'Motor & battery' }, lang)}</legend>
+        <AntriebEditor {lang} bind:motoren bind:akkus />
+      </fieldset>
+    {/if}
 
     {#if aktionen}
       <fieldset class="weitere">
