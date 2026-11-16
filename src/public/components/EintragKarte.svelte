@@ -74,7 +74,7 @@
     </div>
 
     {#if ungeprueft}
-      <span class="warn" role="img" tabindex="0" aria-label={t(lang, 'uncheckedHint')}>!<span class="tipp" role="tooltip">{t(lang, 'uncheckedHint')}</span></span>
+      <span class="warn" role="note" aria-label={t(lang, 'uncheckedHint')}>!<span class="tipp" role="tooltip">{t(lang, 'uncheckedHint')}</span></span>
     {/if}
   </div>
 </article>
@@ -98,5 +98,5 @@
   .warn { position: absolute; right: .6rem; bottom: .6rem; width: 1.5rem; height: 1.5rem; border-radius: 999px; background: #f59e0b; color: #fff; font-weight: 700; font-size: .875rem; display: flex; align-items: center; justify-content: center; cursor: help; }
   .warn:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
   .tipp { display: none; position: absolute; right: 0; bottom: 130%; width: max-content; max-width: 16rem; background: var(--bg-card); color: var(--fg); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: .4rem .6rem; font-size: .75rem; font-weight: 400; line-height: 1.35; box-shadow: 0 4px 12px rgba(0, 0, 0, .15); z-index: 5; }
-  .warn:hover .tipp, .warn:focus .tipp { display: block; }
+  .warn:hover .tipp { display: block; }
 </style>
