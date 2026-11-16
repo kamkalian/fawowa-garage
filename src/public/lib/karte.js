@@ -8,6 +8,12 @@ const LAND = '#f2efe9';
 const FLAECHE = { 1: '#aad3df', 2: '#add19e', 3: '#cdebb0', 4: '#e6e0d4' };
 const LINIE = { 5: ['#aad3df', 2.4], 6: ['#aad3df', 1.1], 7: ['#8c8c8c', 1.2] };
 
+/** Pfad einer Kachel-Linie in die Pixel der Kachel übertragen (u: Transformation) */
+function zeichnePfad(g, xy, u) {
+  g.moveTo(xy[0] * u.s + u.ox, xy[1] * u.s + u.oy);
+  for (let i = 2; i < xy.length; i += 2) g.lineTo(xy[i] * u.s + u.ox, xy[i + 1] * u.s + u.oy);
+}
+
 const weltX = (lon) => (lon + 180) / 360;
 const weltY = (lat) => {
   const s = Math.sin(lat * Math.PI / 180);
@@ -68,6 +74,7 @@ export class Karte {
     this.grenzen = { x0: weltX(b.minLon - 0.3), x1: weltX(b.maxLon + 0.3), y0: weltY(b.maxLat + 0.2), y1: weltY(b.minLat - 0.2) };
     this.zoom = this.zoomMin;
     this.kacheln = new Map(); // "z/x/y" -> geparste Kachel | 'laden' | { fehler: Zeitpunkt }
+    this.bilder = new Map();  // "z/x/y" -> vorgerenderte Kachel (Canvas), ältestes zuerst
     this.laufend = 0;
     this.warteschlange = [];
     this.overlay = null;      // { bild, lat0, lon0, lat1, lon1 }
@@ -212,7 +219,7 @@ export class Karte {
         }
         if (!fertig(k)) continue;
         const id = `${kz}/${kx}/${ky}`;
-        if (!gesehen.has(id)) { gesehen.add(id); daten.push(k); }
+        if (!gesehen.has(id)) { gesehen.add(id); daten.push({ z: kz, x: kx, y: ky, k }); }
       }
     }
     return daten;
@@ -231,7 +238,8 @@ export class Karte {
     this.farben = { fg: f('--fg'), muted: f('--fg-muted'), bg: f('--bg') };
   }
 
-  _breitenFaktor() { return Math.min(2.2, Math.max(0.9, 0.9 + (this.zoom - this.zoomMin) * 0.25)); }
+  /** Breite der Wege und Linien in CSS-Pixeln je Zoomstufe der Kachel */
+  _breite(z) { return Math.min(2.2, Math.max(0.9, 0.9 + (z - this.zoomMin) * 0.25)); }
 
   _zeichne() {
     const g = this.g;
@@ -239,11 +247,13 @@ export class Karte {
     g.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     g.fillStyle = LAND;
     g.fillRect(0, 0, this.w, this.h);
-    const kacheln = this._sichtbare();
-    this._zeichneFlaechen(g, kacheln);
-    this._zeichneLinien(g, kacheln);
+    // Jede Kachel ist vorgerendert; beim Zoomen und Verschieben wird nur kopiert
+    for (const t of this._sichtbare()) {
+      const [x0, y0] = this.px(t.x / 2 ** t.z, t.y / 2 ** t.z);
+      const groesse = TILE * 2 ** (this.zoom - t.z);
+      g.drawImage(this._bild(t), x0, y0, groesse, groesse);
+    }
     this._zeichneWaerme(g);
-    this._zeichneWege(g, kacheln);
     this._zeichneOrte(g);
     this._zeichneStart(g);
     g.font = '10px system-ui, sans-serif';
@@ -253,49 +263,56 @@ export class Karte {
     g.fillText(this.opt.quelle ?? '', this.w - 6, this.h - 4);
   }
 
-  /** Transformation von Welt in Pixel für die Zeichnung */
-  _umrechner() {
-    const s = this.welt;
-    return { s, ox: this.w / 2 - this.mitte.x * s, oy: this.h / 2 - this.mitte.y * s };
+  /** Bild einer Kachel: einmal zeichnen, dann im Speicher behalten (begrenzt) */
+  _bild(t) {
+    const key = `${t.z}/${t.x}/${t.y}`;
+    const vorhanden = this.bilder.get(key);
+    if (vorhanden) { this.bilder.delete(key); this.bilder.set(key, vorhanden); return vorhanden; }
+    const S = Math.round(TILE * Math.min(this.dpr, 2));
+    const c = document.createElement('canvas');
+    c.width = S;
+    c.height = S;
+    const g = c.getContext('2d');
+    g.lineJoin = 'round';
+    g.lineCap = 'round';
+    // Welt (0..1) -> Pixel dieser Kachel
+    const u = { s: 2 ** t.z * S, ox: -t.x * S, oy: -t.y * S, f: S / TILE, m: this._breite(t.z) };
+    this._zeichneFlaechen(g, t.k, u);
+    this._zeichneLinien(g, t.k, u);
+    this._zeichneWege(g, t.k, u);
+    this.bilder.set(key, c);
+    if (this.bilder.size > 150) this.bilder.delete(this.bilder.keys().next().value);
+    return c;
   }
 
   /** Flächen einzeln füllen: ein einziger Pfad mit tausenden Teilflächen ist im Browser sehr langsam */
-  _zeichneFlaechen(g, kacheln) {
-    const { s, ox, oy } = this._umrechner();
+  _zeichneFlaechen(g, k, u) {
     for (const cls of [1, 2, 3, 4]) {
       g.fillStyle = FLAECHE[cls];
-      for (const k of kacheln) for (const f of k.flaechen) {
+      for (const f of k.flaechen) {
         if (f.cls !== cls) continue;
-        const xy = f.xy;
         g.beginPath();
-        g.moveTo(xy[0] * s + ox, xy[1] * s + oy);
-        for (let i = 2; i < xy.length; i += 2) g.lineTo(xy[i] * s + ox, xy[i + 1] * s + oy);
+        zeichnePfad(g, f.xy, u);
         g.closePath();
         g.fill();
       }
     }
   }
 
-  _zeichneLinien(g, kacheln) {
-    const { s, ox, oy } = this._umrechner();
-    const m = this._breitenFaktor();
+  _zeichneLinien(g, k, u) {
     for (const cls of [5, 6, 7]) {
       g.beginPath();
       let da = false;
-      for (const k of kacheln) for (const l of k.linien) {
+      for (const l of k.linien) {
         if (l.cls !== cls) continue;
         da = true;
-        const xy = l.xy;
-        g.moveTo(xy[0] * s + ox, xy[1] * s + oy);
-        for (let i = 2; i < xy.length; i += 2) g.lineTo(xy[i] * s + ox, xy[i + 1] * s + oy);
+        zeichnePfad(g, l.xy, u);
       }
-      if (da) { g.strokeStyle = LINIE[cls][0]; g.lineWidth = LINIE[cls][1] * m; g.lineJoin = 'round'; g.stroke(); }
+      if (da) { g.strokeStyle = LINIE[cls][0]; g.lineWidth = LINIE[cls][1] * u.m * u.f; g.setLineDash([]); g.stroke(); }
     }
   }
 
-  _zeichneWege(g, kacheln) {
-    const { s, ox, oy } = this._umrechner();
-    const m = this._breitenFaktor();
+  _zeichneWege(g, k, u) {
     // Art 1 Hauptstraße, 2 Nebenstraße, 3 Radweg (gestrichelt), 4 Wirtschaftsweg und Pfad (gestrichelt)
     const stil = {
       1: { w: 2.6, f: '#fcd6a4', rand: '#d9a86c' },
@@ -305,28 +322,21 @@ export class Karte {
     };
     const pfad = (art) => {
       g.beginPath();
-      for (const k of kacheln) for (const wg of k.wege) {
-        if (wg.cls !== art) continue;
-        const xy = wg.xy;
-        g.moveTo(xy[0] * s + ox, xy[1] * s + oy);
-        for (let i = 2; i < xy.length; i += 2) g.lineTo(xy[i] * s + ox, xy[i + 1] * s + oy);
-      }
+      for (const wg of k.wege) if (wg.cls === art) zeichnePfad(g, wg.xy, u);
     };
-    g.lineJoin = 'round';
-    g.lineCap = 'round';
     for (const art of [1, 2, 3, 4]) {
       const st = stil[art];
       if (st.rand) {
         pfad(art);
         g.strokeStyle = st.rand;
-        g.lineWidth = (st.w + 1.4) * m;
+        g.lineWidth = (st.w + 1.4) * u.m * u.f;
         g.setLineDash([]);
         g.stroke();
       }
       pfad(art);
       g.strokeStyle = st.f;
-      g.lineWidth = st.w * m;
-      g.setLineDash(st.strich ?? []);
+      g.lineWidth = st.w * u.m * u.f;
+      g.setLineDash((st.strich ?? []).map((v) => v * u.f));
       g.stroke();
       g.setLineDash([]);
     }
