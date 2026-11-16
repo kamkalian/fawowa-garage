@@ -125,6 +125,9 @@ test('Sichtbarkeit wächst mit dem Zoom: ein Weg wird mit steigendem Zoom bei im
   assert.equal(zeigen(12, 2, 500, 51), true);
   assert.equal(zeigen(10, 2, 60, 51), false);
   assert.equal(zeigen(14, 2, 60, 51), true);
+  assert.equal(zeigen(8, 1, 3000, 51), true, 'Hauptstraßen schon weit draußen');
+  assert.equal(zeigen(8, 2, 3000, 51), false, 'Nebenstraßen erst beim Hineinzoomen');
+  assert.equal(zeigen(12, 4, 3000, 51), false, 'Wege erst bei hohem Zoom');
 });
 
 test('Darstellungsart: Hauptstraße, Nebenstraße, Radweg, Weg', () => {
