@@ -71,7 +71,8 @@ export class Karte {
     this.zoomMax = optionen.zoom[1];
     const b = optionen.bbox;
     this.mitte = { x: weltX((b.minLon + b.maxLon) / 2), y: weltY((b.minLat + b.maxLat) / 2) };
-    this.grenzen = { x0: weltX(b.minLon - 0.3), x1: weltX(b.maxLon + 0.3), y0: weltY(b.maxLat + 0.2), y1: weltY(b.minLat - 0.2) };
+    // Verschieben über NRW hinaus (Nachbarregionen, dort ohne Daten)
+    this.grenzen = { x0: weltX(b.minLon - 2.5), x1: weltX(b.maxLon + 2.5), y0: weltY(b.maxLat + 2.0), y1: weltY(b.minLat - 2.0) };
     this.zoom = this.zoomMin;
     this.kacheln = new Map(); // "z/x/y" -> geparste Kachel | 'laden' | { fehler: Zeitpunkt }
     this.bilder = new Map();  // "z/x/y" -> vorgerenderte Kachel (Canvas), ältestes zuerst

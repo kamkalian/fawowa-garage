@@ -94,7 +94,7 @@ test('Reichweite: unsinnige Eingaben stürzen nicht ab', () => {
 });
 
 test('Grundkarte: Kachel als Binärformat mit drei Listen, Koordinaten in den Kachelgrenzen', () => {
-  const z = 14;
+  const z = 15;
   const n = 2 ** z;
   const x = Math.floor((START.lon + 180) / 360 * n);
   const y = Math.floor((1 - Math.log(Math.tan(START.lat * Math.PI / 180) + 1 / Math.cos(START.lat * Math.PI / 180)) / Math.PI) / 2 * n);
@@ -117,16 +117,16 @@ test('Kachel: bei Zoom 8 fehlen kurze Straßen (500 m, auf dem Bildschirm zu kle
     return lieseKachel(kachelKarte(netz, null, z, x, y)).wege;
   };
   assert.equal(kachel(8).length, 0, 'bei Zoom 8 sind 500-m-Straßen unter einem Pixel-Schwellwert');
-  assert.ok(kachel(14).length > 0, 'bei Zoom 14 erscheinen sie');
+  assert.ok(kachel(15).length > 0, 'bei Zoom 14 erscheinen sie');
 });
 
 test('Sichtbarkeit wächst mit dem Zoom: ein Weg wird mit steigendem Zoom bei immer kürzerer Länge gezeigt', () => {
-  assert.equal(zeigen(13, 2, 60, 51), false, 'Nebenstraßen erst ab Zoom 14');
-  assert.equal(zeigen(14, 2, 60, 51), true);
+  assert.equal(zeigen(14, 2, 60, 51), false, 'Nebenstraßen erst ab Kachelstufe 15');
+  assert.equal(zeigen(15, 2, 60, 51), true);
   assert.equal(zeigen(13, 2, 500, 51), false, "Nebenstraßen noch nicht bei Zoom 13");
-  assert.equal(zeigen(11, 1, 3000, 51), false, 'Hauptstraßen erst ab Zoom 12');
-  assert.equal(zeigen(12, 1, 3000, 51), true);
-  assert.equal(zeigen(13, 2, 3000, 51), false, 'Nebenstraßen erst ab Zoom 14');
+  assert.equal(zeigen(12, 1, 3000, 51), false, 'Hauptstraßen erst ab Kachelstufe 13');
+  assert.equal(zeigen(13, 1, 3000, 51), true);
+  assert.equal(zeigen(14, 2, 3000, 51), false, 'Nebenstraßen erst ab Kachelstufe 15');
   assert.equal(zeigen(12, 4, 3000, 51), false, 'Wege erst bei hohem Zoom');
 });
 
