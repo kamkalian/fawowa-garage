@@ -70,7 +70,7 @@
   .schalterebene { position: absolute; top: 0; left: 0; right: 0; aspect-ratio: 2000 / 1125; z-index: 3; pointer-events: none; transform: scale(var(--foto-skala)); transform-origin: 50% 0; }
   /* Schalter: Knopf über dem Schalter im Foto; leuchtet schwach, wenn das Licht aus ist */
   .schalter {
-    pointer-events: auto; position: absolute; left: calc(78cqw - .5cqw); top: calc(28.6875cqw + .6cqw); width: max(2.6cqw, 1.8rem); height: max(3.4cqw, 2.4rem); padding: 0;
+    pointer-events: auto; position: absolute; left: calc(78cqw - .5cqw + 1px); top: calc(28.6875cqw + .6cqw - 1px); width: max(2.6cqw, 1.8rem); height: max(3.4cqw, 2.4rem); padding: 0;
     transform: translate(-50%, -50%); background: transparent; border: 0; border-radius: 4px; cursor: pointer; padding: 0;
     transition: box-shadow .3s, background-color .3s;
   }
