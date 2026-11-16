@@ -26,7 +26,7 @@
 
     <div class="fuss">
       {#if onGespann}
-        <button type="button" class="btn btn-outline btn-sm" onclick={onGespann} aria-label={imGespann ? pick({ de: 'Aus dem Gespann nehmen', en: 'Remove from convoy' }, lang) : pick({ de: 'Ins Gespann', en: 'Add to convoy' }, lang)}>{imGespann ? '−' : '+'} Gespann</button>
+        <button type="button" class="btn btn-outline btn-sm" onclick={onGespann} aria-label={imGespann ? pick({ de: 'Aus dem Gespann nehmen', en: 'Remove from convoy' }, lang) : pick({ de: 'Ins Gespann', en: 'Add to convoy' }, lang)}><Icon name={imGespann ? 'ui-minus' : 'ui-plus'} size={14} /> Gespann</button>
       {/if}
       {#if onedit}
         <button type="button" class="btn btn-outline btn-sm" onclick={onedit}><Icon name="ui-edit" size={14} /> {t(lang, 'edit')}</button>
@@ -43,9 +43,10 @@
   /* Leicht transparent, damit das Garagenbild durchscheint */
   article.card { background: color-mix(in srgb, var(--bg-card) 78%, transparent); backdrop-filter: blur(3px); }
   .card-body { flex: 1; display: flex; flex-direction: column; min-width: 0; position: relative; padding: .625rem; gap: .5rem; overflow: hidden; }
-  .kopf { display: flex; align-items: flex-start; justify-content: space-between; gap: .4rem; min-width: 0; }
-  h3 { font-size: .9375rem; overflow-wrap: anywhere; min-width: 0; line-height: 1.25; }
-  .gespann { flex-shrink: 0; font-size: .7rem; }
+  /* Die Kopfzeile hat immer dieselbe Höhe; die Gespann-Marke liegt darüber, damit sich das Bild nie verschiebt */
+  .kopf { height: 2.6rem; min-width: 0; }
+  h3 { font-size: .9375rem; overflow-wrap: anywhere; min-width: 0; line-height: 1.25; padding-right: 5rem; }
+  .gespann { position: absolute; top: .625rem; right: .625rem; font-size: .7rem; }
   /* Bild oder Icon genau mittig in der Kachel (horizontal und vertikal) */
   .bild { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; }
   .fuss { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; margin-top: auto; }

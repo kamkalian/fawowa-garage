@@ -3,6 +3,7 @@
   const ICONS = {
     'ui-moon': `<path d="M20 14.5A8.5 8.5 0 0 1 9.5 4 8.5 8.5 0 1 0 20 14.5z"/>`,
     'ui-plus': `<path d="M12 5v14M5 12h14"/>`,
+    'ui-minus': `<path d="M5 12h14"/>`,
     'ui-edit': `<path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4z"/><path d="M13.5 6.5l4 4"/>`,
     'ui-trash': `<path d="M4 7h16"/><path d="M9 7V4.5h6V7"/><path d="M6.5 7l1 13h9l1-13"/>`,
     // Fahrzeuge und Person (Anzeige 24 bis 56 px); Anhänger: Deichsel rechts (am Fahrrad dahinter), Aufbau links
