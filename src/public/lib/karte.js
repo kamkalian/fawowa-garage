@@ -290,6 +290,9 @@ export class Karte {
     g.textAlign = 'right';
     g.textBaseline = 'bottom';
     g.fillText(this.opt.quelle ?? '', this.w - 6, this.h - 4);
+    // Zoomstufe links unten (eine Nachkommastelle)
+    g.textAlign = 'left';
+    g.fillText('Zoom ' + this.zoom.toFixed(1), 6, this.h - 4);
   }
 
   /** Bild einer Kachel: einmal zeichnen, dann im Speicher behalten (begrenzt) */
