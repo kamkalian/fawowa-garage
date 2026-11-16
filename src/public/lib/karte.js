@@ -6,7 +6,7 @@ const TILE = 256;
 const MAX_PARALLEL = 6;
 const LAND = '#f2efe9';
 const FLAECHE = { 1: '#aad3df', 2: '#add19e', 3: '#cdebb0', 4: '#e6e0d4' };
-const LINIE = { 5: ['#aad3df', 2.4], 6: ['#aad3df', 1.1], 7: ['#8c8c8c', 1.2] };
+const LINIE = { 5: ['#aad3df', 2.4], 6: ['#aad3df', 1.1], 7: ['#8c8c8c', 1.2], 8: ['#7f9fd8', 3.2] };
 
 /** Pfad einer Kachel-Linie in die Pixel der Kachel übertragen (u: Transformation) */
 function zeichnePfad(g, xy, u) {
@@ -332,7 +332,7 @@ export class Karte {
   }
 
   _zeichneLinien(g, k, u) {
-    for (const cls of [5, 6, 7]) {
+    for (const cls of [5, 6, 7, 8]) {
       g.beginPath();
       let da = false;
       for (const l of k.linien) {
@@ -403,7 +403,7 @@ export class Karte {
   _zeichneOrte(g) {
     const orte = this.opt.orte ?? [];
     if (!orte.length) return;
-    const minZoom = { city: 7, town: 8.7, village: 10.5, suburb: 12 };
+    const minZoom = { city: 7, town: 10, village: 12, suburb: 13 }; // größere Orte früher; kleinere erscheinen beim Hineinzoomen
     const rang = { city: 0, town: 1, suburb: 2, village: 3 };
     const [wx0, wy0] = this.vonPx(-40, -20);
     const [wx1, wy1] = this.vonPx(this.w + 40, this.h + 20);
@@ -423,7 +423,7 @@ export class Karte {
       if (n >= 500) break;
       const [x, y] = this.px(weltX(o[3]), weltY(o[2]));
       const gross = o[1] === 'city';
-      g.font = `${gross ? '600 13px' : o[1] === 'town' ? '500 12px' : '11px'} system-ui, sans-serif`;
+      g.font = `${gross ? '700 17px' : o[1] === 'town' ? '600 13px' : '11px'} system-ui, sans-serif`;
       const w = g.measureText(o[0]).width;
       const r = { x: x + 5, y: y - 7, w, h: 14 };
       if (belegt.some((b) => r.x < b.x + b.w && r.x + r.w > b.x && r.y < b.y + b.h && r.y + r.h > b.y)) continue;

@@ -48,7 +48,7 @@ function suche(id) {
 const GRUEN_LANDUSE = new Set(['grass', 'meadow', 'recreation_ground', 'village_green', 'cemetery', 'orchard', 'vineyard', 'allotments']);
 const GRUEN_LEISURE = new Set(['park', 'garden', 'playground', 'recreation_ground', 'pitch']);
 
-/** Klasse eines Weges: 1 Wasser, 2 Wald, 3 Grün, 4 Wohngebiet (Flächen); 5 Fluss, 6 Bach, 7 Bahn (Linien) */
+/** Klasse eines Weges: 1 Wasser, 2 Wald, 3 Grün, 4 Wohngebiet (Flächen); 5 Fluss, 6 Bach, 7 Bahn, 8 Autobahn (Linien) */
 function klassifiziere(t) {
   if (t.natural === 'water' || t.water || t.landuse === 'reservoir' || t.waterway === 'riverbank') return { flaeche: true, cls: 1 };
   if (t.landuse === 'forest' || t.natural === 'wood') return { flaeche: true, cls: 2 };
@@ -57,6 +57,7 @@ function klassifiziere(t) {
   if (t.waterway === 'river' || t.waterway === 'canal') return { flaeche: false, cls: 5 };
   if (t.waterway === 'stream') return { flaeche: false, cls: 6 };
   if (t.railway === 'rail') return { flaeche: false, cls: 7 };
+  if (t.highway === 'motorway' || t.highway === 'motorway_link') return { flaeche: false, cls: 8 };
   return null;
 }
 
@@ -88,7 +89,7 @@ const meta = [];
 const bbox = [];
 
 leseDatei(pbfDatei, {
-  schluessel: new Set(['natural', 'landuse', 'leisure', 'waterway', 'railway', 'water']),
+  schluessel: new Set(['natural', 'landuse', 'leisure', 'waterway', 'railway', 'water', 'highway']),
   knoten: (ids, la, lo, n) => knotenDazu(ids, la, lo, n),
   wege: (id, tags, refs, n) => {
     const k = klassifiziere(tags);

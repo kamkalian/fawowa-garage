@@ -47,7 +47,7 @@ export const karteOrte = () => anfrage('GET', '/api/v1/karte/orte');
 
 /** Wegelinien einer Kartenkachel (Binärformat, siehe lib/karte-daten.js) */
 /** Erhöhen, wenn sich die Darstellung der Kacheln ändert */
-const KARTE_VERSION = 9;
+const KARTE_VERSION = 10;
 
 export async function karteKachel(z, x, y) {
   const res = await fetch(`/api/v1/karte/${z}/${x}/${y}?v=${KARTE_VERSION}`); // Version: alte Kacheln aus dem Browser-Cache ersetzen
