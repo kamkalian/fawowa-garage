@@ -1,7 +1,8 @@
 <script>
   // Bild eines Stellplatzes: Foto, wenn eines hochgeladen ist, sonst ein großes Icon für die Bauart.
   // Mit Motor erscheint in der Ecke ein Blitz (außerhalb des Icons).
-  let { art, bauart = null, aufbau = null, motor = false, foto = null, alt = '' } = $props();
+  // akku: mit mindestens einem Akku leuchtet der Blitz grün
+  let { art, bauart = null, aufbau = null, motor = false, akku = false, foto = null, alt = '' } = $props();
 
   // Strichzeichnungen im Raster 48 × 48, Farbe über currentColor
   const ICONS = {
@@ -35,7 +36,7 @@
     </svg>
   {/if}
   {#if motor}
-    <span class="blitz" aria-label="Motor"><svg viewBox="0 0 48 48"><path d="M30 2 L12 27 H23 L18 46 L37 19 H26 Z"/></svg></span>
+    <span class="blitz" class:gruen={akku} aria-label="Motor"><svg viewBox="0 0 48 48"><path d="M30 2 L12 27 H23 L18 46 L37 19 H26 Z"/></svg></span>
   {/if}
 </div>
 
@@ -44,6 +45,8 @@
   .bild svg { width: 3.5rem; height: 3.5rem; }
   .bild img { width: 100%; height: 100%; object-fit: cover; }
   /* Blitz ohne Hintergrund: kräftiges Gelb mit dunkler Kontur, damit er auf hell und dunkel gut sichtbar ist */
-  .blitz { position: absolute; bottom: .1rem; right: .1rem; width: 1.9rem; height: 1.9rem; pointer-events: none; }
+  .blitz { position: absolute; bottom: .15rem; right: .15rem; width: 1.4rem; height: 1.4rem; pointer-events: none; }
   .blitz svg { width: 100%; height: 100%; fill: #facc15; stroke: #713f12; stroke-width: 2; stroke-linejoin: round; opacity: 1; }
+  /* Mit Akku: grünes Leuchten um den Blitz */
+  .blitz.gruen svg { filter: drop-shadow(0 0 2px #22c55e) drop-shadow(0 0 4px #22c55e); }
 </style>
