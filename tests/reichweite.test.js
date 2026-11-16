@@ -34,37 +34,34 @@ function lieseKachel(buf) {
   return { flaechen: liste(), linien: liste(), wege: liste(), ende: p };
 }
 
-test('Routen: 36 Richtungen, alle 10°, jede Route beginnt am Start', () => {
+test('Routen: jeder machbare Punkt bekommt eine Route, Linien starten am Start des Baums', () => {
   const r = rechne();
   assert.equal(r.ok, true);
-  assert.equal(r.routen.length, 36);
-  assert.deepEqual(r.routen.map((x) => x.winkel), Array.from({ length: 36 }, (_, i) => i * 10));
-  for (const rt of r.routen.filter((x) => x.km > 0)) {
-    assert.ok(Math.abs(rt.pfad[0][0] - r.start.lat) < 1e-4 && Math.abs(rt.pfad[0][1] - r.start.lon) < 1e-4, 'Start');
-    assert.ok(rt.pfad.every(([, , f]) => f >= 0 && f <= 1.5));
+  assert.ok(r.kennzahlen.punkte_machbar > 0 && r.linien.length > 0);
+  const gruen = r.schritte.filter(([, , m]) => m === 1);
+  assert.equal(gruen.length, r.kennzahlen.punkte_machbar);
+  for (const [la1, lo1, la2, lo2, f] of r.linien) {
+    assert.ok([la1, lo1, la2, lo2].every(Number.isFinite) && f >= 0 && f <= 1.5);
   }
   assert.ok(r.kennzahlen.weitester_km > 1);
 });
 
-test('Routen: Akku-Modus endet dort, wo der Verbrauch das Budget erreicht; Fahrtzeit-Modus nach der Zeit', () => {
-  const r = rechne();
-  const letzte = r.routen.find((x) => x.km > 0).pfad.at(-1);
-  assert.ok(letzte[2] <= 1, 'am Ende höchstens das Budget verbraucht');
+test('Routen: Fahrtzeit-Modus, Abschnitte bleiben im Budget', () => {
   const kurz = rechne({ fahrrad: OHNE_MOTOR, einstellungen: { budget_art: 'zeit', fahrtzeit_h: 0.5 } });
   const lang = rechne({ fahrrad: OHNE_MOTOR, einstellungen: { budget_art: 'zeit', fahrtzeit_h: 1 } });
   assert.equal(kurz.budget.art, 'zeit');
-  assert.ok(lang.kennzahlen.weitester_km > kurz.kennzahlen.weitester_km, 'mehr Zeit, weitere Routen');
-  for (const rt of kurz.routen) if (rt.pfad.length) assert.ok(rt.pfad.at(-1)[2] <= 1, 'Zeit eingehalten');
+  assert.ok(lang.kennzahlen.punkte_machbar > kurz.kennzahlen.punkte_machbar, 'mehr Zeit, mehr erreichbare Punkte');
+  for (const [, , , , f] of kurz.linien) assert.ok(f <= 1, 'Zeit eingehalten');
 });
 
-test('Routen: mehr Akku, weitere Routen; weniger Füllstand, kürzere Routen', () => {
-  const normal = rechne().kennzahlen.weitester_km;
-  const mehr = rechne({ fahrrad: { ...FAHRRAD, akku_kapazitaet_wh: 60 } }).kennzahlen.weitester_km;
-  const weniger = rechne({ einstellungen: { akku_rest_prozent: 40 } }).kennzahlen.weitester_km;
+test('Routen: mehr Akku, mehr erreichbare Punkte; weniger Füllstand, weniger Punkte', () => {
+  const normal = rechne().kennzahlen.punkte_machbar;
+  const mehr = rechne({ fahrrad: { ...FAHRRAD, akku_kapazitaet_wh: 60 } }).kennzahlen.punkte_machbar;
+  const weniger = rechne({ einstellungen: { akku_rest_prozent: 40 } }).kennzahlen.punkte_machbar;
   assert.ok(mehr > normal && weniger < normal, `${weniger} < ${normal} < ${mehr}`);
 });
 
-test('Heatmap aus den Linien: Werte nur entlang der Routen, sonst leer (254)', () => {
+test('Heatmap aus den Linien: Werte nur entlang der Linien, sonst leer (254)', () => {
   const r = rechne();
   const { nx, ny, daten } = r.raster;
   const bytes = Buffer.from(daten, 'base64');

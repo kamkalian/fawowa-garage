@@ -123,7 +123,8 @@
       if (nr !== zaehler) return;
       ergebnis = r;
       karte.setzeRaster(r.raster);
-      karte.setzeRouten(r.routen);
+      karte.setzeRouten(r.linien);
+      karte.setzeGitter(r.schritte);
       karte.setzeStart(r.start.lat, r.start.lon);
       if (anpassen) {
         const R = r.raster;
@@ -349,7 +350,7 @@
       {#if ansicht === 'heatmap'}<p class="notiz">{t(lang, 'p_legende')}</p>{:else}<p class="notiz">{t(lang, 'p_routenHinweis')}</p>{/if}
       <dl>
         <div><dt>{t(lang, 'p_weitester')}</dt><dd>{zahlText(lang, ergebnis.kennzahlen.weitester_km)} km</dd></div>
-        <div><dt>{t(lang, 'p_mittel')}</dt><dd>{zahlText(lang, ergebnis.kennzahlen.mittel_km)} km</dd></div>
+        <div><dt>{t(lang, 'p_machbar')}</dt><dd>{zahlText(lang, ergebnis.kennzahlen.punkte_machbar)} / {zahlText(lang, ergebnis.kennzahlen.punkte_gesamt)}</dd></div>
         {#if ergebnis.budget.art === 'akku'}
           <div><dt>{t(lang, 'p_energie')}</dt><dd>{zahlText(lang, ergebnis.budget.wert)} Wh</dd></div>
         {:else}

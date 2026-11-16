@@ -78,7 +78,8 @@ export class Karte {
     this.laufend = 0;
     this.warteschlange = [];
     this.overlay = null;      // { bild, lat0, lon0, lat1, lon1 }
-    this.routen = null;       // [{ pfad: [[lat, lon, anteil], ...] }] der Reichweiten-Routen
+    this.routen = null;       // Linien der Reichweiten-Routen [[lat1, lon1, lat2, lon2, anteil], ...]
+    this.schritte = null;     // Gitterpunkte [[lat, lon, machbar], ...]
     this.zeigeRouten = false; // true: Routen als Linien statt Heatmap
     this.zeigeSchritte = false; // true: die 1-km-Schritte als rote Punkte
     this.start = null;
@@ -147,24 +148,22 @@ export class Karte {
 
   setzeStart(lat, lon) { this.start = lat === null ? null : { lat, lon }; this.zeichnen(); }
 
-  /** Routen der Reichweite (Linien); ansicht: true zeigt die Routen, false die Heatmap */
-  setzeRouten(routen) { this.routen = routen ?? null; this.zeichnen(); }
+  /** Linien der Routen [[lat1, lon1, lat2, lon2, anteil], ...] und Gitterpunkte [[lat, lon, machbar], ...] */
+  setzeRouten(linien) { this.routen = linien ?? null; this.zeichnen(); }
+  setzeGitter(schritte) { this.schritte = schritte ?? null; this.zeichnen(); }
   setzeAnsicht(alsRouten) { this.zeigeRouten = !!alsRouten; this.zeichnen(); }
   setzeSchritte(an) { this.zeigeSchritte = !!an; this.zeichnen(); }
 
-  /** Die 1-km-Schritte der Routen als Punkte: grün machbar, rot nicht machbar */
+  /** Die Gitterpunkte: grün machbar (es gibt eine Route), rot nicht machbar */
   _zeichneSchritte(g) {
-    if (!this.routen) return;
+    if (!this.schritte) return;
     const s = this.welt;
     const [ox, oy] = [this.w / 2 - this.mitte.x * s, this.h / 2 - this.mitte.y * s];
-    // Grün: es gibt eine Route zu diesem Schritt (machbar), rot: keine Route im Budget
-    for (const rt of this.routen) {
-      for (const [la, lo, machbar] of rt.schritte ?? []) {
-        g.fillStyle = machbar ? '#16a34a' : '#dc2626';
-        g.beginPath();
-        g.arc(weltX(lo) * s + ox, weltY(la) * s + oy, 2.6, 0, Math.PI * 2);
-        g.fill();
-      }
+    for (const [la, lo, machbar] of this.schritte) {
+      g.fillStyle = machbar ? '#16a34a' : '#dc2626';
+      g.beginPath();
+      g.arc(weltX(lo) * s + ox, weltY(la) * s + oy, 2.6, 0, Math.PI * 2);
+      g.fill();
     }
   }
 
@@ -368,7 +367,7 @@ export class Karte {
     }
   }
 
-  /** Routen als Linien, Endpunkt mit Punkt */
+  /** Routen als Linien: jeder Abschnitt geht vom Knoten zu seinem Vorgänger im Baum; die Routen teilen sich Abschnitte */
   _zeichneRouten(g) {
     if (!this.routen) return;
     const s = this.welt;
@@ -376,23 +375,13 @@ export class Karte {
     g.lineJoin = 'round';
     g.lineCap = 'round';
     g.strokeStyle = '#1d4ed8';
-    g.lineWidth = 2.5;
+    g.lineWidth = 1.6;
     g.beginPath();
-    for (const rt of this.routen) {
-      const p = rt.pfad;
-      if (p.length < 2) continue;
-      g.moveTo(weltX(p[0][1]) * s + ox, weltY(p[0][0]) * s + oy);
-      for (let i = 1; i < p.length; i++) g.lineTo(weltX(p[i][1]) * s + ox, weltY(p[i][0]) * s + oy);
+    for (const [la1, lo1, la2, lo2] of this.routen) {
+      g.moveTo(weltX(lo1) * s + ox, weltY(la1) * s + oy);
+      g.lineTo(weltX(lo2) * s + ox, weltY(la2) * s + oy);
     }
     g.stroke();
-    g.fillStyle = '#1d4ed8';
-    for (const rt of this.routen) {
-      const e = rt.pfad.at(-1);
-      if (!e) continue;
-      g.beginPath();
-      g.arc(weltX(e[1]) * s + ox, weltY(e[0]) * s + oy, 3.5, 0, Math.PI * 2);
-      g.fill();
-    }
   }
 
   _zeichneWaerme(g) {
