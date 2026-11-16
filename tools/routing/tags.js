@@ -11,7 +11,7 @@ export const SCHLUESSEL = new Set([
 const STRASSEN = new Set(['primary', 'primary_link', 'secondary', 'secondary_link', 'tertiary', 'tertiary_link', 'unclassified', 'residential', 'living_street', 'service', 'road']);
 const WEGE = new Set(['track', 'path', 'footway', 'pedestrian', 'bridleway']);
 const KEIN_ZUGANG = new Set(['no', 'private']);
-const UNBRAUCHBARE_ZUFAHRTEN = new Set(['driveway', 'parking_aisle', 'drive-through', 'emergency_access']);
+const UNBRAUCHBARE_ZUFAHRTEN = new Set(['parking_aisle', 'drive-through', 'emergency_access']); // Zufahrten (driveway) gehören zum Straßennetz: sie verbinden die Straßen untereinander
 
 // Rollwiderstand relativ zu glattem Asphalt
 const BELAG = {

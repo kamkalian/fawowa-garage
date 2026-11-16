@@ -33,7 +33,7 @@ test('Wege: Verbote und Zugangsbeschränkungen', () => {
   assert.equal(t({ highway: 'residential', access: 'private' }), null);
   assert.ok(t({ highway: 'residential', access: 'private', bicycle: 'yes' }), 'Freigabe für Räder geht vor');
   assert.equal(t({ highway: 'track', vehicle: 'no' }), null);
-  assert.equal(t({ highway: 'service', service: 'driveway' }), null);
+  assert.ok(t({ highway: 'service', service: 'driveway' }), 'Zufahrten gehören zum Netz und verbinden Straßen');
   assert.equal(t({ highway: 'service', service: 'parking_aisle' }), null);
   assert.ok(t({ highway: 'service' }));
   assert.equal(t({ highway: 'primary', motorroad: 'yes' }), null);
