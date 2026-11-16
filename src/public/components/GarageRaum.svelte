@@ -64,7 +64,8 @@
   }
   .schalter:hover { background: rgba(255, 255, 255, .12); }
   .schalter:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
-  .schalter.leuchtet { background: rgba(255, 236, 170, .25); box-shadow: 0 0 10px 3px rgba(255, 228, 150, .55); }
+  /* Licht aus: der Schalter bleibt hell, während das übrige Bild fast dunkel ist */
+  .schalter.leuchtet { background: rgba(255, 246, 205, .9); box-shadow: 0 0 14px 6px rgba(255, 235, 160, .7); border-radius: 6px; }
   /* Rand und unterer Bereich dunkel auslaufen lassen */
   .dunkel {
     position: absolute; inset: 0; z-index: 1; pointer-events: none;
