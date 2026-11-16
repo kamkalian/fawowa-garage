@@ -201,20 +201,6 @@
     {/if}
   </section>
 
-  <section class="fahrt" aria-label={t(lang, 'fahrtTitle')}>
-    <p class="notiz">{t(lang, 'gespannInfo')} {gespannNamen || t(lang, 'gespannLeer')}</p>
-    <div class="fahrt-felder">
-      <label for="fahrt-fahrer">{pick(GESPANN_FELDER.find(f => f.key === 'fahrer_gewicht_kg').label, lang)} (kg)</label>
-      <input id="fahrt-fahrer" class="input" type="number" inputmode="decimal" min="20" max="250" step="any" bind:value={fahrer} />
-      <label for="fahrt-gepaeck">{pick(GESPANN_FELDER.find(f => f.key === 'gepaeck_kg').label, lang)} (kg)</label>
-      <input id="fahrt-gepaeck" class="input" type="number" inputmode="decimal" min="0" max="500" step="any" bind:value={gepaeck} />
-      <button type="button" class="btn btn-outline btn-sm" onclick={fahrtSpeichern}>{t(lang, 'save')}</button>
-    </div>
-    {#if planerAktiv}
-      <button type="button" class="btn btn-outline planer-knopf" onclick={() => (planerOffen = true)}>{t(lang, 'p_planerOeffnen')}</button>
-    {/if}
-  </section>
-
   {#if planerAktiv}
     <Planer {lang} {token} {daten} {einst} offen={planerOffen} zurueck={() => (planerOffen = false)} />
   {/if}
@@ -240,6 +226,21 @@
       </div>
     </div>
   </div>
+
+
+  <section class="fahrt" aria-label={t(lang, 'fahrtTitle')}>
+    <p class="notiz">{t(lang, 'gespannInfo')} {gespannNamen || t(lang, 'gespannLeer')}</p>
+    <div class="fahrt-felder">
+      <label for="fahrt-fahrer">{pick(GESPANN_FELDER.find(f => f.key === 'fahrer_gewicht_kg').label, lang)} (kg)</label>
+      <input id="fahrt-fahrer" class="input" type="number" inputmode="decimal" min="20" max="250" step="any" bind:value={fahrer} />
+      <label for="fahrt-gepaeck">{pick(GESPANN_FELDER.find(f => f.key === 'gepaeck_kg').label, lang)} (kg)</label>
+      <input id="fahrt-gepaeck" class="input" type="number" inputmode="decimal" min="0" max="500" step="any" bind:value={gepaeck} />
+      <button type="button" class="btn btn-outline btn-sm" onclick={fahrtSpeichern}>{t(lang, 'save')}</button>
+    </div>
+    {#if planerAktiv}
+      <button type="button" class="btn btn-outline planer-knopf" onclick={() => (planerOffen = true)}>{t(lang, 'p_planerOeffnen')}</button>
+    {/if}
+  </section>
 
   <p class="unten"><button type="button" class="btn btn-ghost btn-sm" onclick={() => (garageLoeschen = true)}><Icon name="ui-trash" size={14} /> {t(lang, 'deleteGarage')}</button></p>
 {/if}
