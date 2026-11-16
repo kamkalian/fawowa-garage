@@ -48,12 +48,13 @@
 
 <style>
   /* cqw-Einheiten beziehen sich auf die Breite des Raums; das Foto ist genau so breit */
-  .raum { position: relative; isolation: isolate; container-type: inline-size; border-radius: var(--radius); overflow: hidden; margin-bottom: 1.5rem; background: #15171b; }
+  /* Foto-Vergrößerung: Foto und Schalterebene werden um denselben Ursprung skaliert, damit der Schalter am Foto bleibt */
+  .raum { --foto-skala: 1.2; position: relative; isolation: isolate; container-type: inline-size; border-radius: var(--radius); overflow: hidden; margin-bottom: 1.5rem; background: #15171b; }
   /* Das Foto liegt hinter allem: oben im Bereich, nach unten in den dunklen Hintergrund übergehend */
-  .bild { position: absolute; top: 0; left: 0; right: 0; aspect-ratio: 2000 / 1125; z-index: 0; pointer-events: none; }
+  .bild { position: absolute; top: 0; left: 0; right: 0; aspect-ratio: 2000 / 1125; z-index: 0; pointer-events: none; transform: scale(var(--foto-skala)); transform-origin: 50% 0; }
   .bild img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transition: filter .4s; }
   /* Verlängerung: unter dem Foto, der Streifen wird nach unten wiederholt; bei Bedarf so lang wie der Raum */
-  .verlaengerung { position: absolute; left: 0; right: 0; top: 56.25cqw; bottom: 0; z-index: 0; pointer-events: none;
+  .verlaengerung { position: absolute; left: 0; right: 0; top: calc(56.25cqw * var(--foto-skala)); bottom: 0; z-index: 0; pointer-events: none;
     background: url(/garage-unten.png) 0 0 / 100% auto repeat-y; }
   .aus .verlaengerung { filter: brightness(.25) saturate(.6); }
   /* Licht aus: das Foto wird sehr dunkel */
@@ -66,7 +67,7 @@
   }
   .aus .glanz { opacity: 0; }
   /* Schalterebene: dieselbe Fläche wie das Foto, damit die Prozentwerte am Foto liegen */
-  .schalterebene { position: absolute; top: 0; left: 0; right: 0; aspect-ratio: 2000 / 1125; z-index: 3; pointer-events: none; }
+  .schalterebene { position: absolute; top: 0; left: 0; right: 0; aspect-ratio: 2000 / 1125; z-index: 3; pointer-events: none; transform: scale(var(--foto-skala)); transform-origin: 50% 0; }
   /* Schalter: Knopf über dem Schalter im Foto; leuchtet schwach, wenn das Licht aus ist */
   .schalter {
     pointer-events: auto; position: absolute; left: calc(78cqw - .5cqw); top: calc(28.6875cqw + .6cqw); width: max(2.6cqw, 1.8rem); height: max(3.4cqw, 2.4rem); padding: 0;
