@@ -10,7 +10,6 @@
   import Fenster from './Fenster.svelte';
   import EmailFenster from './EmailFenster.svelte';
   import Planer from './Planer.svelte';
-  import AntriebFenster from './AntriebFenster.svelte';
 
   // Die Garage eines Nutzers: zwei Tabs. „Gespann“ (Standard) und „Stellplätze“ (alle Fahrräder und Anhänger als Kacheln, per Drag and Drop ordnen)
   let { lang, token, melde, onungueltig, ongeloescht, emailAktiv = false, einst = {} } = $props();
@@ -26,7 +25,6 @@
   let status = $state('laden'); // laden | bereit | fehler
   let daten = $state({ fahrraeder: [], anhaenger: [], gespann: null, email: null, email_offen: null });
   let form = $state(null);        // { art, eintrag } oder null
-  let antrieb = $state(null);     // { art, eintrag } für Motoren und Akkus, oder null
   let loeschen = $state(null);    // { art, eintrag } oder null
   let garageLoeschen = $state(false);
   let kopiert = $state(false);
@@ -92,15 +90,18 @@
     return text.startsWith('e_') ? t(lang, 'e_allgemein') : text;
   };
 
-  async function speichere(werte) {
+  /** Speichert Fahrzeug und Motoren/Akkus; antriebe = { motoren, akkus } aus dem Formular */
+  async function speichere(werte, antriebe) {
     const { art, eintrag } = form;
     const neu = eintrag
       ? await api.eintragAendern(token, art, eintrag.id, werte)
       : await api.eintragAnlegen(token, art, werte);
+    const antrieb = await api.antriebSetzen(token, art, neu.id, antriebe);
     // Die Serverantwort enthält keine Motoren, Akkus und keine Fotoangabe: die bisherigen Werte bleiben erhalten
+    const eintragNeu = { ...neu, motoren: antrieb.motoren, akkus: antrieb.akkus };
     daten[art] = eintrag
-      ? daten[art].map(x => (x.id === neu.id ? { ...x, ...neu } : x))
-      : [...daten[art], { motoren: [], akkus: [], foto_vorhanden: false, ...neu }];
+      ? daten[art].map(x => (x.id === neu.id ? { ...x, ...eintragNeu } : x))
+      : [...daten[art], { foto_vorhanden: false, ...eintragNeu }];
     form = null;
     melde(t(lang, 'saved'));
   }
@@ -150,29 +151,17 @@
     fotos = neu;
   }
 
-  /** Weitere Angaben im Bearbeiten-Fenster: Foto, Motor & Akku, Entfernen. Sie schließen das Bearbeiten-Fenster und öffnen das jeweilige Fenster. */
+  /** Aktionen im Bearbeiten-Fenster: Foto oben (bleibt offen), Entfernen unten (öffnet die Rückfrage) */
   function formAktionen() {
     const f = { art: form.art, e: form.eintrag };
+    // Den aktuellen Stand aus der Liste nehmen: ein Foto-Upload ändert die Anzeige, während das Fenster offen ist
+    const aktuell = daten[f.art].find(x => x.id === f.e.id) ?? f.e;
     return {
-      fotoVorhanden: !!form.eintrag.foto_vorhanden,
-      onfoto: () => { form = null; fotoWaehlen(f); },
-      onfotoloeschen: () => { form = null; fotoEntfernen(f); },
-      onantrieb: () => { antrieb = { art: f.art, eintrag: f.e }; form = null; },
+      fotoVorhanden: !!aktuell.foto_vorhanden,
+      onfoto: () => fotoWaehlen(f),
+      onfotoloeschen: () => fotoEntfernen(f),
       onloeschen: () => { loeschen = { art: f.art, eintrag: f.e }; form = null; }
     };
-  }
-
-  /** Motoren und Akkus eines Fahrrads oder Anhängers speichern; bei einem Fehler bleibt das Fenster offen */
-  async function antriebSpeichern(werte) {
-    const ziel = antrieb;
-    try {
-      const ergebnis = await api.antriebSetzen(token, ziel.art, ziel.eintrag.id, werte);
-      daten[ziel.art] = daten[ziel.art].map(x => (x.id === ziel.eintrag.id ? { ...x, motoren: ergebnis.motoren, akkus: ergebnis.akkus } : x));
-      antrieb = null;
-      melde(t(lang, 'saved'));
-    } catch (err) {
-      melde(fehlerMeldung(err), 'error');
-    }
   }
 
   function fotoWaehlen(f) {
@@ -348,10 +337,6 @@
 
 {#if form}
   <EintragForm {lang} art={form.art} eintrag={form.eintrag} onsave={speichere} onclose={() => (form = null)} aktionen={form.eintrag ? formAktionen() : null} />
-{/if}
-
-{#if antrieb}
-  <AntriebFenster {lang} eintrag={antrieb.eintrag} onsave={antriebSpeichern} onclose={() => (antrieb = null)} />
 {/if}
 
 {#if loeschen}

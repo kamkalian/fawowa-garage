@@ -5,7 +5,7 @@
 
   // Strichzeichnungen im Raster 48 × 48, Farbe über currentColor
   const ICONS = {
-    fahrrad: '<circle cx="12" cy="34" r="7"/><circle cx="36" cy="34" r="7"/><path d="M12 34 L20 22 H31 L36 34 M20 22 L25 34 H12 M31 22 L28 14 H24"/><path d="M17 20 H23"/>',
+    fahrrad: '<circle cx="11" cy="32" r="8.5"/><circle cx="37" cy="32" r="8.5"/><path d="M11 32 L20 18 H32 L37 32 M20 18 L26 32 H11 M32 18 L28 11 H24"/><path d="M15 15 H23"/>',
     fahrrad_dach: '<circle cx="12" cy="34" r="7"/><circle cx="36" cy="34" r="7"/><path d="M12 34 L20 22 H31 L36 34 M20 22 L25 34 H12 M31 22 L28 14 H24"/><path d="M12 18 L17 8 H30 L32 14"/>',
     fahrrad_kabine: '<circle cx="12" cy="34" r="7"/><circle cx="36" cy="34" r="7"/><path d="M12 34 L20 22 H31 L36 34 M20 22 L25 34 H12 M31 22 L28 14 H24"/><rect x="12" y="4" width="24" height="13" rx="3"/><path d="M18 10 H30"/>',
     trike: '<circle cx="9" cy="35" r="5"/><circle cx="25" cy="35" r="5"/><circle cx="39" cy="35" r="6"/><path d="M9 35 L17 22 H30 L39 35 M17 22 L24 30 M30 22 L27 14 H24"/>',
@@ -43,6 +43,6 @@
   .bild { position: relative; width: 6rem; height: 6rem; flex-shrink: 0; border-radius: var(--radius-sm); background: var(--bg-input); color: var(--primary); display: flex; align-items: center; justify-content: center; overflow: hidden; }
   .bild svg { width: 3.5rem; height: 3.5rem; }
   .bild img { width: 100%; height: 100%; object-fit: cover; }
-  .blitz { position: absolute; bottom: .2rem; right: .2rem; width: 1rem; height: 1rem; color: #eab308; background: var(--bg-card); border-radius: 999px; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 0 1px var(--border); }
-  .blitz svg { width: .7rem; height: .7rem; }
+  .blitz { position: absolute; bottom: .15rem; right: .15rem; width: 1.6rem; height: 1.6rem; color: #eab308; background: var(--bg-card); border-radius: 999px; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 0 1px var(--border); }
+  .blitz svg { width: 1.1rem; height: 1.1rem; }
 </style>

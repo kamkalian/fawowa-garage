@@ -3,10 +3,11 @@
   import { t, pick } from '../lib/i18n.js';
   import { ApiFehler } from '../lib/api.js';
   import Fenster from './Fenster.svelte';
+  import AntriebEditor from './AntriebEditor.svelte';
 
   // Formular für Fahrrad und Anhänger; die Felder kommen aus lib/felder.js.
-  // onsave(werte) legt an oder ändert und wirft bei Fehlern einen ApiFehler.
-  // aktionen (nur beim Bearbeiten): { fotoVorhanden, onfoto, onfotoloeschen, onantrieb, onloeschen } für die weiteren Angaben unten
+  // onsave(werte, antriebe) legt an oder ändert und wirft bei Fehlern einen ApiFehler.
+  // aktionen (nur beim Bearbeiten): { fotoVorhanden, onfoto, onfotoloeschen, onloeschen }; das Foto steht oben, Entfernen unten.
   let { lang, art, eintrag = null, onsave, onclose, aktionen = null } = $props();
 
   // Das Formular wird für genau einen Eintrag geöffnet und danach geschlossen: Art und Anfangswerte werden nur einmal gelesen
@@ -14,6 +15,10 @@
   const cfg = ARTEN[art];
   // svelte-ignore state_referenced_locally
   const werte = $state(Object.fromEntries(cfg.felder.map(f => [f.key, eintrag?.[f.key] ?? (f.typ === 'zahl' || f.typ === 'ganzzahl' ? null : '')])));
+  // svelte-ignore state_referenced_locally
+  let motoren = $state((eintrag?.motoren ?? []).map(m => ({ motor_art: m.motor_art, leistung_w: m.leistung_w })));
+  // svelte-ignore state_referenced_locally
+  let akkus = $state((eintrag?.akkus ?? []).map(a => ({ kapazitaet_wh: a.kapazitaet_wh })));
   // Bei Anhängern mit fester Achsenzahl gibt die Art die Anzahl der Räder vor
   $effect(() => { if (art === 'anhaenger') anzahlRaederAbleiten(werte); });
   const feldGesperrt = (f) => art === 'anhaenger' && f.key === 'anzahl_raeder' && ANZAHL_RAEDER_AUS_AUFBAU[werte.aufbau] !== undefined;
@@ -43,7 +48,10 @@
     fehler = {};
     allgemein = '';
     try {
-      await onsave({ ...werte });
+      await onsave({ ...werte }, {
+        motoren: motoren.map(m => ({ motor_art: m.motor_art, leistung_w: m.leistung_w === '' ? null : m.leistung_w })),
+        akkus: akkus.map(a => ({ kapazitaet_wh: a.kapazitaet_wh }))
+      });
     } catch (err) {
       if (err instanceof ApiFehler && err.felder) fehler = err.felder;
       allgemein = t(lang, err instanceof ApiFehler && err.code ? `e_${err.code}` : 'e_allgemein');
@@ -56,6 +64,18 @@
 
 <Fenster {lang} breit titel={t(lang, eintrag ? 'formEdit' : 'formNew', pick(cfg.name, lang))} {onclose}>
   <form onsubmit={senden} novalidate>
+    {#if aktionen}
+      <div class="foto">
+        <span class="foto-titel">{pick({ de: 'Foto', en: 'Photo' }, lang)}</span>
+        <button type="button" class="btn btn-outline btn-sm" onclick={aktionen.onfoto}>
+          {pick(aktionen.fotoVorhanden ? { de: 'Foto ändern', en: 'Change photo' } : { de: 'Foto hochladen', en: 'Upload photo' }, lang)}
+        </button>
+        {#if aktionen.fotoVorhanden}
+          <button type="button" class="btn btn-ghost btn-sm" onclick={aktionen.onfotoloeschen}>{pick({ de: 'Foto entfernen', en: 'Remove photo' }, lang)}</button>
+        {/if}
+      </div>
+    {/if}
+
     {#each gruppen as g (g.key)}
       <fieldset>
         <legend>{pick(GRUPPEN[g.key], lang)}</legend>
@@ -83,17 +103,15 @@
       </fieldset>
     {/each}
 
+    <fieldset>
+      <legend>{pick({ de: 'Motor & Akku', en: 'Motor & battery' }, lang)}</legend>
+      <AntriebEditor {lang} bind:motoren bind:akkus />
+    </fieldset>
+
     {#if aktionen}
       <fieldset class="weitere">
         <legend>{pick({ de: 'Weitere Angaben', en: 'More details' }, lang)}</legend>
         <div class="knoepfe">
-          <button type="button" class="btn btn-outline btn-sm" onclick={aktionen.onfoto}>
-            {pick(aktionen.fotoVorhanden ? { de: 'Foto ändern', en: 'Change photo' } : { de: 'Foto hochladen', en: 'Upload photo' }, lang)}
-          </button>
-          {#if aktionen.fotoVorhanden}
-            <button type="button" class="btn btn-ghost btn-sm" onclick={aktionen.onfotoloeschen}>{pick({ de: 'Foto entfernen', en: 'Remove photo' }, lang)}</button>
-          {/if}
-          <button type="button" class="btn btn-outline btn-sm" onclick={aktionen.onantrieb}>{pick({ de: 'Motor & Akku', en: 'Motor & battery' }, lang)}</button>
           <button type="button" class="btn btn-ghost btn-sm" onclick={aktionen.onloeschen}>{t(lang, 'remove')}</button>
         </div>
       </fieldset>
@@ -119,5 +137,7 @@
   .notiz { min-height: 1.1rem; margin-top: .125rem; }
   .aktionen { display: flex; gap: .5rem; justify-content: flex-end; margin-top: 1rem; }
   .knoepfe { display: flex; flex-wrap: wrap; gap: .5rem; }
+  .foto { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; padding-bottom: 1rem; margin-bottom: .25rem; border-bottom: 1px solid var(--border); }
+  .foto-titel { font-size: .875rem; font-weight: 600; margin-right: .5rem; }
   @media (max-width: 520px) { .raster { grid-template-columns: 1fr; } }
 </style>
