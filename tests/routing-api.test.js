@@ -18,7 +18,9 @@ const START = { lat: 51.075, lon: 7.12 };
 async function mitServer(optionen = {}) {
   const t = await starteTestServer({ app: { routing: dienst, ...optionen } });
   const token = (await t.anfrage('POST', '/api/v1/garagen', { body: { fahrer_name: 'Anja' } })).json.token;
-  const rad = (await t.anfrage('POST', '/api/v1/garage/fahrraeder', { token, body: RAD })).json;
+  const rad = (await t.anfrage('POST', '/api/v1/garage/fahrraeder', { token, body: { name: RAD.name, gewicht_kg: RAD.gewicht_kg } })).json;
+  // Motor und Akku kommen über die Liste der Antriebe, nicht über Felder des Fahrrads
+  await t.anfrage('PUT', `/api/v1/garage/antriebe/fahrraeder/${rad.id}`, { token, body: { motoren: [{ motor_art: RAD.motor_art, leistung_w: 250 }], akkus: [{ kapazitaet_wh: RAD.akku_kapazitaet_wh }] } });
   const wagen = (await t.anfrage('POST', '/api/v1/garage/anhaenger', { token, body: { name: 'Wagen', leergewicht_kg: 40 } })).json;
   // Setzt Zugfahrzeug und Anhänger im Gespann (null nimmt den bisherigen heraus)
   const aktiv = { fahrraeder: null, anhaenger: null };

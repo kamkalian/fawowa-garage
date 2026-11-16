@@ -1,6 +1,6 @@
 <script>
   import Fahrzeugbild from '../../shared/Fahrzeugbild.svelte';
-  import { hatMotor } from '../../../lib/rechenmodell.js';
+  import { MOTOR_ARTEN } from '../../shared/antrieb.js';
   import { ARTEN } from '../../../lib/felder.js';
   import Icon from '../../shared/Icon.svelte';
   import { t, pick, zahlText } from '../lib/i18n.js';
@@ -8,9 +8,13 @@
   // Karte eines Fahrrads oder Anhängers: Name, Prüfstatus und die ausgefüllten Angaben.
   // kompakt: nur Name und Prüfstatus, keine Angaben (für den Platz im Gespann); flach: ohne eigenen Rahmen und ohne Symbol (liegt schon in einer Karte mit Überschrift und Symbol);
   // aktionen: eigene Knöpfe statt Bearbeiten/Löschen
-  let { lang, art, eintrag, kompakt = false, flach = false, imGespann = false, onedit, onremove, onGespann, aktionen, foto = null, onfoto, onfotoloeschen } = $props();
+  let { lang, art, eintrag, kompakt = false, flach = false, imGespann = false, onedit, onremove, onGespann, aktionen, foto = null, onfoto, onfotoloeschen, onantrieb } = $props();
 
   const cfg = $derived(ARTEN[art]);
+  // Motoren und Akkus stehen in eigenen Listen (mehrere je Fahrzeug)
+  const motoren = $derived(eintrag.motoren ?? []);
+  const akkus = $derived(eintrag.akkus ?? []);
+  const motorName = (wert) => pick(MOTOR_ARTEN.find(o => o.wert === wert), lang) || wert;
 
   function wert(f) {
     const v = eintrag[f.key];
@@ -28,7 +32,7 @@
 <article class:card={!flach}>
   <div class:card-body={!flach}>
     <div class="zeile">
-      <Fahrzeugbild art={art} bauart={eintrag.bauart} aufbau={eintrag.aufbau} motor={art === 'fahrraeder' && hatMotor(eintrag)} foto={foto} alt={eintrag.name} />
+      <Fahrzeugbild art={art} bauart={eintrag.bauart} aufbau={eintrag.aufbau} motor={art === 'fahrraeder' && motoren.length > 0} foto={foto} alt={eintrag.name} />
       <div class="inhalt">
     <div class="kopf" class:kompakt>
       <h3>{#if !flach}<span class="symbol"><Icon name={art === 'fahrraeder' ? 'veh-bike' : 'veh-trailer'} size={24} /></span>{/if}{eintrag.name}</h3>
@@ -40,12 +44,20 @@
       </div>
     </div>
 
-    {#if zeilen.length}
+    {#if zeilen.length || (!kompakt && (motoren.length || akkus.length))}
       <dl>
         {#each zeilen as z (z.f.key)}
           <dt>{pick(z.f.label, lang)}</dt>
           <dd>{z.w}</dd>
         {/each}
+        {#if !kompakt && motoren.length}
+          <dt>{pick({ de: 'Motoren', en: 'Motors' }, lang)}</dt>
+          <dd>{motoren.map(m => `${motorName(m.motor_art)}${m.leistung_w ? ` · ${zahlText(lang, m.leistung_w)} W` : ''}`).join(', ')}</dd>
+        {/if}
+        {#if !kompakt && akkus.length}
+          <dt>{pick({ de: 'Akkus', en: 'Batteries' }, lang)}</dt>
+          <dd>{akkus.map(a => `${zahlText(lang, a.kapazitaet_wh)} Wh`).join(', ')}</dd>
+        {/if}
       </dl>
     {/if}
     {#if eintrag.notiz && !kompakt}<p class="notiz notizzeile">{eintrag.notiz}</p>{/if}
@@ -62,6 +74,9 @@
         {/if}
         {#if onGespann}
           <button type="button" class="btn btn-outline btn-sm" onclick={onGespann}>{t(lang, imGespann ? 'removeGespann' : 'toGespann')}</button>
+        {/if}
+        {#if onantrieb}
+          <button type="button" class="btn btn-outline btn-sm" onclick={onantrieb}>{pick({ de: 'Motor & Akku', en: 'Motor & battery' }, lang)}</button>
         {/if}
         <button type="button" class="btn btn-outline btn-sm" onclick={onedit}><Icon name="ui-edit" size={14} /> {t(lang, 'edit')}</button>
         <button type="button" class="btn btn-ghost btn-sm" onclick={onremove}><Icon name="ui-trash" size={14} /> {t(lang, 'remove')}</button>

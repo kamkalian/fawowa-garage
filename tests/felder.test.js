@@ -21,15 +21,15 @@ test('Leere Felder werden zu null, Unbekanntes wird ignoriert', () => {
 });
 
 test('Zahlen: Komma, Text, Grenzen, Rundung', () => {
-  const ok = pruefeEingabe(fahrrad, { name: 'a', akku_kapazitaet_wh: '625,5', radgroesse_zoll: 27.5, gaenge: '9' });
+  const ok = pruefeEingabe(fahrrad, { name: 'a', gewicht_kg: '25,5', radgroesse_zoll: 27.5, gaenge: '9' });
   assert.equal(ok.fehler, null);
-  assert.equal(ok.werte.akku_kapazitaet_wh, 625.5);
+  assert.equal(ok.werte.gewicht_kg, 25.5);
   assert.equal(ok.werte.gaenge, 9);
-  assert.equal(pruefeEingabe(fahrrad, { name: 'a', akku_kapazitaet_wh: 12.3456 }).werte.akku_kapazitaet_wh, 12.35);
+  assert.equal(pruefeEingabe(fahrrad, { name: 'a', gewicht_kg: 12.3456 }).werte.gewicht_kg, 12.35);
 
-  const schlecht = pruefeEingabe(fahrrad, { name: 'a', akku_kapazitaet_wh: -1, motor_nennleistung_w: 99999, gewicht_kg: 'schwer', gaenge: 2.5, anzahl_raeder: 7 });
+  const schlecht = pruefeEingabe(fahrrad, { name: 'a', gewicht_kg: 1, radgroesse_zoll: 99, gaenge: 2.5, anzahl_raeder: 7 });
   assert.deepEqual(schlecht.fehler, {
-    akku_kapazitaet_wh: 'zu_klein', motor_nennleistung_w: 'zu_gross', gewicht_kg: 'ungueltig', gaenge: 'ungueltig', anzahl_raeder: 'zu_gross'
+    gewicht_kg: 'zu_klein', radgroesse_zoll: 'zu_gross', gaenge: 'ungueltig', anzahl_raeder: 'zu_gross'
   });
 });
 
@@ -40,8 +40,8 @@ test('Zahlen: keine Sonderwerte wie NaN, Infinity oder Exponent', () => {
 });
 
 test('Auswahl nur mit bekannten Werten', () => {
-  assert.equal(pruefeEingabe(fahrrad, { name: 'a', motor_art: 'mittelmotor' }).fehler, null);
-  assert.deepEqual(pruefeEingabe(fahrrad, { name: 'a', motor_art: 'raketenantrieb' }).fehler, { motor_art: 'ungueltig' });
+  assert.equal(pruefeEingabe(fahrrad, { name: 'a', bauart: 'fahrrad' }).fehler, null);
+  assert.deepEqual(pruefeEingabe(fahrrad, { name: 'a', bauart: 'raketenantrieb' }).fehler, { bauart: 'ungueltig' });
 });
 
 test('Text: Länge, Steuerzeichen, Typ', () => {

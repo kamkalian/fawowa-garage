@@ -78,17 +78,17 @@ test('Name der Fahrerin oder des Fahrers ändern', async () => {
 
 test('Fahrrad anlegen, ändern, löschen', async () => {
   const token = await neueGarage();
-  const neu = await s.anfrage('POST', '/api/v1/garage/fahrraeder', { token, body: { name: 'Lastenrad', akku_kapazitaet_wh: '625', status: 'geprueft', garage_id: 99 } });
+  const neu = await s.anfrage('POST', '/api/v1/garage/fahrraeder', { token, body: { name: 'Lastenrad', gaenge: '18', status: 'geprueft', garage_id: 99 } });
   assert.equal(neu.status, 201);
   assert.equal(neu.json.name, 'Lastenrad');
-  assert.equal(neu.json.akku_kapazitaet_wh, 625);
+  assert.equal(neu.json.gaenge, 18);
   assert.equal(neu.json.status, 'ungeprueft', 'neue Einträge sind immer ungeprüft, auch wenn die Eingabe anderes behauptet');
   assert.ok(!('garage_id' in neu.json));
 
   const geaendert = await s.anfrage('PUT', `/api/v1/garage/fahrraeder/${neu.json.id}`, { token, body: { name: 'Lastenrad 2', gewicht_kg: 32 } });
   assert.equal(geaendert.status, 200);
   assert.equal(geaendert.json.name, 'Lastenrad 2');
-  assert.equal(geaendert.json.akku_kapazitaet_wh, null, 'PUT ersetzt den ganzen Eintrag');
+  assert.equal(geaendert.json.gaenge, null, 'PUT ersetzt den ganzen Eintrag');
 
   assert.equal((await s.anfrage('DELETE', `/api/v1/garage/fahrraeder/${neu.json.id}`, { token })).status, 204);
   assert.equal((await s.anfrage('DELETE', `/api/v1/garage/fahrraeder/${neu.json.id}`, { token })).status, 404);

@@ -68,7 +68,7 @@ export class FakeSpeicher {
     if (liste.filter(z => z.garage_id === garageId).length >= ARTEN[art].max) throw new FehlerEingabe('Limit', 409, { code: 'limit' });
     const alle = [...this.daten.fahrraeder, ...this.daten.anhaenger].filter(z => z.garage_id === garageId);
     const sortierung = Math.max(0, ...alle.map(z => z.sortierung)) + 1;
-    const zeile = { id: this.naechsteId++, garage_id: garageId, sortierung, ...werte, status: 'ungeprueft' };
+    const zeile = { id: this.naechsteId++, garage_id: garageId, sortierung, motoren: [], akkus: [], ...werte, status: 'ungeprueft' };
     liste.push(zeile);
     return this._sicht(zeile);
   }
@@ -245,6 +245,14 @@ export class FakeSpeicher {
     if (im) { m[art].add(id); if (!this.gespanne.has(garageId)) this.gespanne.set(garageId, { id: this.naechsteId++, fahrer_gewicht_kg: null, gepaeck_kg: null, status: 'ungeprueft' }); }
     else m[art].delete(id);
     return this.alles(garageId);
+  }
+
+  async antriebSetzen(garageId, art, id, { motoren, akkus }) {
+    const zeile = this.daten[art]?.find(z => z.id === id && z.garage_id === garageId);
+    if (!zeile) return undefined;
+    zeile.motoren = motoren.map(m => ({ id: this.naechsteId++, ...m }));
+    zeile.akkus = akkus.map(a => ({ id: this.naechsteId++, ...a }));
+    return { motoren: zeile.motoren, akkus: zeile.akkus };
   }
 
   _mitgliederVon(garageId) {

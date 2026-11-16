@@ -10,6 +10,7 @@
   import Fenster from './Fenster.svelte';
   import EmailFenster from './EmailFenster.svelte';
   import Planer from './Planer.svelte';
+  import AntriebFenster from './AntriebFenster.svelte';
 
   // Die Garage eines Nutzers: zwei Tabs. „Gespann“ (Standard) und „Stellplätze“ (alle Fahrräder und Anhänger als Kacheln, per Drag and Drop ordnen)
   let { lang, token, melde, onungueltig, ongeloescht, emailAktiv = false, einst = {} } = $props();
@@ -25,6 +26,7 @@
   let status = $state('laden'); // laden | bereit | fehler
   let daten = $state({ fahrraeder: [], anhaenger: [], gespann: null, email: null, email_offen: null });
   let form = $state(null);        // { art, eintrag } oder null
+  let antrieb = $state(null);     // { art, eintrag } für Motoren und Akkus, oder null
   let loeschen = $state(null);    // { art, eintrag } oder null
   let garageLoeschen = $state(false);
   let kopiert = $state(false);
@@ -143,6 +145,19 @@
       try { neu[schluessel(f)] = await api.fotoLaden(token, f.art, f.e.id); } catch { /* ohne Foto zeigt die Kachel das Icon */ }
     }
     fotos = neu;
+  }
+
+  /** Motoren und Akkus eines Fahrrads oder Anhängers speichern; bei einem Fehler bleibt das Fenster offen */
+  async function antriebSpeichern(werte) {
+    const ziel = antrieb;
+    try {
+      const ergebnis = await api.antriebSetzen(token, ziel.art, ziel.eintrag.id, werte);
+      daten[ziel.art] = daten[ziel.art].map(x => (x.id === ziel.eintrag.id ? { ...x, motoren: ergebnis.motoren, akkus: ergebnis.akkus } : x));
+      antrieb = null;
+      melde(t(lang, 'saved'));
+    } catch (err) {
+      melde(fehlerMeldung(err), 'error');
+    }
   }
 
   function fotoWaehlen(f) {
@@ -269,7 +284,8 @@
           ondragover={(e) => ueberKachel(e, schluessel(f))} ondrop={(e) => ablegenKachel(e, f)}>
           <EintragKarte {lang} art={f.art} eintrag={f.e} imGespann={imInGespann(f.art, f.e)} foto={fotos[schluessel(f)] ?? null} onfoto={() => fotoWaehlen(f)} onfotoloeschen={() => fotoEntfernen(f)}
             onGespann={() => umschalten(f)}
-            onedit={() => (form = { art: f.art, eintrag: f.e })} onremove={() => (loeschen = { art: f.art, eintrag: f.e })} />
+            onedit={() => (form = { art: f.art, eintrag: f.e })} onremove={() => (loeschen = { art: f.art, eintrag: f.e })}
+            onantrieb={() => (antrieb = { art: f.art, eintrag: f.e })} />
         </div>
       {/each}
       <div class="plus-wrap" role="listitem" ondragover={(e) => ueberKachel(e, 'ende')} ondrop={(e) => ablegenKachel(e, null)}>
@@ -318,6 +334,10 @@
 
 {#if form}
   <EintragForm {lang} art={form.art} eintrag={form.eintrag} onsave={speichere} onclose={() => (form = null)} />
+{/if}
+
+{#if antrieb}
+  <AntriebFenster {lang} eintrag={antrieb.eintrag} onsave={antriebSpeichern} onclose={() => (antrieb = null)} />
 {/if}
 
 {#if loeschen}
