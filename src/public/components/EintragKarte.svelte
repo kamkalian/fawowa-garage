@@ -46,7 +46,8 @@
   .kopf { display: flex; align-items: flex-start; justify-content: space-between; gap: .4rem; min-width: 0; }
   h3 { font-size: .9375rem; overflow-wrap: anywhere; min-width: 0; line-height: 1.25; }
   .gespann { flex-shrink: 0; font-size: .7rem; }
-  .bild { display: flex; justify-content: center; }
+  /* Bild oder Icon genau mittig in der Kachel (horizontal und vertikal) */
+  .bild { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; }
   .fuss { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; margin-top: auto; }
   /* Ausrufezeichen unten rechts; der Hinweis erscheint beim Darüberfahren */
   .warn { position: relative; margin-left: auto; width: 1.5rem; height: 1.5rem; border-radius: 999px; background: #f59e0b; color: #fff; font-weight: 700; font-size: .875rem; display: flex; align-items: center; justify-content: center; cursor: help; flex-shrink: 0; }

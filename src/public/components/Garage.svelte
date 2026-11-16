@@ -408,7 +408,8 @@
   }
   .tab.aktiv .anzahl { background: var(--primary-bg); border-color: var(--primary); color: var(--primary); }
   .hinweis { margin-bottom: 1rem; }
-  .liste { display: grid; grid-template-columns: repeat(auto-fill, minmax(12.5rem, 1fr)); gap: .75rem; padding: .75rem; }
+  /* Die Kacheln stehen links; rechts bleibt Platz für den Lichtschalter im Garagenbild */
+  .liste { display: grid; grid-template-columns: repeat(auto-fill, minmax(12.5rem, 1fr)); gap: .75rem; padding: 0; width: 72%; }
   .kachel { cursor: grab; border-radius: var(--radius); aspect-ratio: 1 / 1; display: flex; }
   .kachel:active { cursor: grabbing; }
   .kachel > :global(article) { height: 100%; }
