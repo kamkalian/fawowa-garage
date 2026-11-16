@@ -123,7 +123,7 @@ test('Kachel: bei Zoom 8 fehlen kurze Straßen (500 m, auf dem Bildschirm zu kle
 test('Sichtbarkeit wächst mit dem Zoom: ein Weg wird mit steigendem Zoom bei immer kürzerer Länge gezeigt', () => {
   assert.equal(zeigen(13, 2, 60, 51), false, 'Nebenstraßen erst ab Zoom 14');
   assert.equal(zeigen(14, 2, 60, 51), true);
-  assert.equal(zeigen(12, 2, 500, 51), true);
+  assert.equal(zeigen(13, 2, 500, 51), false, "Nebenstraßen noch nicht bei Zoom 13");
   assert.equal(zeigen(11, 1, 3000, 51), false, 'Hauptstraßen erst ab Zoom 12');
   assert.equal(zeigen(12, 1, 3000, 51), true);
   assert.equal(zeigen(13, 2, 3000, 51), false, 'Nebenstraßen erst ab Zoom 14');
