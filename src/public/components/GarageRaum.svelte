@@ -19,6 +19,8 @@
   }
 
   function schalten() {
+    // Im hellen Modus der Seite brennt das Licht immer; der Schalter hat dort keine Wirkung
+    if (document.documentElement.dataset.theme === 'light') return;
     licht = !licht;
     flackert = licht; // nur beim Einschalten flackern
     speichereStatus(licht);
@@ -100,5 +102,10 @@
     0% { filter: brightness(.45); } 12% { filter: none; } 22% { filter: brightness(.6); } 34% { filter: none; }
     48% { filter: brightness(.7); } 60% { filter: none; } 74% { filter: brightness(.9); } 100% { filter: none; }
   }
+  /* Heller Modus der Seite: Licht immer an, das Bild wird nicht verdunkelt und läuft hell zum Rand aus; Schalter ohne Wirkung */
+  :global([data-theme="light"]) .raum .bild img { filter: none; }
+  :global([data-theme="light"]) .raum .glanz { opacity: 1; }
+  :global([data-theme="light"]) .raum .dunkel { background: radial-gradient(ellipse at 50% 40%, transparent 45%, rgba(244, 241, 234, .92) 100%); }
+  :global([data-theme="light"]) .raum .schalter { pointer-events: none; cursor: default; }
   @media (prefers-reduced-motion: reduce) { .flackern .glanz, .flackern .bild img { animation: none; } }
 </style>
