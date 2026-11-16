@@ -336,7 +336,7 @@
 {/if}
 
 {#if profilOffen}
-  <Fenster {lang} titel={pick({ de: 'Fahrer und Gewicht', en: 'Rider and weight' }, lang)} onclose={() => (profilOffen = false)}>
+  <Fenster {lang} titel={daten.fahrer_name ? `${daten.fahrer_name} und Gewicht` : pick({ de: 'Fahrer und Gewicht', en: 'Rider and weight' }, lang)} onclose={() => (profilOffen = false)}>
     <form class="profil-form" onsubmit={profilSpeichern}>
       <label for="profil-gewicht">{pick(GESPANN_FELDER[0].label, lang)} (kg)</label>
       <input id="profil-gewicht" class="input" type="number" inputmode="decimal" min="20" max="250" step="any" bind:value={fahrer} />
