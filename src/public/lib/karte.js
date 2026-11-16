@@ -1,10 +1,12 @@
-// Selbst gezeichnete Karte (Canvas) ohne fremde Kartenserver: Wegelinien aus den Kacheln des eigenen Servers, Ortsnamen, Wärmekarte der Reichweite,
-// Umrandung und Startpunkt. Verschieben mit Ziehen, Zoom mit Mausrad, Knöpfen und zwei Fingern, Klick setzt den Start.
-//
-// Projektion: Web-Mercator. „Welt“ ist das Quadrat 0..1 (x von West nach Ost, y von Nord nach Süd); bei Zoom z ist es 256·2^z Pixel groß.
+// Selbst gezeichnete Karte (Canvas) im OSM-Stil: Grundkarte (Wasser, Wald, Grünflächen, Wohngebiete, Flüsse, Bahn), Straßen und
+// Radwege aus den Kacheln des eigenen Servers, Ortsnamen und die Wärmekarte der Reichweite. Keine fremden Kartenserver.
+// Projektion Web-Mercator; „Welt“ ist das Quadrat 0..1 (x West→Ost, y Nord→Süd).
 
 const TILE = 256;
 const MAX_PARALLEL = 6;
+const LAND = '#f2efe9';
+const FLAECHE = { 1: '#aad3df', 2: '#add19e', 3: '#cdebb0', 4: '#e6e0d4' };
+const LINIE = { 5: ['#aad3df', 2.4], 6: ['#aad3df', 1.1], 7: ['#8c8c8c', 1.2] };
 
 const weltX = (lon) => (lon + 180) / 360;
 const weltY = (lat) => {
@@ -14,38 +16,48 @@ const weltY = (lat) => {
 const lonVonWelt = (x) => x * 360 - 180;
 const latVonWelt = (y) => Math.atan(Math.sinh(Math.PI * (1 - 2 * y))) * 180 / Math.PI;
 
-/** Wegelinien einer Kachel aus dem Binärformat (siehe lib/karte-daten.js) in Weltkoordinaten */
-function liniendaten(buf) {
+/** Kachel aus dem Binärformat (siehe lib/karte-daten.js) */
+export function parseKachel(buf) {
   const dv = new DataView(buf);
-  const n = dv.getUint32(0, true);
-  const linien = [];
-  let p = 4;
-  for (let i = 0; i < n; i++) {
-    const art = dv.getUint8(p++);
-    const np = dv.getUint8(p++);
-    const xy = new Float64Array(np * 2);
-    for (let k = 0; k < np; k++) {
-      xy[k * 2] = weltX(dv.getInt32(p + 4, true) / 1e6);
-      xy[k * 2 + 1] = weltY(dv.getInt32(p, true) / 1e6);
-      p += 8;
+  let p = 0;
+  const liste = () => {
+    const n = dv.getUint32(p, true);
+    p += 4;
+    const out = [];
+    for (let i = 0; i < n; i++) {
+      const cls = dv.getUint8(p);
+      const np = dv.getUint16(p + 1, true);
+      p += 3;
+      const xy = new Float64Array(np * 2);
+      for (let k = 0; k < np; k++) {
+        xy[2 * k] = weltX(dv.getInt32(p + 4, true) / 1e6);
+        xy[2 * k + 1] = weltY(dv.getInt32(p, true) / 1e6);
+        p += 8;
+      }
+      out.push({ cls, xy });
     }
-    linien.push({ art, xy });
-  }
-  return linien;
+    return out;
+  };
+  return { flaechen: liste(), linien: liste(), wege: liste() };
 }
 
-// Farbe der Wärmekarte nach Anteil des Akkus (0 = Start, 1 = leer): grün, gelb, rot
-function waermeFarbe(t) {
-  const a = [22, 163, 74]; const b = [234, 179, 8]; const c = [220, 38, 38];
-  const [x, y, u] = t < 0.5 ? [a, b, t * 2] : [b, c, (t - 0.5) * 2];
-  return [Math.round(x[0] + (y[0] - x[0]) * u), Math.round(x[1] + (y[1] - x[1]) * u), Math.round(x[2] + (y[2] - x[2]) * u)];
+/** Farbe und Deckkraft der Wärmekarte. f: Anteil des Budgets (1 = Grenze). Bis 1 grün, gelb, rot; danach grau, das auslaufen soll. */
+function waermeRgba(f) {
+  if (f <= 1) {
+    const t = Math.max(0, f);
+    const a = [22, 163, 74]; const b = [234, 179, 8]; const c = [220, 38, 38];
+    const [x, y, u] = t < 0.5 ? [a, b, t * 2] : [b, c, (t - 0.5) * 2];
+    return [Math.round(x[0] + (y[0] - x[0]) * u), Math.round(x[1] + (y[1] - x[1]) * u), Math.round(x[2] + (y[2] - x[2]) * u), 110];
+  }
+  if (f <= 1.15) return [110, 110, 110, 95];
+  if (f < 1.5) return [110, 110, 110, Math.round(95 * (1.5 - f) / 0.35)];
+  return [0, 0, 0, 0];
 }
-export const waermeCss = (t) => `rgb(${waermeFarbe(t).join(',')})`;
 
 export class Karte {
   /**
    * canvas; optionen: { bbox, zoom: [min, max], kachel(z, x, y) -> Promise<ArrayBuffer>, orte: [[Name, Art, Breite, Länge], ...],
-   *   beiKlick(lat, lon), beschriftung: Text für Screenreader }
+   *   beiKlick(lat, lon), quelle: Text für die Quellenangabe }
    */
   constructor(canvas, optionen) {
     this.c = canvas;
@@ -57,11 +69,10 @@ export class Karte {
     this.mitte = { x: weltX((b.minLon + b.maxLon) / 2), y: weltY((b.minLat + b.maxLat) / 2) };
     this.grenzen = { x0: weltX(b.minLon - 0.3), x1: weltX(b.maxLon + 0.3), y0: weltY(b.maxLat + 0.2), y1: weltY(b.minLat - 0.2) };
     this.zoom = this.zoomMin;
-    this.kacheln = new Map();   // "z/x/y" -> { linien } | { fehler: Zeitpunkt } | 'laden'
+    this.kacheln = new Map(); // "z/x/y" -> geparste Kachel | 'laden' | { fehler: Zeitpunkt }
     this.laufend = 0;
     this.warteschlange = [];
-    this.overlay = null;        // { bild: Canvas, lat0, lon0, lat1, lon1 }
-    this.umrandung = [];
+    this.overlay = null;      // { bild, lat0, lon0, lat1, lon1 }
     this.start = null;
     this.zeichnenGeplant = false;
     this.zeiger = new Map();
@@ -72,7 +83,6 @@ export class Karte {
 
   // ---------- Koordinaten ----------
   get welt() { return TILE * 2 ** this.zoom; }
-  /** Weltkoordinate -> Pixel auf der Zeichenfläche (CSS-Pixel) */
   px(wx, wy) { const s = this.welt; return [(wx - this.mitte.x) * s + this.w / 2, (wy - this.mitte.y) * s + this.h / 2]; }
   vonPx(x, y) { const s = this.welt; return [this.mitte.x + (x - this.w / 2) / s, this.mitte.y + (y - this.h / 2) / s]; }
 
@@ -128,9 +138,8 @@ export class Karte {
   }
 
   setzeStart(lat, lon) { this.start = lat === null ? null : { lat, lon }; this.zeichnen(); }
-  setzeUmrandung(linien) { this.umrandung = linien ?? []; this.zeichnen(); }
 
-  /** Wärmekarte aus dem Raster der Antwort (base64, ein Byte je Zelle, 255 = nicht erreicht) */
+  /** Wärmekarte aus dem Raster der Antwort (base64, ein Byte je Zelle; Wert = byte / 254 × max) */
   setzeRaster(raster) {
     if (!raster) { this.overlay = null; this.zeichnen(); return; }
     const bin = atob(raster.daten);
@@ -139,14 +148,14 @@ export class Karte {
     bild.height = raster.ny;
     const ctx = bild.getContext('2d');
     const bd = ctx.createImageData(raster.nx, raster.ny);
+    const max = raster.max ?? 1.5;
     for (let y = 0; y < raster.ny; y++) {
       for (let x = 0; x < raster.nx; x++) {
-        const v = bin.charCodeAt(y * raster.nx + x);
+        const f = bin.charCodeAt(y * raster.nx + x) / 254 * max;
         // Zeile 0 liegt im Süden, im Bild oben ist Norden
         const o = ((raster.ny - 1 - y) * raster.nx + x) * 4;
-        if (v === 255) { bd.data[o + 3] = 0; continue; }
-        const [r, g, b] = waermeFarbe(v / 254);
-        bd.data[o] = r; bd.data[o + 1] = g; bd.data[o + 2] = b; bd.data[o + 3] = 255;
+        const [r, g, b, a] = waermeRgba(f);
+        bd.data[o] = r; bd.data[o + 1] = g; bd.data[o + 2] = b; bd.data[o + 3] = a;
       }
     }
     ctx.putImageData(bd, 0, 0);
@@ -172,13 +181,43 @@ export class Karte {
       const { key, z, x, y } = this.warteschlange.pop(); // zuletzt angefragte zuerst: sie liegen im Bild
       this.laufend++;
       Promise.resolve(this.opt.kachel(z, x, y))
-        .then((buf) => this.kacheln.set(key, { linien: liniendaten(buf) }))
+        .then((buf) => this.kacheln.set(key, parseKachel(buf)))
         .catch(() => this.kacheln.set(key, { fehler: Date.now() }))
         .finally(() => { this.laufend--; this._abarbeiten(); this.zeichnen(); });
     }
-    if (this.kacheln.size > 400) { // Speicher begrenzen: die ältesten Einträge vergessen
+    if (this.kacheln.size > 400) { // Speicher begrenzen
       for (const key of this.kacheln.keys()) { if (this.kacheln.size <= 300) break; this.kacheln.delete(key); }
     }
+  }
+
+  /** Daten der sichtbaren Kacheln; fehlt eine, wird die gröbere Kachel derselben Stelle genommen */
+  _sichtbare() {
+    const tz = Math.min(this.zoomMax, Math.max(this.zoomMin, Math.round(this.zoom)));
+    const n = 2 ** tz;
+    const [wx0, wy0] = this.vonPx(0, 0);
+    const [wx1, wy1] = this.vonPx(this.w, this.h);
+    const x0 = Math.max(0, Math.floor(wx0 * n)); const x1 = Math.min(n - 1, Math.floor(wx1 * n));
+    const y0 = Math.max(0, Math.floor(wy0 * n)); const y1 = Math.min(n - 1, Math.floor(wy1 * n));
+    if ((x1 - x0 + 1) * (y1 - y0 + 1) > 80) return [];
+    const fertig = (k) => k && k !== 'laden' && !k.fehler;
+    const gesehen = new Set();
+    const daten = [];
+    const g = this.grenzen;
+    for (let y = y0; y <= y1; y++) {
+      for (let x = x0; x <= x1; x++) {
+        if ((x + 1) / n < g.x0 || x / n > g.x1 || (y + 1) / n < g.y0 || y / n > g.y1) continue; // außerhalb: keine Anfrage
+        let k = this._kachelHolen(tz, x, y);
+        let kz = tz; let kx = x; let ky = y;
+        while (!fertig(k) && kz > this.zoomMin) {
+          kz--; kx = Math.floor(kx / 2); ky = Math.floor(ky / 2);
+          k = this.kacheln.get(`${kz}/${kx}/${ky}`);
+        }
+        if (!fertig(k)) continue;
+        const id = `${kz}/${kx}/${ky}`;
+        if (!gesehen.has(id)) { gesehen.add(id); daten.push(k); }
+      }
+    }
+    return daten;
   }
 
   // ---------- Zeichnen ----------
@@ -191,86 +230,108 @@ export class Karte {
   _farben() {
     const s = getComputedStyle(document.documentElement);
     const f = (n) => s.getPropertyValue(n).trim();
-    this.farben = { bg: f('--bg'), fg: f('--fg'), muted: f('--fg-muted'), rand: f('--border'), primary: f('--primary') };
+    this.farben = { fg: f('--fg'), muted: f('--fg-muted'), bg: f('--bg') };
   }
+
+  _breitenFaktor() { return Math.min(2.2, Math.max(0.45, 0.45 + (this.zoom - this.zoomMin) * 0.3)); }
 
   _zeichne() {
     const g = this.g;
     this._farben();
     g.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
-    g.fillStyle = this.farben.bg;
+    g.fillStyle = LAND;
     g.fillRect(0, 0, this.w, this.h);
-
-    this._zeichneWaerme(g);   // die Wärmekarte liegt unter den Wegen, damit sie lesbar bleiben
-    this._zeichneWege(g);
-    this._zeichneUmrandung(g);
+    const kacheln = this._sichtbare();
+    this._zeichneFlaechen(g, kacheln);
+    this._zeichneLinien(g, kacheln);
+    this._zeichneWaerme(g);
+    this._zeichneWege(g, kacheln);
     this._zeichneOrte(g);
     this._zeichneStart(g);
-
     g.font = '10px system-ui, sans-serif';
-    g.fillStyle = this.farben.muted;
+    g.fillStyle = '#4b4b4b';
     g.textAlign = 'right';
     g.textBaseline = 'bottom';
     g.fillText(this.opt.quelle ?? '', this.w - 6, this.h - 4);
   }
 
-  _zeichneWege(g) {
-    const tz = Math.min(this.zoomMax, Math.max(this.zoomMin, Math.round(this.zoom)));
-    const n = 2 ** tz;
-    const [wx0, wy0] = this.vonPx(0, 0);
-    const [wx1, wy1] = this.vonPx(this.w, this.h);
-    const x0 = Math.max(0, Math.floor(wx0 * n)); const x1 = Math.min(n - 1, Math.floor(wx1 * n));
-    const y0 = Math.max(0, Math.floor(wy0 * n)); const y1 = Math.min(n - 1, Math.floor(wy1 * n));
-    if ((x1 - x0 + 1) * (y1 - y0 + 1) > 80) return; // viel zu viele Kacheln: nicht zeichnen
-    const gezeichnet = new Set();
-    const zuZeichnen = [];
-    const nurSichtbareGrenzen = this.grenzen;
-    for (let y = y0; y <= y1; y++) {
-      for (let x = x0; x <= x1; x++) {
-        // außerhalb des Landes keine Anfragen
-        if ((x + 1) / n < nurSichtbareGrenzen.x0 || x / n > nurSichtbareGrenzen.x1 || (y + 1) / n < nurSichtbareGrenzen.y0 || y / n > nurSichtbareGrenzen.y1) continue;
-        let k = this._kachelHolen(tz, x, y);
-        let kz = tz; let kx = x; let ky = y;
-        // Solange sie lädt: gröbere Kachel derselben Stelle zeigen
-        while ((k === 'laden' || k.fehler) && kz > this.zoomMin) {
-          kz--; kx = Math.floor(kx / 2); ky = Math.floor(ky / 2);
-          const ersatz = this.kacheln.get(`${kz}/${kx}/${ky}`);
-          k = ersatz && ersatz !== 'laden' && !ersatz.fehler ? ersatz : 'laden';
-          if (k !== 'laden') break;
-        }
-        if (k === 'laden' || k.fehler) continue;
-        const id = `${kz}/${kx}/${ky}`;
-        if (!gezeichnet.has(id)) { gezeichnet.add(id); zuZeichnen.push(k); }
+  /** Transformation von Welt in Pixel für die Zeichnung */
+  _umrechner() {
+    const s = this.welt;
+    return { s, ox: this.w / 2 - this.mitte.x * s, oy: this.h / 2 - this.mitte.y * s };
+  }
+
+  /** Flächen einzeln füllen: ein einziger Pfad mit tausenden Teilflächen ist im Browser sehr langsam */
+  _zeichneFlaechen(g, kacheln) {
+    const { s, ox, oy } = this._umrechner();
+    for (const cls of [1, 2, 3, 4]) {
+      g.fillStyle = FLAECHE[cls];
+      for (const k of kacheln) for (const f of k.flaechen) {
+        if (f.cls !== cls) continue;
+        const xy = f.xy;
+        g.beginPath();
+        g.moveTo(xy[0] * s + ox, xy[1] * s + oy);
+        for (let i = 2; i < xy.length; i += 2) g.lineTo(xy[i] * s + ox, xy[i + 1] * s + oy);
+        g.closePath();
+        g.fill();
       }
     }
-    const s = this.welt;
-    const ox = this.w / 2 - this.mitte.x * s;
-    const oy = this.h / 2 - this.mitte.y * s;
-    const stile = {
-      4: { w: 0.7, f: this.farben.rand, a: 0.8 },
-      3: { w: 1, f: this.farben.primary, a: 0.5 },
-      2: { w: 0.9, f: this.farben.muted, a: 0.55 },
-      1: { w: this.zoom > 10 ? 1.8 : 1.2, f: this.farben.muted, a: 0.95 }
+  }
+
+  _zeichneLinien(g, kacheln) {
+    const { s, ox, oy } = this._umrechner();
+    const m = this._breitenFaktor();
+    for (const cls of [5, 6, 7]) {
+      g.beginPath();
+      let da = false;
+      for (const k of kacheln) for (const l of k.linien) {
+        if (l.cls !== cls) continue;
+        da = true;
+        const xy = l.xy;
+        g.moveTo(xy[0] * s + ox, xy[1] * s + oy);
+        for (let i = 2; i < xy.length; i += 2) g.lineTo(xy[i] * s + ox, xy[i + 1] * s + oy);
+      }
+      if (da) { g.strokeStyle = LINIE[cls][0]; g.lineWidth = LINIE[cls][1] * m; g.lineJoin = 'round'; g.stroke(); }
+    }
+  }
+
+  _zeichneWege(g, kacheln) {
+    const { s, ox, oy } = this._umrechner();
+    const m = this._breitenFaktor();
+    // Art 1 Hauptstraße, 2 Nebenstraße, 3 Radweg (gestrichelt), 4 Wirtschaftsweg und Pfad (gestrichelt)
+    const stil = {
+      1: { w: 2.6, f: '#fcd6a4', rand: '#d9a86c' },
+      2: { w: 1.8, f: '#ffffff', rand: '#c9c2b5' },
+      3: { w: 1.0, f: '#4f86d9', strich: [4, 2] },
+      4: { w: 0.9, f: '#9a8b74', strich: [3, 2] }
+    };
+    const pfad = (art) => {
+      g.beginPath();
+      for (const k of kacheln) for (const wg of k.wege) {
+        if (wg.cls !== art) continue;
+        const xy = wg.xy;
+        g.moveTo(xy[0] * s + ox, xy[1] * s + oy);
+        for (let i = 2; i < xy.length; i += 2) g.lineTo(xy[i] * s + ox, xy[i + 1] * s + oy);
+      }
     };
     g.lineJoin = 'round';
     g.lineCap = 'round';
-    for (const art of [4, 3, 2, 1]) {
-      const st = stile[art];
-      g.beginPath();
-      for (const k of zuZeichnen) {
-        for (const l of k.linien) {
-          if (l.art !== art) continue;
-          const xy = l.xy;
-          g.moveTo(xy[0] * s + ox, xy[1] * s + oy);
-          for (let i = 2; i < xy.length; i += 2) g.lineTo(xy[i] * s + ox, xy[i + 1] * s + oy);
-        }
+    for (const art of [1, 2, 3, 4]) {
+      const st = stil[art];
+      if (st.rand) {
+        pfad(art);
+        g.strokeStyle = st.rand;
+        g.lineWidth = (st.w + 1.4) * m;
+        g.setLineDash([]);
+        g.stroke();
       }
+      pfad(art);
       g.strokeStyle = st.f;
-      g.globalAlpha = st.a;
-      g.lineWidth = st.w;
+      g.lineWidth = st.w * m;
+      g.setLineDash(st.strich ?? []);
       g.stroke();
+      g.setLineDash([]);
     }
-    g.globalAlpha = 1;
   }
 
   _zeichneWaerme(g) {
@@ -279,27 +340,8 @@ export class Karte {
     const [x0, y0] = this.px(weltX(o.lon0), weltY(o.lat1));
     const [x1, y1] = this.px(weltX(o.lon1), weltY(o.lat0));
     g.imageSmoothingEnabled = true;
-    g.globalAlpha = 0.6;
+    g.imageSmoothingQuality = 'high';
     g.drawImage(o.bild, x0, y0, x1 - x0, y1 - y0);
-    g.globalAlpha = 1;
-  }
-
-  _zeichneUmrandung(g) {
-    if (!this.umrandung.length) return;
-    g.beginPath();
-    for (const linie of this.umrandung) {
-      linie.forEach(([la, lo], i) => {
-        const [x, y] = this.px(weltX(lo), weltY(la));
-        if (i === 0) g.moveTo(x, y); else g.lineTo(x, y);
-      });
-    }
-    g.lineJoin = 'round';
-    g.strokeStyle = this.farben.bg;
-    g.lineWidth = 4;
-    g.stroke();
-    g.strokeStyle = this.farben.fg;
-    g.lineWidth = 2;
-    g.stroke();
   }
 
   _zeichneOrte(g) {
@@ -333,12 +375,12 @@ export class Karte {
       n++;
       g.beginPath();
       g.arc(x, y, gross ? 3 : 2, 0, Math.PI * 2);
-      g.fillStyle = this.farben.fg;
+      g.fillStyle = '#222';
       g.fill();
       g.lineWidth = 3;
-      g.strokeStyle = this.farben.bg;
+      g.strokeStyle = 'rgba(255,255,255,0.85)';
       g.strokeText(o[0], r.x, y);
-      g.fillStyle = this.farben.fg;
+      g.fillStyle = '#222';
       g.fillText(o[0], r.x, y);
     }
   }
@@ -348,7 +390,7 @@ export class Karte {
     const [x, y] = this.px(weltX(this.start.lon), weltY(this.start.lat));
     g.beginPath();
     g.arc(x, y, 8, 0, Math.PI * 2);
-    g.fillStyle = this.farben.primary;
+    g.fillStyle = '#15803d';
     g.fill();
     g.lineWidth = 3;
     g.strokeStyle = '#fff';
@@ -416,8 +458,8 @@ export class Karte {
       else if (e.key === 'ArrowRight') this.mitte.x += schritt;
       else if (e.key === 'ArrowUp') this.mitte.y -= schritt;
       else if (e.key === 'ArrowDown') this.mitte.y += schritt;
-      else if (e.key === '+' || e.key === '=') return void (this.zoomen(1.5), e.preventDefault());
-      else if (e.key === '-') return void (this.zoomen(1 / 1.5), e.preventDefault());
+      else if (e.key === '+' || e.key === '=') { e.preventDefault(); this.zoomen(1.5); return; }
+      else if (e.key === '-') { e.preventDefault(); this.zoomen(1 / 1.5); return; }
       else return;
       e.preventDefault();
       this.begrenze();
@@ -429,3 +471,5 @@ export class Karte {
 
   beenden() { this.beobachter?.disconnect(); }
 }
+
+export { latVonWelt, lonVonWelt };

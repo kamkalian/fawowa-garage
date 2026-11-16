@@ -122,3 +122,15 @@ Offen aus diesem Bericht: Rand um NRW, Anhänger-Tauglichkeit der Wege, Wetter a
 - Umrandung der erreichbaren Fläche (Rasterkontur oder Hülle) mit Teilstücken am Rand, Kartenansicht mit selbst gehosteter Karte (MapLibre und eine
   Kartendatei für NRW), Heatmap nach Energie, Wetter (Wind, Sonne) über den Server abrufen.
 - Anhänger-Tauglichkeit der Wege (Breite, Schranken) und Zuschlag für Radweg-Pflicht.
+
+
+## Nachtrag: Grundkarte, Fahrtzeit, Grauzone (16.11.2026)
+
+- **Grundkarte:** `tools/routing/karte-bauen.js` liest die OSM-Datei erneut und legt in `<Netz>/karte` Flächen (Wasser, Wald, Grünflächen,
+  Wohngebiete) und Linien (Flüsse, Bäche, Bahn) für NRW ab: 930 000 Merkmale, 80 MB, 21 s. Gebäude und Mehrfachflächen (Relationen) fehlen,
+  deshalb sind große Waldflächen mit Löchern teilweise unvollständig. Auf der Karte liegen Straßen und Radwege darüber.
+- **Zeichnen:** Ein einziger Pfad mit tausenden Teilflächen war im Browser sehr langsam (bis 10 s je Zeichnung). Flächen werden deshalb einzeln
+  gefüllt (etwa 20 ms). Punkte je Zoomstufe reduziert (eine halbe Pixelbreite).
+- **Fahrtzeit:** Neben dem Akku kann die Berechnung nach einer festen Fahrtzeit (0,5 bis 12 Stunden) laufen. Ohne Motor im Gespann ist nur die
+  Fahrtzeit möglich. Die Suche nimmt dann Sekunden statt Wattstunden als Kosten.
+- **Grauzone:** Die Suche reicht bis 125 % des Budgets; darüber folgt ein grauer Rand, der nach außen transparent ausläuft. Die Werte sind geglättet.
