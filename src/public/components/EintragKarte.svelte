@@ -26,7 +26,7 @@
 
     <div class="fuss">
       {#if onGespann}
-        <button type="button" class="btn btn-outline btn-sm" onclick={onGespann}>{t(lang, imGespann ? 'removeGespann' : 'toGespann')}</button>
+        <button type="button" class="btn btn-outline btn-sm" onclick={onGespann} aria-label={imGespann ? pick({ de: 'Aus dem Gespann nehmen', en: 'Remove from convoy' }, lang) : pick({ de: 'Ins Gespann', en: 'Add to convoy' }, lang)}>{imGespann ? '−' : '+'} Gespann</button>
       {/if}
       {#if onedit}
         <button type="button" class="btn btn-outline btn-sm" onclick={onedit}><Icon name="ui-edit" size={14} /> {t(lang, 'edit')}</button>

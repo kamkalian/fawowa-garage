@@ -72,6 +72,9 @@
   .schalterbild {
     position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
     width: 2.6cqw; height: 3.375cqw; border-radius: 2px;
+    /* weiche Kanten: das Foto läuft zum Rand hin aus */
+    -webkit-mask-image: radial-gradient(closest-side, #000 55%, transparent 100%);
+    mask-image: radial-gradient(closest-side, #000 55%, transparent 100%);
     background-image: url(/garage.webp); background-repeat: no-repeat;
     background-size: 100cqw 56.25cqw;
     background-position: calc(-78cqw + 1.3cqw) calc(-28.6875cqw + 1.6875cqw);
