@@ -29,6 +29,8 @@
 
   <!-- Schalterebene: liegt über den Kacheln, damit der Schalter immer erreichbar ist -->
   <div class="schalterebene">
+    <!-- Ausschnitt des Fotos um den Schalter, unverdunkelt: bei ausgeschaltetem Licht bleibt der Schalter so sichtbar -->
+    <div class="schalterlicht" aria-hidden="true"></div>
     <button type="button" class="schalter" class:leuchtet={!licht} onclick={schalten} aria-pressed={licht}
       aria-label={pick({ de: 'Licht ein- und ausschalten', en: 'Switch light on or off' }, lang)}
       title={pick({ de: 'Licht', en: 'Light' }, lang)}></button>
@@ -46,7 +48,7 @@
   .bild { position: absolute; top: 0; left: 0; right: 0; aspect-ratio: 2000 / 1125; z-index: 0; pointer-events: none; }
   .bild img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transition: filter .4s; }
   /* Licht aus: das Foto wird sehr dunkel */
-  .aus .bild img { filter: brightness(.12) saturate(.5); }
+  .aus .bild img { filter: brightness(.25) saturate(.6); }
   /* Glanz unter der Röhre (Position passend zum Foto) */
   .glanz {
     position: absolute; left: 30%; top: 2%; width: 40%; height: 22%; pointer-events: none;
@@ -64,8 +66,16 @@
   }
   .schalter:hover { background: rgba(255, 255, 255, .12); }
   .schalter:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
-  /* Licht aus: der Schalter bleibt hell, während das übrige Bild fast dunkel ist */
-  .schalter.leuchtet { background: rgba(255, 246, 205, .9); box-shadow: 0 0 14px 6px rgba(255, 235, 160, .7); border-radius: 6px; }
+  /* Ausschnitt um den Schalter: das Foto ohne Verdunkelung, nur bei ausgeschaltetem Licht sichtbar */
+  .schalterlicht {
+    position: absolute; inset: 0; pointer-events: none;
+    background: url(/garage.webp) center / cover no-repeat;
+    clip-path: ellipse(3.6% 6.5% at 78% 51%);
+    opacity: 0; transition: opacity .3s;
+  }
+  .aus .schalterlicht { opacity: 1; }
+  /* Licht aus: ein weicher Schein um den Schalter, der Schalter selbst kommt aus dem Ausschnitt */
+  .schalter.leuchtet { background: transparent; box-shadow: 0 0 14px 5px rgba(255, 235, 160, .5); border-radius: 6px; }
   /* Rand und unterer Bereich dunkel auslaufen lassen */
   .dunkel {
     position: absolute; inset: 0; z-index: 1; pointer-events: none;
@@ -74,7 +84,8 @@
       radial-gradient(ellipse at 50% 35%, transparent 45%, rgba(0, 0, 0, .55) 100%);
     transition: background-color .4s;
   }
-  .aus .dunkel { background: linear-gradient(to bottom, rgba(0, 0, 0, .8), rgba(0, 0, 0, .97)); }
+  /* Licht aus: sehr dunkel, aber nicht schwarz */
+  .aus .dunkel { background: linear-gradient(to bottom, rgba(10, 11, 13, .6), rgba(10, 11, 13, .85)); }
   /* Flackern beim Einschalten */
   .flackern .glanz { animation: flackern .6s steps(1) 1; }
   .flackern .bild img { animation: flackern-bild .6s steps(1) 1; }
