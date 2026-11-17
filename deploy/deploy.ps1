@@ -38,9 +38,9 @@ Push-Location $projekt
 try {
   if (Test-Path $archiv) { Remove-Item $archiv }
   # Nur die ausdrücklich genannten Dateien und Ordner kommen ins Archiv; data/, .env, .git und tests/ gehören nicht dazu.
-  Invoke-Nativ { tar -czf $archiv --exclude=node_modules `
+  Invoke-Nativ { tar -czf $archiv --exclude=node_modules --exclude=*.exe --exclude=daten-bauen/daten `
     Dockerfile docker-compose.yml .dockerignore package.json package-lock.json `
-    server.js vite.config.js index.html admin.html public src lib tools }
+    server.js vite.config.js index.html admin.html public src lib tools daten-bauen }
   if ($LASTEXITCODE -ne 0) { throw 'tar ist fehlgeschlagen.' }
 } finally { Pop-Location }
 
