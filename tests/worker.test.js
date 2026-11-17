@@ -7,7 +7,7 @@ import { tmpdir } from 'os';
 import { join } from 'path';
 import { Netz } from '../lib/netz.js';
 import { rechneReichweite } from '../lib/reichweite.js';
-import { ladePlaner } from '../lib/planer.js';
+import { ladePlaner, planerLader } from '../lib/planer.js';
 import { swapAusMeminfo, netzStand } from '../lib/system.js';
 import { gitterNetz } from './hilfen-netz.js';
 
@@ -33,6 +33,14 @@ test('Planer: ohne Wegenetz oder ohne Ausdehnung gibt es keine Angaben', () => {
   const ohneBox = mkdtempSync(join(tmpdir(), 'garage-ohnebox-'));
   writeFileSync(join(ohneBox, 'info.json'), JSON.stringify({ knoten: 5 }));
   assert.equal(ladePlaner(ohneBox), null, 'ohne bbox ist der Planer nicht eingerichtet');
+});
+
+test('Planer: wird nach einem neuen Netzbau ohne Neustart erkannt', () => {
+  const ordner = mkdtempSync(join(tmpdir(), 'garage-lader-'));
+  const holen = planerLader(ordner);
+  assert.equal(holen(), null, 'noch kein Netz');
+  writeFileSync(join(ordner, 'info.json'), JSON.stringify({ bbox: { minLat: 50, maxLat: 52, minLon: 6, maxLon: 9 } }));
+  assert.equal(holen().bbox.maxLat, 52, 'neues Netz wird gelesen');
 });
 
 test('Planer: Ausdehnung und Orte aus dem Wegenetz', () => {

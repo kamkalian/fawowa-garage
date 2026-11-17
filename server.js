@@ -7,7 +7,7 @@ import { Speicher } from './lib/speicher.js';
 import { erstelleApp } from './lib/app.js';
 import { erstelleMailer, oeffentlicheUrl } from './lib/mail.js';
 import { Jobs } from './lib/jobs.js';
-import { ladePlaner } from './lib/planer.js';
+import { planerLader } from './lib/planer.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -33,8 +33,9 @@ if (mailer && !url) console.warn('SMTP ist eingerichtet, aber PUBLIC_URL fehlt o
 console.log(mailer && url ? 'E-Mail: eingerichtet' : 'E-Mail: nicht eingerichtet (SMTP_HOST, MAIL_FROM und PUBLIC_URL in der .env setzen)');
 
 // Reichweiten-Planer: der Webdienst liest nur die kleinen Angaben zum Wegenetz (NETZ_DIR); gerechnet wird im Garage-Worker (lib/worker.js)
-const planer = ladePlaner(process.env.NETZ_DIR);
-console.log(planer ? `Reichweiten-Planer: eingerichtet (${process.env.NETZ_DIR})` : 'Reichweiten-Planer: nicht eingerichtet (kein Wegenetz in NETZ_DIR)');
+// Wird bei jeder Anfrage geprüft: ein neuer Netzbau gilt ohne Neustart
+const planer = planerLader(process.env.NETZ_DIR);
+console.log(planer() ? `Reichweiten-Planer: eingerichtet (${process.env.NETZ_DIR})` : 'Reichweiten-Planer: noch nicht eingerichtet (kein Wegenetz in NETZ_DIR)');
 
 const app = erstelleApp(new Speicher(pool), { produktion: PRODUCTION, oberflaeche: join(__dirname, 'dist'), mailer, url, planer, jobs: new Jobs(pool) });
 
