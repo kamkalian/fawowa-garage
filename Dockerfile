@@ -30,7 +30,7 @@ COPY package.json server.js ./
 COPY lib/ ./lib/
 
 # Die Anwendung speichert Fotos im Ordner fotos (als Volume eingebunden); sonst liegt alles in der Datenbank. Sie läuft ohne Rechte
-RUN mkdir -p /app/fotos && chown node:node /app/fotos
+RUN mkdir -p /app/fotos /app/kacheln && chown node:node /app/fotos /app/kacheln
 USER node
 
 EXPOSE 3470

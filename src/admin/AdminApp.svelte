@@ -3,6 +3,7 @@
   import { api } from './api.js';
   import Login from './Login.svelte';
   import Garagen from './Garagen.svelte';
+  import Kacheln from './Kacheln.svelte';
   import GarageDetail from './GarageDetail.svelte';
 
   let angemeldet = $state(null);   // null = prüfe noch
@@ -68,6 +69,8 @@
         <div><dt>Mit bestätigter E-Mail</dt><dd>{uebersicht.mit_email}</dd></div>
       </dl>
     {/if}
+
+    <Kacheln />
 
     <!-- Die Liste bleibt geladen (nur ausgeblendet), damit Suche und Seite beim Zurückkehren erhalten bleiben -->
     <div hidden={auswahl !== null}>
