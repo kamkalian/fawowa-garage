@@ -92,4 +92,4 @@ export const ICONS = {
 };
 
 /** Symbole, die als fertige SVG-Datei (unverändert) angezeigt werden: Schlüssel => Pfad unter public/ */
-export const BILD_SYMBOLE = { trike: "/symbole/trike.svg", trike_e: "/symbole/trike_e.svg" };
+export const BILD_SYMBOLE = { trike: "/symbole/trike.svg" };
