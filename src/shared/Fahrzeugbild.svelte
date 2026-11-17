@@ -9,7 +9,8 @@
 
   const schluessel = $derived(art === 'fahrraeder' ? (bauart ?? 'fahrrad') : art === 'gepaecke' ? 'gepaeck' : (aufbau ?? 'sonstiges'));
   const svg = $derived(ICONS[schluessel] ?? ICONS.sonstiges);
-  const bild = $derived(BILD_SYMBOLE[schluessel] ?? null);
+  // Trike mit Motor und Akku: eigene Zeichnung trike_e
+  const bild = $derived(schluessel === 'trike' && motor && akku ? BILD_SYMBOLE.trike_e : (BILD_SYMBOLE[schluessel] ?? null));
 </script>
 
 <div class="bild" class:ohne-hintergrund={!foto} style="--groesse: {groesse}">
