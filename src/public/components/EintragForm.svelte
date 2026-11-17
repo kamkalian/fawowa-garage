@@ -152,7 +152,7 @@
   .rechts { display: inline-flex; gap: .5rem; margin-left: auto; }
   /* Symbole zur Auswahl von Bauart und Art des Anhängers */
   .symbole { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: .5rem; }
-  .symbol-knopf {
+  .symbol-knopf { --deck: var(--bg-card);
     display: flex; flex-direction: column; align-items: center; gap: .25rem; padding: .5rem .25rem;
     background: var(--bg-card); color: var(--fg-muted); border: 1px solid var(--border); border-radius: var(--radius-sm);
     font-family: inherit; font-size: .75rem; cursor: pointer; transition: all .15s;
