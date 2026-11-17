@@ -127,7 +127,7 @@
                 <td>{job.id}</td>
                 <td>{ARTEN[job.art] ?? job.art}</td>
                 <td>
-                  {STATUS[job.status] ?? job.status}
+                  <span class="status {job.status}">{STATUS[job.status] ?? job.status}</span>
                   {#if job.status === 'wartet'}<span class="platz">Platz {wartende.indexOf(job) + 1}</span>{/if}
                 </td>
                 <td>{job.status === 'wartet' ? '–' : `${job.fortschritt} %`}</td>
@@ -181,6 +181,12 @@
   th { font-weight: 600; color: var(--fg-muted); }
   .meldung { max-width: 22rem; white-space: normal; word-break: break-word; color: var(--fg-muted); }
   tr.fehler td:nth-child(3) { color: var(--danger, #dc2626); }
+  /* Status farblich: blau läuft, gelb wartet, rot Fehler, grün fertig */
+  .status { display: inline-block; padding: .1rem .5rem; border-radius: 999px; font-weight: 600; font-size: .8125rem; }
+  .status.laeuft { background: #2563eb; color: #fff; }
+  .status.wartet { background: #facc15; color: #422006; }
+  .status.fehler { background: #dc2626; color: #fff; }
+  .status.fertig { background: #16a34a; color: #fff; }
   .platz { display: inline-block; margin-left: .4rem; font-size: .8125rem; color: var(--fg-muted); }
   .aktionen { white-space: nowrap; }
   .klein { padding: .2rem .5rem; font-size: .8125rem; margin-right: .2rem; }

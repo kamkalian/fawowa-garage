@@ -145,7 +145,7 @@
       }
       if (s.status === 'wartet' || s.status === 'laeuft') {
         auftrag = { status: s.status, davor: s.davor };
-        await pause(2500);
+        await pause(2000);
         continue;
       }
       auftrag = null;
@@ -383,8 +383,7 @@
             <strong>{t(lang, 'p_laeuft')}</strong>
           {:else}
             <strong>{t(lang, 'p_wartet')}</strong>
-            <span>{t(lang, 'p_warteschlange')} {auftrag.davor}</span>
-            {#if auftrag.davor === 0}<span>{t(lang, 'p_naechste')}</span>{/if}
+            <span class="warteschlange">{t(lang, 'p_warteschlange')} <strong>{auftrag.davor}</strong>{#if auftrag.davor === 0} ({t(lang, 'p_naechste')}){/if}</span>
             <span class="notiz">{t(lang, 'p_spaeter')}</span>
           {/if}
         </div>
