@@ -8,7 +8,7 @@ import { join } from 'path';
 import { Netz } from '../lib/netz.js';
 import { rechneReichweite } from '../lib/reichweite.js';
 import { ladePlaner, planerLader } from '../lib/planer.js';
-import { swapAusMeminfo } from '../lib/system.js';
+import { swapAusMeminfo, cpuStand } from '../lib/system.js';
 import { datenstand } from '../lib/datenstand.js';
 import { hoehenName } from '../lib/datenquellen.js';
 import { gitterNetz } from './hilfen-netz.js';
@@ -87,4 +87,13 @@ test('Datenstand: ohne ZIP gibt es kein Wegenetz; nach dem Entpacken gilt sein D
   assert.equal(k.netz.vorhanden, true);
   assert.equal(k.netz.geladen_am, '2026-11-10T10:00:00.000Z');
   assert.equal(k.kacheln.neu, true, 'Netz nach den Kacheln neu eingespielt');
+});
+
+test('Prozessor: Kernzahl, und die Auslastung je Kern kommt ab der zweiten Abfrage', () => {
+  const erste = cpuStand();
+  assert.ok(erste.kerne >= 1);
+  assert.equal(erste.auslastung, null);
+  const zweite = cpuStand();
+  assert.equal(zweite.auslastung.length, erste.kerne);
+  assert.ok(zweite.auslastung.every((p) => p >= 0 && p <= 100));
 });

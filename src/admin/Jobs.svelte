@@ -120,6 +120,21 @@
           {/if}
         </div>
       </div>
+      {#if sys.cpu}
+        <div class="cpu">
+          <span class="etikett">Prozessor: {sys.cpu.kerne} Kerne</span>
+          {#if sys.cpu.auslastung}
+            <div class="kerne">
+              {#each sys.cpu.auslastung as p, i (i)}
+                <div class="kern" title="Kern {i + 1}: {p} %"><div class="kern-balken" style="height: {p}%"></div></div>
+              {/each}
+            </div>
+            <small>Durchschnitt {Math.round(sys.cpu.auslastung.reduce((a, b) => a + b, 0) / sys.cpu.auslastung.length)} % je Kern</small>
+          {:else}
+            <small>Auslastung wird ermittelt ...</small>
+          {/if}
+        </div>
+      {/if}
     {/if}
 
     <h3>Stand der Daten</h3>
@@ -216,6 +231,9 @@
   .balken-aussen { height: .6rem; border-radius: 999px; background: var(--bg-input); overflow: hidden; margin: .25rem 0; }
   .balken { height: 100%; background: var(--primary); transition: width .4s; }
   .balken.swap { background: #d97706; }
+  .kerne { display: flex; align-items: flex-end; gap: .2rem; height: 3rem; margin: .25rem 0; }
+  .kern { flex: 1; max-width: 1.2rem; height: 100%; background: var(--bg-input); border-radius: 3px; overflow: hidden; display: flex; align-items: flex-end; }
+  .kern-balken { width: 100%; background: var(--primary); transition: height .4s; }
   small { font-size: .8125rem; color: var(--fg-muted); }
   .datenkacheln { display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); gap: .75rem; }
   .datenkachel { border: 1px solid var(--border); border-radius: var(--radius); padding: .75rem; display: flex; flex-direction: column; gap: .4rem; background: var(--bg); }
