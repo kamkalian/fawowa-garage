@@ -1,5 +1,5 @@
 // Minimaler Einleser für OpenStreetMap-PBF-Dateien (ohne Abhängigkeiten): liest Datei-Blöcke nacheinander und zerlegt sie in Knoten und Wege.
-// Relationen werden übersprungen. Format: https://wiki.openstreetmap.org/wiki/PBF_Format
+// Relationen werden nur gelesen, wenn ein Rückruf „relationen“ angegeben ist. Format: https://wiki.openstreetmap.org/wiki/PBF_Format
 import { openSync, readSync, closeSync, fstatSync } from 'fs';
 import { inflateSync } from 'zlib';
 
@@ -56,7 +56,7 @@ function packed(buf, start, ende, zigzag, ausgabe) {
  *   wege(id, tags, refs, nRefs)        ein Weg: tags als Objekt nur mit den Schlüsseln aus `schluessel`, refs als Knoten-IDs
  *   schluessel: Set der Tag-Schlüssel, die für Wege gelesen werden
  */
-export function leseDatei(pfad, { knoten = null, knotenTags = null, knotenSchluessel = new Set(), wege = null, schluessel = new Set(), fortschritt = null } = {}) {
+export function leseDatei(pfad, { knoten = null, knotenTags = null, knotenSchluessel = new Set(), wege = null, relationen = null, schluessel = new Set(), fortschritt = null } = {}) {
   const fd = openSync(pfad, 'r');
   const groesse = fstatSync(fd).size;
   let pos = 0;
@@ -197,6 +197,45 @@ export function leseDatei(pfad, { knoten = null, knotenTags = null, knotenSchlue
             let r0 = 0;
             for (let i = 0; i < nr; i++) { r0 += refs[i]; refs[i] = r0; }
             wege(id, tags, refs, nr);
+          } else if (gl.feld === 4 && gl.typ === 2 && relationen) {
+            // Relation: Mitglieder mit Rolle und Typ (0 Knoten, 1 Weg, 2 Relation)
+            const [rs, re] = gl.bereich();
+            const rl = new Leser(daten, rs, re);
+            let id = 0; let keyB = null; let valB = null; let rolB = null; let memB = null; let typB = null;
+            while (rl.weiter()) {
+              if (rl.feld === 1 && rl.typ === 0) id = rl.varint();
+              else if (rl.feld === 2 && rl.typ === 2) keyB = rl.bereich();
+              else if (rl.feld === 3 && rl.typ === 2) valB = rl.bereich();
+              else if (rl.feld === 8 && rl.typ === 2) rolB = rl.bereich();
+              else if (rl.feld === 9 && rl.typ === 2) memB = rl.bereich();
+              else if (rl.feld === 10 && rl.typ === 2) typB = rl.bereich();
+              else rl.ueberspringen();
+            }
+            const s = stringsLaden();
+            const tags = {};
+            if (keyB && valB) {
+              const kl3 = new Leser(daten, keyB[0], keyB[1]);
+              const vl3 = new Leser(daten, valB[0], valB[1]);
+              while (kl3.p < keyB[1]) {
+                const k = s[kl3.varint()];
+                const v = s[vl3.varint()];
+                if (schluessel.has(k)) tags[k] = v;
+              }
+            }
+            const mitglieder = [];
+            if (memB && rolB && typB) {
+              const nm = memB[1] - memB[0];
+              const mid = new Float64Array(nm); const mrol = new Float64Array(nm); const mtyp = new Float64Array(nm);
+              const n1 = packed(daten, memB[0], memB[1], true, mid);
+              packed(daten, rolB[0], rolB[1], false, mrol);
+              packed(daten, typB[0], typB[1], false, mtyp);
+              let m0 = 0;
+              for (let i = 0; i < n1; i++) {
+                m0 += mid[i];
+                mitglieder.push({ id: m0, typ: mtyp[i], rolle: s[mrol[i]] });
+              }
+            }
+            relationen(id, tags, mitglieder);
           } else {
             gl.ueberspringen();
           }

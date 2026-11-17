@@ -1,6 +1,7 @@
 // Grundkarte für NRW aus OpenStreetMap: Flächen (Wasser, Wald, Grünflächen, Wohngebiete) und Linien (Flüsse, Bäche, Bahn).
-// Geschrieben wird nach <Netzordner>/karte. Bewusst weggelassen: Gebäude und Mehrfachflächen (Relationen), deshalb fehlen große Waldflächen
-// mit Löchern teilweise. Die Geometrie wird vereinfacht (etwa 4 m).
+// Geschrieben wird nach <Netzordner>/karte. Mehrfachflächen (Relationen vom Typ multipolygon, z. B. Flussufer und Seen) werden
+// aus ihren Außenrändern zusammengesetzt; Flüsse aus Relationen vom Typ waterway als Linien. Innenringe (Inseln) werden nicht
+// ausgeschnitten. Die Geometrie wird vereinfacht (etwa 4 m).
 // Aufruf: node tools/routing/karte-bauen.js <osm.pbf> <Netzordner>
 import { mkdirSync, writeFileSync } from 'fs';
 import { join } from 'path';
@@ -15,6 +16,8 @@ const ausgabe = join(netzOrdner, 'karte');
 mkdirSync(ausgabe, { recursive: true });
 const t0 = Date.now();
 const log = (...a) => console.log(((Date.now() - t0) / 1000).toFixed(0).padStart(4) + ' s', ...a);
+
+const SCHLUESSEL = new Set(['natural', 'landuse', 'leisure', 'waterway', 'railway', 'water', 'highway', 'type']);
 
 // Knoten (in der Datei nach ID sortiert) mit Koordinaten in 1e-7 Grad
 let kIds = new Float64Array(1 << 26);
@@ -88,10 +91,79 @@ const off = [0];
 const meta = [];
 const bbox = [];
 
+/** Ein Merkmal in die Karte aufnehmen: a = Breiten, o = Längen (Grad) */
+function aufnehmen(a0, o0, k) {
+  if (a0.length < (k.flaeche ? 3 : 2)) return;
+  const a = a0.slice(); const o = o0.slice();
+  if (k.flaeche && a.length > 3 && a[0] === a[a.length - 1] && o[0] === o[o.length - 1]) { a.pop(); o.pop(); }
+  let minA = Infinity; let maxA = -Infinity; let minO = Infinity; let maxO = -Infinity;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] < minA) minA = a[i]; if (a[i] > maxA) maxA = a[i];
+    if (o[i] < minO) minO = o[i]; if (o[i] > maxO) maxO = o[i];
+  }
+  // Sehr kleine Flächen (unter etwa 20 m) sieht man ohnehin nicht
+  if (Math.max(maxA - minA, maxO - minO) < (k.flaeche ? 0.0002 : 0.0001)) return;
+  const keep = vereinfache(a, o, 0.00004);
+  let anz = 0;
+  for (let i = 0; i < a.length; i++) if (keep[i]) { pts.push(Math.round(a[i] * 1e6), Math.round(o[i] * 1e6)); anz++; }
+  off.push(off[off.length - 1] + anz);
+  meta.push((k.flaeche ? 0 : 1) | (k.cls << 1));
+  bbox.push(minA, minO, maxA, maxO);
+}
+
+/** Knotenketten (Wege, als Knoten-IDs) zu geschlossenen Ringen zusammensetzen; offene Reste werden verworfen */
+function ringe(wege) {
+  const offen = wege.map(w => w.slice()).filter(w => w.length > 1);
+  const ergebnis = [];
+  while (offen.length) {
+    let ring = offen.pop();
+    let weiter = true;
+    while (weiter && ring[0] !== ring[ring.length - 1]) {
+      weiter = false;
+      for (let i = 0; i < offen.length; i++) {
+        const w = offen[i];
+        const ende = ring[ring.length - 1];
+        if (w[0] === ende) ring = ring.concat(w.slice(1));
+        else if (w[w.length - 1] === ende) ring = ring.concat(w.slice(0, -1).reverse());
+        else if (w[w.length - 1] === ring[0]) ring = w.concat(ring.slice(1));
+        else if (w[0] === ring[0]) ring = w.slice().reverse().concat(ring.slice(1));
+        else continue;
+        offen.splice(i, 1);
+        weiter = true;
+        break;
+      }
+    }
+    if (ring.length > 3 && ring[0] === ring[ring.length - 1]) ergebnis.push(ring);
+  }
+  return ergebnis;
+}
+
+// Schritt 1: Relationen finden. Gespeichert werden nur Mehrfachflächen und Flüsse; die Wege ihrer Mitglieder werden gemerkt.
+const relationen = [];
+const benoetigteWege = new Set();
 leseDatei(pbfDatei, {
-  schluessel: new Set(['natural', 'landuse', 'leisure', 'waterway', 'railway', 'water', 'highway']),
+  schluessel: SCHLUESSEL,
+  relationen: (id, tags, mitglieder) => {
+    if (tags.type !== 'multipolygon' && tags.type !== 'waterway') return;
+    const k = klassifiziere(tags);
+    if (!k) return;
+    const wegIds = mitglieder
+      .filter(m => m.typ === 1 && (tags.type === 'waterway' || m.rolle === 'outer' || m.rolle === ''))
+      .map(m => m.id);
+    if (!wegIds.length) return;
+    relationen.push({ id, k, wegIds });
+    for (const w of wegIds) benoetigteWege.add(w);
+  }
+});
+log(`Relationen: ${relationen.length}, benötigte Wege: ${benoetigteWege.size}`);
+
+// Schritt 2: Knoten und Wege lesen; die Knotenketten der benötigten Wege werden gemerkt
+const wegRefs = new Map();
+leseDatei(pbfDatei, {
+  schluessel: SCHLUESSEL,
   knoten: (ids, la, lo, n) => knotenDazu(ids, la, lo, n),
   wege: (id, tags, refs, n) => {
+    if (benoetigteWege.has(id)) wegRefs.set(id, Float64Array.from(refs.subarray(0, n)));
     const k = klassifiziere(tags);
     if (!k || n < 2) return;
     const geschlossen = refs[0] === refs[n - 1];
@@ -101,23 +173,33 @@ leseDatei(pbfDatei, {
       const idx = suche(refs[i]);
       if (idx >= 0) { a.push(kLat[idx] / 1e7); o.push(kLon[idx] / 1e7); }
     }
-    if (k.flaeche && a.length > 3 && a[0] === a[a.length - 1] && o[0] === o[o.length - 1]) { a.pop(); o.pop(); }
-    if (a.length < (k.flaeche ? 3 : 2)) return;
-    let minA = Infinity; let maxA = -Infinity; let minO = Infinity; let maxO = -Infinity;
-    for (let i = 0; i < a.length; i++) {
-      if (a[i] < minA) minA = a[i]; if (a[i] > maxA) maxA = a[i];
-      if (o[i] < minO) minO = o[i]; if (o[i] > maxO) maxO = o[i];
-    }
-    // Sehr kleine Flächen (unter etwa 20 m) sieht man ohnehin nicht
-    if (Math.max(maxA - minA, maxO - minO) < (k.flaeche ? 0.0002 : 0.0001)) return;
-    const keep = vereinfache(a, o, 0.00004);
-    let anz = 0;
-    for (let i = 0; i < a.length; i++) if (keep[i]) { pts.push(Math.round(a[i] * 1e6), Math.round(o[i] * 1e6)); anz++; }
-    off.push(off[off.length - 1] + anz);
-    meta.push((k.flaeche ? 0 : 1) | (k.cls << 1));
-    bbox.push(minA, minO, maxA, maxO);
+    aufnehmen(a, o, k);
   }
 });
+log(`Knoten: ${nK}, gemerkte Wege: ${wegRefs.size}`);
+
+// Schritt 3: Relationen zusammensetzen: Mehrfachflächen aus geschlossenen Ringen, Flüsse als Linien
+let relFlaechen = 0; let relLinien = 0;
+for (const r of relationen) {
+  const ketten = r.wegIds.map(id => wegRefs.get(id)).filter(Boolean)
+    .map(refs => Array.from(refs).filter(nd => suche(nd) >= 0));
+  if (r.k.flaeche) {
+    for (const ring of ringe(ketten)) {
+      const idx = ring.map(nd => suche(nd));
+      aufnehmen(idx.map(i => kLat[i] / 1e7), idx.map(i => kLon[i] / 1e7), r.k);
+      relFlaechen++;
+    }
+  } else {
+    for (const kette of ketten) {
+      if (kette.length < 2) continue;
+      const idx = kette.map(nd => suche(nd));
+      aufnehmen(idx.map(i => kLat[i] / 1e7), idx.map(i => kLon[i] / 1e7), r.k);
+      relLinien++;
+    }
+  }
+}
+log(`Aus Relationen: Flächen ${relFlaechen}, Linien ${relLinien}`);
+
 log(`Merkmale: ${meta.length}, Punkte: ${pts.length / 2}`);
 
 const P = Int32Array.from(pts);
