@@ -1,9 +1,17 @@
 <script>
   import { feldWert, datum } from './anzeige.js';
+  import { MOTOR_ARTEN } from '../shared/antrieb.js';
 
-  // Ein Eintrag (Fahrrad, Anhänger oder Gespann) mit allen Angaben, Prüfstatus und Notiz des Betreibers.
+  // Ein Eintrag (Fahrrad, Anhänger, Gepäck oder Gespann) mit allen Angaben, Prüfstatus und Notiz des Betreibers.
   // onaendern(aenderung) und onloeschen() werfen bei Fehlern; Meldungen zeigt der Aufrufer.
-  let { eintrag, felder, nachId, onaendern, onloeschen } = $props();
+  // foto: Adresse des Fotos für die Verwaltung oder null
+  let { eintrag, felder, nachId, foto = null, onaendern, onloeschen } = $props();
+
+  const motorArt = (wert) => MOTOR_ARTEN.find(m => m.wert === wert)?.de ?? wert;
+  const antriebe = $derived([
+    ...(eintrag.motoren ?? []).map(m => `Motor: ${motorArt(m.motor_art)}${m.leistung_w ? `, ${m.leistung_w} W` : ''}${m.spannung_v ? `, ${m.spannung_v} V` : ''}${m.getriebe ? `, Getriebe ${m.getriebe}` : ''}`),
+    ...(eintrag.akkus ?? []).map(a => `Akku: ${a.kapazitaet_wh ?? '?'} Wh${a.spannung_v ? `, ${a.spannung_v} V` : ''}`)
+  ]);
 
   // svelte-ignore state_referenced_locally
   let notiz = $state(eintrag.pruefnotiz ?? '');
@@ -28,6 +36,10 @@
       <span class="badge {geprueft ? 'badge-active' : 'badge-check'}">{geprueft ? 'geprüft' : 'ungeprüft'}</span>
     </div>
 
+    {#if foto}
+      <img class="foto" src={foto} alt="Foto von {eintrag.name ?? 'diesem Eintrag'}" loading="lazy" />
+    {/if}
+
     {#if zeilen.length}
       <dl>
         {#each zeilen as z (z.f.key)}
@@ -37,6 +49,11 @@
       </dl>
     {:else}
       <p class="notiz">Keine Angaben.</p>
+    {/if}
+    {#if antriebe.length}
+      <ul class="antriebe">
+        {#each antriebe as a (a)}<li>{a}</li>{/each}
+      </ul>
     {/if}
     {#if eintrag.notiz}<p class="vonnutzer"><span class="notiz">Notiz der Nutzerin oder des Nutzers:</span> {eintrag.notiz}</p>{/if}
 
@@ -78,4 +95,6 @@
   .aktionen { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
   .abstand { flex: 1; }
   .gefahr { color: var(--danger); }
+  .foto { width: 100%; max-height: 12rem; object-fit: cover; border-radius: var(--radius); }
+  .antriebe { margin: 0; padding-left: 1.1rem; font-size: .8125rem; }
 </style>

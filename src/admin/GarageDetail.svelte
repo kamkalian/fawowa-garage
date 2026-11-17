@@ -28,13 +28,19 @@
 
   const nachId = (art, nr) => (g[art === 'fahrraeder' ? 'fahrraeder' : 'anhaenger'].find(e => e.id === nr)?.name ?? null);
   // Geprüft wird pro Stellplatz (Fahrräder und Anhänger); das Gespann selbst wird nicht mehr geprüft
-  const alleEintraege = $derived(g ? [...g.fahrraeder, ...g.anhaenger] : []);
+  const alleEintraege = $derived(g ? [...g.fahrraeder, ...g.anhaenger, ...g.gepaecke] : []);
   const ungeprueft = $derived(alleEintraege.filter(e => e.status !== 'geprueft').length);
 
   const ABSCHNITTE = [
     { art: 'fahrraeder', titel: 'Fahrräder', felder: ARTEN.fahrraeder.felder },
-    { art: 'anhaenger', titel: 'Anhänger', felder: ARTEN.anhaenger.felder }
+    { art: 'anhaenger', titel: 'Anhänger', felder: ARTEN.anhaenger.felder },
+    { art: 'gepaecke', titel: 'Gepäck', felder: ARTEN.gepaecke.felder }
   ];
+
+  // Welche Einträge im Gespann stecken, mit Namen und Gesamtgewicht des Gepäcks
+  const imGespann = (liste, ids) => liste.filter(e => ids.includes(e.id));
+  const namenText = (liste) => (liste.length ? liste.map(e => e.name).join(', ') : 'keine');
+  const gepaeckKg = (liste) => liste.reduce((s, e) => s + (Number(e.gewicht_kg) || 0), 0);
 
   async function eintragAendern(art, eintrag, aenderung) {
     const r = await api('PATCH', `/eintraege/${art}/${eintrag.id}`, aenderung);
@@ -122,6 +128,19 @@
     {#if meldung}<p class="meldung-ok" role="status">{meldung}</p>{/if}
   </section>
 
+  {#if g.mitglieder}
+    {@const im = g.mitglieder}
+    <section class="abschnitt" aria-labelledby="ab-gespann">
+      <h3 id="ab-gespann">Gespann</h3>
+      <dl class="gespann">
+        <dt>Fahrergewicht</dt><dd>{g.gespann?.fahrer_gewicht_kg ? `${g.gespann.fahrer_gewicht_kg} kg` : 'nicht angegeben'}</dd>
+        <dt>Zugfahrzeug</dt><dd>{namenText(imGespann(g.fahrraeder, im.fahrraeder))}</dd>
+        <dt>Anhänger</dt><dd>{namenText(imGespann(g.anhaenger, im.anhaenger))}</dd>
+        <dt>Gepäck</dt><dd>{namenText(imGespann(g.gepaecke, im.gepaecke))} ({gepaeckKg(imGespann(g.gepaecke, im.gepaecke)).toLocaleString('de-DE')} kg)</dd>
+      </dl>
+    </section>
+  {/if}
+
   {#each ABSCHNITTE as ab (ab.art)}
     <section class="abschnitt" aria-labelledby="ab-{ab.art}">
       <h3 id="ab-{ab.art}">{ab.titel} ({g[ab.art].length})</h3>
@@ -131,6 +150,7 @@
         <div class="raster">
           {#each g[ab.art] as e (e.id)}
             <Eintrag eintrag={e} felder={ab.felder} {nachId}
+              foto={e.foto_vorhanden ? `/api/admin/garagen/${g.id}/foto/${ab.art}/${e.id}` : null}
               onaendern={(a) => eintragAendern(ab.art, e, a)} onloeschen={() => (loeschen = { art: ab.art, eintrag: e })} />
           {/each}
         </div>
