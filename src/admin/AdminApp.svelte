@@ -7,6 +7,7 @@
   import GarageDetail from './GarageDetail.svelte';
 
   let angemeldet = $state(null);   // null = prüfe noch
+  let reiter = $state('kartendaten'); // Reiter der Verwaltung: kartendaten | garagen
   let auswahl = $state(null);      // Nummer der geöffneten Garage
   let uebersicht = $state(null);
   let stand = $state(0);           // zählt hoch, wenn sich Daten geändert haben: Liste und Zahlen laden neu
@@ -60,32 +61,46 @@
   {:else if !angemeldet}
     <Login onerfolg={() => (angemeldet = true)} />
   {:else}
-    {#if uebersicht}
-      <dl class="zahlen" aria-label="Übersicht">
-        <div><dt>Garagen</dt><dd>{uebersicht.garagen}</dd></div>
-        <div class:warn={uebersicht.garagen_mit_ungeprueften > 0}><dt>Garagen mit ungeprüften Einträgen</dt><dd>{uebersicht.garagen_mit_ungeprueften}</dd></div>
-        <div class:warn={uebersicht.ungeprueft > 0}><dt>Ungeprüfte Einträge</dt><dd>{uebersicht.ungeprueft}</dd></div>
-        <div><dt>Fahrräder / Anhänger</dt><dd>{uebersicht.fahrraeder} / {uebersicht.anhaenger}</dd></div>
-        <div><dt>Mit bestätigter E-Mail</dt><dd>{uebersicht.mit_email}</dd></div>
-      </dl>
-    {/if}
+    <nav class="reiter" role="tablist" aria-label="Verwaltung">
+      <button type="button" role="tab" id="reiter-kartendaten" aria-selected={reiter === 'kartendaten'} aria-controls="feld-kartendaten" class:aktiv={reiter === 'kartendaten'} onclick={() => (reiter = 'kartendaten')}>Kartendaten</button>
+      <button type="button" role="tab" id="reiter-garagen" aria-selected={reiter === 'garagen'} aria-controls="feld-garagen" class:aktiv={reiter === 'garagen'} onclick={() => (reiter = 'garagen')}>Garagen</button>
+    </nav>
 
-    <Jobs onoeffnen={(id) => (auswahl = id)} />
+    {#if reiter === 'kartendaten'}
+      <div role="tabpanel" id="feld-kartendaten" aria-labelledby="reiter-kartendaten">
+        <Jobs onoeffnen={(id) => { auswahl = id; reiter = 'garagen'; }} />
+      </div>
+    {:else}
+      <div role="tabpanel" id="feld-garagen" aria-labelledby="reiter-garagen">
+      {#if uebersicht}
+        <dl class="zahlen" aria-label="Übersicht">
+          <div><dt>Garagen</dt><dd>{uebersicht.garagen}</dd></div>
+          <div class:warn={uebersicht.garagen_mit_ungeprueften > 0}><dt>Garagen mit ungeprüften Einträgen</dt><dd>{uebersicht.garagen_mit_ungeprueften}</dd></div>
+          <div class:warn={uebersicht.ungeprueft > 0}><dt>Ungeprüfte Einträge</dt><dd>{uebersicht.ungeprueft}</dd></div>
+          <div><dt>Fahrräder / Anhänger</dt><dd>{uebersicht.fahrraeder} / {uebersicht.anhaenger}</dd></div>
+          <div><dt>Mit bestätigter E-Mail</dt><dd>{uebersicht.mit_email}</dd></div>
+        </dl>
+      {/if}
 
-    <!-- Die Liste bleibt geladen (nur ausgeblendet), damit Suche und Seite beim Zurückkehren erhalten bleiben -->
-    <div hidden={auswahl !== null}>
-      <Garagen {stand} onoeffnen={(id) => (auswahl = id)} />
-    </div>
-    {#if auswahl !== null}
-      {#key auswahl}
-        <GarageDetail id={auswahl} onzurueck={() => (auswahl = null)} onaenderung={geaendert} />
-      {/key}
+        <!-- Die Liste bleibt geladen (nur ausgeblendet), damit Suche und Seite beim Zurückkehren erhalten bleiben -->
+        <div hidden={auswahl !== null}>
+          <Garagen {stand} onoeffnen={(id) => (auswahl = id)} />
+        </div>
+        {#if auswahl !== null}
+          {#key auswahl}
+            <GarageDetail id={auswahl} onzurueck={() => (auswahl = null)} onaenderung={geaendert} />
+          {/key}
+        {/if}
+      </div>
     {/if}
   {/if}
 </main>
 
 <style>
   .seite { padding-top: 1.5rem; padding-bottom: 2rem; }
+  .reiter { display: flex; gap: .25rem; border-bottom: 1px solid var(--border); margin: 1rem 0; }
+  .reiter button { background: none; border: 0; border-bottom: 2px solid transparent; padding: .5rem .9rem; font: inherit; color: var(--fg-muted); cursor: pointer; }
+  .reiter button.aktiv { color: var(--fg); border-bottom-color: var(--primary); font-weight: 600; }
   .zahlen { display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); gap: .75rem; margin-bottom: 1.5rem; }
   .zahlen > div { padding: .75rem 1rem; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); }
   .zahlen dt { font-size: .75rem; color: var(--fg-muted); }
