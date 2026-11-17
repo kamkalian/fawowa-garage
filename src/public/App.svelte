@@ -169,6 +169,16 @@
   {/if}
 </main>
 
+<footer class="fussleiste">
+  <nav aria-label={pick({ de: 'Fußleiste', en: 'Footer' }, lang)}>
+    <a href={'/impressum' + (lang === 'en' ? '?lang=en' : '')}>{pick({ de: 'Impressum', en: 'Legal notice' }, lang)}</a>
+    <a href={'/datenschutz' + (lang === 'en' ? '?lang=en' : '')}>{pick({ de: 'Datenschutz', en: 'Privacy' }, lang)}</a>
+    {#if einst.verwaltungPfad}
+      <a class="verwaltung" href={'/' + einst.verwaltungPfad.replace(/^\//, '')}>{pick({ de: 'Verwaltung', en: 'Admin' }, lang)}</a>
+    {/if}
+  </nav>
+</footer>
+
 {#if toast}
   <div class="toast toast-{toast.art}" role="status">{toast.text}</div>
 {/if}
@@ -179,4 +189,10 @@
   .start .card-body { display: flex; flex-direction: column; gap: .75rem; }
   .anlegen { display: flex; flex-direction: column; gap: .25rem; max-width: 22rem; }
   .anlegen .notiz { min-height: 1.1rem; margin-bottom: .5rem; }
+  /* Fußleiste: dezent, wie auf der Materialseite */
+  .fussleiste { border-top: 1px solid var(--border); padding: .75rem 1rem; font-size: .8125rem; color: var(--fg-muted); }
+  .fussleiste nav { display: flex; flex-wrap: wrap; gap: .25rem 1rem; justify-content: center; max-width: 60rem; margin: 0 auto; }
+  .fussleiste a { color: inherit; text-decoration: none; }
+  .fussleiste a:hover, .fussleiste a:focus-visible { color: var(--fg); text-decoration: underline; }
+  .fussleiste .verwaltung { opacity: .6; }
 </style>
