@@ -15,6 +15,8 @@ if (!pbfDatei || !netzOrdner) {
 const ausgabe = join(netzOrdner, 'karte');
 mkdirSync(ausgabe, { recursive: true });
 const t0 = Date.now();
+// Fortschritt für den Worker: eine Zeile "FORTSCHRITT <Prozent>" an jeder Stufe (die Verwaltung zeigt sie an)
+const fortschritt = (p) => console.log(`FORTSCHRITT ${p}`);
 const log = (...a) => console.log(((Date.now() - t0) / 1000).toFixed(0).padStart(4) + ' s', ...a);
 
 const SCHLUESSEL = new Set(['natural', 'landuse', 'leisure', 'waterway', 'railway', 'water', 'highway', 'type', 'motorroad']);
@@ -128,6 +130,7 @@ leseDatei(pbfDatei, {
   }
 });
 log(`Relationen: ${relationen.length}, benötigte Wege: ${benoetigteWege.size}`);
+fortschritt(10);
 
 // Schritt 1b: Welche Knoten braucht die Karte? Nur die Knoten der Wege, die ein Merkmal bilden oder in einer Relation stecken.
 // So bleibt der Speicher klein: nicht jeder Knoten der Datei (Deutschland: hunderte Millionen) wird behalten.
@@ -159,6 +162,7 @@ bed = null;
 const kLat = new Int32Array(bedarf.length);
 const kLon = new Int32Array(bedarf.length);
 const gefunden = new Uint8Array(bedarf.length);
+fortschritt(30);
 log(`Benötigte Knoten: ${bedarf.length} (${(bedarf.length * 21 / 1048576).toFixed(0)} MB Speicher), Speicher jetzt ${(process.memoryUsage().rss / 1048576).toFixed(0)} MB`);
 
 // Knotenlauf: Knoten der Datei kommen nach ID sortiert; wir gehen gleichzeitig mit der benötigten Liste durch
@@ -186,6 +190,7 @@ function suche(id) {
   return -1;
 }
 
+fortschritt(35);
 // Schritt 2: Knoten und Wege lesen; die Knotenketten der benötigten Wege werden gemerkt
 const wegRefs = new Map();
 leseDatei(pbfDatei, {
@@ -227,6 +232,7 @@ for (const r of relationen) {
     }
   }
 }
+fortschritt(90);
 log(`Aus Relationen: Flächen ${relFlaechen}, Linien ${relLinien}`);
 
 log(`Merkmale: ${meta.length}, Punkte: ${pts.length / 2}`);
@@ -244,4 +250,5 @@ writeFileSync(join(ausgabe, 'info.json'), JSON.stringify({
   erzeugt: new Date().toISOString(), quelle: pbfDatei, merkmale: meta.length, flaechen, linien: meta.length - flaechen,
   punkte: P.length / 2, bytes: P.byteLength + O.byteLength + M.byteLength + B.byteLength
 }, null, 2));
+fortschritt(100);
 log('Fertig.');
