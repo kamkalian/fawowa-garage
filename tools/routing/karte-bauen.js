@@ -17,7 +17,7 @@ mkdirSync(ausgabe, { recursive: true });
 const t0 = Date.now();
 const log = (...a) => console.log(((Date.now() - t0) / 1000).toFixed(0).padStart(4) + ' s', ...a);
 
-const SCHLUESSEL = new Set(['natural', 'landuse', 'leisure', 'waterway', 'railway', 'water', 'highway', 'type']);
+const SCHLUESSEL = new Set(['natural', 'landuse', 'leisure', 'waterway', 'railway', 'water', 'highway', 'type', 'motorroad']);
 
 // Knoten (in der Datei nach ID sortiert) mit Koordinaten in 1e-7 Grad
 let kIds = new Float64Array(1 << 26);
@@ -60,7 +60,8 @@ function klassifiziere(t) {
   if (t.waterway === 'river' || t.waterway === 'canal') return { flaeche: false, cls: 5 };
   if (t.waterway === 'stream') return { flaeche: false, cls: 6 };
   if (t.railway === 'rail') return { flaeche: false, cls: 7 };
-  if (t.highway === 'motorway' || t.highway === 'motorway_link') return { flaeche: false, cls: 8 };
+  // Autobahnen, Schnellstraßen (trunk) und Kraftfahrstraßen (motorroad=yes) gehören zur Klasse 8
+  if (['motorway', 'motorway_link', 'trunk', 'trunk_link'].includes(t.highway) || t.motorroad === 'yes') return { flaeche: false, cls: 8 };
   return null;
 }
 
