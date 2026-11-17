@@ -8,7 +8,9 @@ import { join } from 'path';
 import { Netz } from '../lib/netz.js';
 import { rechneReichweite } from '../lib/reichweite.js';
 import { ladePlaner, planerLader } from '../lib/planer.js';
-import { swapAusMeminfo, netzStand } from '../lib/system.js';
+import { swapAusMeminfo } from '../lib/system.js';
+import { datenstand } from '../lib/datenstand.js';
+import { hoehenName } from '../lib/datenquellen.js';
 import { gitterNetz } from './hilfen-netz.js';
 
 const RAD = { name: 'Rad', motor_art: 'mittelmotor', akku_kapazitaet_wh: 10, gewicht_kg: 25 };
@@ -64,13 +66,29 @@ test('Stand des Servers: ohne Swap-Angabe (kein Linux) gibt es null', () => {
   assert.equal(swapAusMeminfo(() => { throw new Error('kein /proc'); }), null);
 });
 
-test('Kartendaten: Anzeige, was vorhanden ist', () => {
-  const leer = mkdtempSync(join(tmpdir(), 'garage-stand-'));
-  const s = netzStand({ NETZ_DIR: join(leer, 'netz') });
-  assert.equal(s.netz, false);
-  assert.equal(s.pbf, false);
-  assert.equal(s.kachelVersionen, 0);
-  mkdirSync(join(leer, 'kacheln', 'v1'), { recursive: true });
-  assert.equal(netzStand({ NETZ_DIR: join(leer, 'netz') }).kachelVersionen, 1);
-  assert.equal(netzStand({}), null);
+test('Höhenkacheln: Name wie im SRTM-Datensatz', () => {
+  assert.equal(hoehenName(47, 6), 'N47E006');
+  assert.equal(hoehenName(55, 15), 'N55E015');
+  assert.equal(hoehenName(-3, -70), 'S03W070');
+});
+
+test('Datenstand: fehlende Daten sind neu, geladene Daten sind aktuell, wenn nichts Neueres beim Anbieter liegt', async () => {
+  const roh = mkdtempSync(join(tmpdir(), 'garage-roh-'));
+  const netz = mkdtempSync(join(tmpdir(), 'garage-stand-'));
+  writeFileSync(join(roh, 'stand.json'), JSON.stringify({ geladen_am: '2026-11-10T10:00:00Z', stand_quelle: 'Mon, 09 Nov 2026 00:00:00 GMT' }));
+  const anbieter = 'Tue, 10 Nov 2026 00:00:00 GMT';
+  const ohneNetz = { NETZ_DIR: join(netz, 'netz'), ROH_DIR: roh, HOEHEN_DIR: join(netz, 'hoehen'), KACHEL_DIR: join(netz, 'kacheln') };
+  const s = await datenstand({ env: ohneNetz, letzte: { karte: new Date('2026-11-11T10:00:00Z') }, pruefeKarte: async () => anbieter, pruefeHoehen: async () => undefined });
+  const k = Object.fromEntries(s.objekte.map(o => [o.schluessel, o]));
+  assert.equal(k.download.vorhanden, true);
+  assert.equal(k.download.neu, true, 'Anbieter hat neuere Daten als unser Stand');
+  assert.equal(k.hoehen.vorhanden, false);
+  assert.equal(k.hoehen.neu, null, 'Höhen-Anbieter nicht erreichbar');
+  assert.equal(k.karte.neu, false, 'Karte ist jünger als die Kartendaten');
+  assert.equal(k.netz.vorhanden, false);
+  assert.equal(k.kacheln.vorhanden, false);
+  assert.equal(k.kacheln.neu, true, 'Karte da, aber noch keine Kacheln');
+
+  const aktuell = await datenstand({ env: ohneNetz, letzte: {}, pruefeKarte: async () => 'Mon, 01 Jan 2026 00:00:00 GMT', pruefeHoehen: async () => undefined });
+  assert.equal(aktuell.objekte.find(o => o.schluessel === 'download').neu, false);
 });

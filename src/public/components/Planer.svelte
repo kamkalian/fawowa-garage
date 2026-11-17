@@ -58,7 +58,7 @@
   let suche = $state('');
   let suchOffen = $state(false);
   let rechnet = $state(false);
-  let vorAuftrag = $state(null);
+  let auftrag = $state(null);
   let ergebnis = $state(null);
   let meldungFehler = $state('');
   let zaehler = 0;
@@ -117,36 +117,55 @@
   // Die Berechnung läuft im Hintergrund (Warteschlange des Workers): nach dem Start den Stand abfragen, bis das Ergebnis da ist
   const pause = (ms) => new Promise(r => setTimeout(r, ms));
 
+  // Ergebnis anzeigen (Raster auf der Karte, Startpunkt)
+  function zeigeErgebnis(r, anpassen) {
+    auftrag = null;
+    ergebnis = r;
+    karte.setzeRaster(r.raster);
+    karte.setzeStart(r.start.lat, r.start.lon);
+    if (anpassen) {
+      const R = r.raster;
+      karte.zeigeRechteck(R.lat0, R.lon0, R.lat0 + R.ny * R.dLat, R.lon0 + R.nx * R.dLon);
+    }
+  }
+
+  // Stand des Auftrags der Garage abfragen, bis das Ergebnis da ist oder ein Fehler gemeldet wird.
+  // Die Berechnung läuft im Worker weiter, auch wenn die Seite geschlossen wird; beim Öffnen kommt man hierher zurück.
+  async function verfolgen(nr, anpassen) {
+    for (;;) {
+      if (nr !== zaehler) return;
+      const s = await api.reichweiteStand(token);
+      if (nr !== zaehler) return;
+      if (s.status === 'fertig' && s.ergebnis) { zeigeErgebnis(s.ergebnis, anpassen); return; }
+      if (s.status === 'fehler') {
+        auftrag = { status: 'fehler', code: s.meldung };
+        ergebnis = null;
+        karte.setzeRaster(null);
+        return;
+      }
+      if (s.status === 'wartet' || s.status === 'laeuft') {
+        auftrag = { status: s.status, davor: s.davor };
+        await pause(2500);
+        continue;
+      }
+      auftrag = null;
+      return;
+    }
+  }
+
   async function berechnen(anpassen = true) {
     if (!start || voraussetzung) return;
     const nr = ++zaehler;
     rechnet = true;
     meldungFehler = '';
-    vorAuftrag = null;
     try {
-      await api.reichweiteBerechnen(token, { lat: start.lat, lon: start.lon, modus, einstellungen: einstellungen() });
-      let r = null;
-      for (;;) {
-        if (nr !== zaehler) return;
-        const s = await api.reichweiteStand(token);
-        if (nr !== zaehler) return;
-        if (s.status === 'fertig') { r = s.ergebnis; break; }
-        if (s.status === 'fehler') { const err = new Error(s.meldung || 'fehler'); err.code = s.meldung; throw err; }
-        if (s.status !== 'wartet' && s.status !== 'laeuft') break;
-        vorAuftrag = s.davor;
-        await pause(2500);
-      }
-      vorAuftrag = null;
-      if (!r) return;
-      ergebnis = r;
-      karte.setzeRaster(r.raster);
-      karte.setzeStart(r.start.lat, r.start.lon);
-      if (anpassen) {
-        const R = r.raster;
-        karte.zeigeRechteck(R.lat0, R.lon0, R.lat0 + R.ny * R.dLat, R.lon0 + R.nx * R.dLon);
-      }
+      const angenommen = await api.reichweiteBerechnen(token, { lat: start.lat, lon: start.lon, modus, einstellungen: einstellungen() });
+      if (nr !== zaehler) return;
+      auftrag = { status: 'wartet', davor: angenommen.davor };
+      await verfolgen(nr, anpassen);
     } catch (err) {
       if (nr !== zaehler) return;
+      auftrag = null;
       ergebnis = null;
       karte.setzeRaster(null);
       meldungFehler = err.felder ? t(lang, 'e_eingabe') : fehlerText(err.code);
@@ -176,6 +195,8 @@
       beiKlick: (lat, lon) => setzeStart(lat, lon)
     });
     api.karteOrte().then((o) => { orte = o; karte.opt.orte = o; karte.zeichnen(); }).catch(() => {});
+    // Lief schon eine Berechnung (auch aus einer früheren Sitzung), wird ihr Stand hier angezeigt
+    if (token && cfg.bbox) { const nr = ++zaehler; verfolgen(nr, false).catch(() => {}); }
     return () => { karte.beenden(); clearTimeout(timer); };
   });
 
@@ -348,18 +369,31 @@
     {/if}
   </aside>
 
-  {#if rechnet}<div class="pille laden" role="status">{t(lang, 'p_rechnet')}</div>{/if}
   {#if meldungFehler}<p class="pille fehler" role="alert">{meldungFehler}</p>{/if}
-  {#if rechnet && vorAuftrag !== null}<p class="pille" role="status">{t(lang, 'p_warteschlange')} {vorAuftrag}</p>{/if}
   <p class="pille hinweis">{t(lang, 'p_kartenHinweis')}</p>
 
-  {#if ergebnis}
+  {#if ergebnis || auftrag}
     <section class="karte-karte ergebnis" aria-label={t(lang, 'p_ergebnis')}>
+      {#if auftrag}
+        <div class="auftrag" role="status">
+          {#if auftrag.status === 'fehler'}
+            <strong>{t(lang, 'p_fehlgeschlagen')}</strong>
+            <span>{fehlerText(auftrag.code)}</span>
+          {:else if auftrag.status === 'laeuft'}
+            <strong>{t(lang, 'p_laeuft')}</strong>
+          {:else}
+            <strong>{t(lang, 'p_wartet')}</strong>
+            <span>{t(lang, 'p_warteschlange')} {auftrag.davor}</span>
+            {#if auftrag.davor === 0}<span>{t(lang, 'p_naechste')}</span>{/if}
+            <span class="notiz">{t(lang, 'p_spaeter')}</span>
+          {/if}
+        </div>
+      {/if}
+      {#if ergebnis}
       <div class="legende" aria-hidden="true"><span>0</span><span class="balken"></span><span>{zahlText(lang, ergebnis.budget.wert)} {ergebnis.budget.einheit}</span></div>
       <p class="notiz">{t(lang, 'p_legende')}</p>
       <dl>
         <div><dt>{t(lang, 'p_weitester')}</dt><dd>{zahlText(lang, ergebnis.kennzahlen.weitester_km)} km</dd></div>
-        <div><dt>{t(lang, 'p_machbar')}</dt><dd>{zahlText(lang, ergebnis.kennzahlen.punkte_machbar)} / {zahlText(lang, ergebnis.kennzahlen.punkte_gesamt)}</dd></div>
         {#if ergebnis.budget.art === 'akku'}
           <div><dt>{t(lang, 'p_energie')}</dt><dd>{zahlText(lang, ergebnis.budget.wert)} Wh</dd></div>
         {:else}
@@ -374,6 +408,7 @@
         </details>
       {/if}
       <p class="notiz">{t(lang, 'p_vorbehalt')}</p>
+      {/if}
     </section>
   {/if}
 </div>

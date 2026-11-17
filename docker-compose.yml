@@ -25,8 +25,13 @@ services:
       - DB_PASSWORD=${DB_PASSWORD:?DB_PASSWORD fehlt in der .env}
       # Wegenetz für den Reichweiten-Planer (siehe deploy/netz-hochladen.ps1); fehlt es, bleibt der Planer abgeschaltet
       - NETZ_DIR=/app/netz
+      - ROH_DIR=/app/roh
+      - HOEHEN_DIR=/app/hoehen
     volumes:
       - ./data/netz:/app/netz:ro
+      # Stand der Kartendaten und Höhendaten (nur lesen, für die Verwaltung)
+      - ./data/roh:/app/roh:ro
+      - ./data/hoehen:/app/hoehen:ro
       # Fotos der Stellplätze (Docker-Volume, bleibt bei Neustarts erhalten)
       - fotos:/app/fotos
       # Vorab erzeugte Kacheln der Karte (Docker-Volume, bleibt bei Neustarts erhalten)
@@ -81,7 +86,7 @@ services:
       # Wegenetz (schreibbar: der Netzbau legt es hier ab), Kartendaten aus dem Download, Höhendaten, Kacheln
       - ./data/netz:/app/netz
       - ./data/roh:/app/roh
-      - ./data/hoehen:/app/hoehen:ro
+      - ./data/hoehen:/app/hoehen
       - kacheln:/app/kacheln
     read_only: true
     tmpfs:
