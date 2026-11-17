@@ -49,6 +49,8 @@
   const alleVoll = $derived(ARTEN_LISTE.every(a => daten[a].length >= ARTEN[a].max));
 
   const imInGespann = (art, e) => (daten.mitglieder?.[art] ?? []).includes(e.id);
+  // Der Reichweitenplaner braucht mindestens ein Zugfahrzeug im Gespann
+  const hatZugfahrzeug = $derived((daten.mitglieder?.fahrraeder ?? []).length > 0);
   const gespannNamen = $derived([
     ...(daten.mitglieder?.fahrraeder ?? []).map(id => daten.fahrraeder.find(x => x.id === id)?.name),
     ...(daten.mitglieder?.anhaenger ?? []).map(id => daten.anhaenger.find(x => x.id === id)?.name)
@@ -269,7 +271,8 @@
     <input id="garage-link" class="input" type="text" readonly value={link} onfocus={(e) => e.currentTarget.select()} />
     <button type="button" class="btn btn-outline btn-sm" onclick={kopieren}><Icon name="ui-copy" size={14} /> {kopiert ? t(lang, 'copied') : t(lang, 'copy')}</button>
     {#if planerAktiv}
-      <button type="button" class="btn btn-outline planer-knopf" onclick={() => (planerOffen = true)}>{t(lang, 'p_planerOeffnen')}</button>
+      <button type="button" class="btn btn-outline planer-knopf" disabled={!hatZugfahrzeug} onclick={() => (planerOffen = true)}
+        title={hatZugfahrzeug ? undefined : pick({ de: 'Zuerst ein Zugfahrzeug ins Gespann nehmen', en: 'First add a towing vehicle to the convoy' }, lang)}>{t(lang, 'p_planerOeffnen')}</button>
     {/if}
     {#if emailAktiv}
       <button type="button" class="btn btn-outline btn-sm emailknopf" class:ok={!!daten.email} class:offen={!daten.email && !!daten.email_offen}
@@ -301,8 +304,7 @@
           ondragover={(e) => ueberKachel(e, schluessel(f))} ondrop={(e) => ablegenKachel(e, f)}>
           <EintragKarte {lang} art={f.art} eintrag={f.e} imGespann={imInGespann(f.art, f.e)} foto={fotos[schluessel(f)] ?? null}
             onGespann={() => umschalten(f)}
-            onedit={() => (form = { art: f.art, eintrag: f.e })}
-            onremove={() => (loeschen = { art: f.art, eintrag: f.e })} />
+            onedit={() => (form = { art: f.art, eintrag: f.e })} />
         </div>
       {/each}
       <div class="plus-wrap" role="listitem" ondragover={(e) => ueberKachel(e, 'ende')} ondrop={(e) => ablegenKachel(e, null)}>
@@ -358,7 +360,7 @@
 {#if loeschen}
   <Fenster {lang} titel={t(lang, 'remove')} onclose={() => (loeschen = null)}>
     <p class="text">{t(lang, 'confirmDelete', loeschen.eintrag.name)}</p>
-    {#if imGespann(loeschen.art, loeschen.eintrag)}<p class="text">{t(lang, 'confirmDeleteGespann')}</p>{/if}
+    {#if imInGespann(loeschen.art, loeschen.eintrag)}<p class="text">{t(lang, 'confirmDeleteGespann')}</p>{/if}
     <div class="aktionen">
       <button type="button" class="btn btn-ghost" onclick={() => (loeschen = null)}>{t(lang, 'cancel')}</button>
       <button type="button" class="btn btn-danger" disabled={laeuft} onclick={entferne}>{t(lang, 'remove')}</button>
