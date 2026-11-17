@@ -104,7 +104,7 @@
             <small>{o.quelle}</small>
           </header>
           <p class="zeit">
-            {#if o.geladen_am}Zuletzt: {zeit(o.geladen_am)}{:else}Noch nicht vorhanden.{/if}
+            {#if o.geladen_am}Zuletzt: {zeit(o.geladen_am)}{:else if o.vorhanden}Stand unbekannt (vor der Verwaltung entstanden).{:else}Noch nicht vorhanden.{/if}
           </p>
           <p class="info">{neuText(o)}</p>
           <button class="btn btn-outline" disabled={beschaeftigt || aktiv(o.auftrag)} onclick={() => starten(o.auftrag)}>
