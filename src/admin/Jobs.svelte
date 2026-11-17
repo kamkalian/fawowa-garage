@@ -95,6 +95,29 @@
     await laden();
   }
 
+  async function laden() {
+    try {
+      stand = await api('GET', '/jobs');
+      fehler = '';
+    } catch (e) {
+      fehler = e.message;
+    }
+  }
+
+  /** Eine Aktion ausführen, danach den Stand neu laden; Fehlermeldungen des Servers anzeigen */
+  async function tun(aktion) {
+    beschaeftigt = true;
+    fehler = '';
+    try {
+      await aktion();
+    } catch (e) {
+      fehler = e.message;
+    } finally {
+      beschaeftigt = false;
+      await laden();
+    }
+  }
+
   const starten = (art) => tun(() => api('POST', `/jobs/${art}`, {}));
   const karteBauen = (gebiet) => tun(() => api('POST', '/jobs/karte', { gebiet }));
   const loeschen = (job) => tun(() => api('DELETE', `/jobs/${job.id}`));
