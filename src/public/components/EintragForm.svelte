@@ -89,7 +89,7 @@
         <legend>{pick(GRUPPEN[g.key], lang)}</legend>
         <div class="raster">
           {#each g.felder as f (f.key)}
-            <div class="feld" class:voll={f.typ === 'langtext' || f.key === 'name'}>
+            <div class="feld" class:voll={f.typ === 'langtext' || f.key === 'name' || SYMBOLFELDER.includes(f.key)}>
               <label for="f-{f.key}">{pick(f.label, lang) + (f.einheit ? ` (${f.einheit})` : '') + (f.pflicht ? ' *' : '')}</label>
               {#if f.typ === 'text'}
                 <input id="f-{f.key}" class="input" type="text" maxlength={f.max} aria-invalid={!!fehler[f.key]} aria-describedby="h-{f.key}" bind:value={werte[f.key]} />
