@@ -56,6 +56,9 @@ services:
     container_name: fawowa-garage-worker
     # Obergrenze für den Speicher: ein sehr großer Lauf trifft dann den Worker, nicht Datenbank und Webdienst (ohne Swap auf dem Server)
     mem_limit: 2800m
+    # Der Worker hat keinen Webserver: den Gesundheitscheck des Webdienstes übernimmt er nicht
+    healthcheck:
+      disable: true
     restart: unless-stopped
     command: ["node", "lib/worker.js"]
     depends_on:
