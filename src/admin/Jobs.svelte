@@ -8,56 +8,91 @@
   // Verwaltung der Daten: Stand von Kartendaten, Höhendaten, Karte, Wegenetz und Kacheln, Neuladen, die Warteschlange und Speicher des Servers.
   // Der Stand wird alle 3 Sekunden neu geladen, damit der Fortschritt sichtbar bleibt.
   let stand = $state(null);
-  let fehler = $state('');
+  let fehler = $state('');  let meldung = $state('');
   let beschaeftigt = $state(false);
   let timer = null;
 
   const ARTEN = { entpacken: 'Wegenetz einspielen', download: 'Kartendaten NRW laden', karte: 'Karte bauen', reichweite: 'Reichweite', kacheln: 'Kacheln' };
   const STATUS = { laeuft: 'läuft', wartet: 'wartet', fertig: 'fertig', fehler: 'Fehler' };
 
-  // ZIP-Datei mit Wegenetz und Karte hochladen (mit Fortschritt in Prozent)
-  let hochladen = $state(null);   // null oder { prozent }
-  function zipHochladen(ev) {
+  // ZIP-Datei in Teilen hochladen. Jedes Teil wird einzeln gesendet und bei Fehlern wiederholt; bricht die Verbindung ab,
+  // lässt sich der Rest mit „Fortsetzen“ hochladen. Die Datei muss nicht von Hand geteilt werden.
+  const TEIL_BYTES = 64 * 1024 * 1024;
+  let offen = $state(null);   // { id, datei, anzahl } einer unterbrochenen Hochladung
+
+  const kennung = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+
+  async function teilSenden(id, nr, teil) {
+    for (let versuch = 1; versuch <= 3; versuch++) {
+      try {
+        const antwort = await fetch('/api/admin/import/teil?id=' + id + '&nr=' + nr, { method: 'POST', headers: { 'Content-Type': 'application/octet-stream' }, body: teil });
+        if (antwort.ok) return;
+        if (antwort.status < 500) throw new Error((await antwort.json().catch(() => ({}))).error || 'Hochladen fehlgeschlagen');
+      } catch (e) {
+        if (versuch === 3) throw e;
+      }
+      await new Promise((r) => setTimeout(r, 2000 * versuch));
+    }
+  }
+
+  async function teileHochladen(id, datei, anzahl, nurFehlende) {
+    const schon = new Set(nurFehlende ? (await api('GET', '/import/stand?id=' + id)).stuecke : []);
+    for (let nr = 0; nr < anzahl; nr++) {
+      if (schon.has(nr)) continue;
+      hochladen = { prozent: Math.round(nr / anzahl * 100), text: 'Teil ' + (nr + 1) + ' von ' + anzahl };
+      await teilSenden(id, nr, datei.slice(nr * TEIL_BYTES, Math.min(datei.size, (nr + 1) * TEIL_BYTES)));
+    }
+    hochladen = { prozent: 100, text: 'Wird zusammengesetzt ...' };
+    await api('POST', '/import/fertig', { id, anzahl, groesse: datei.size });
+    offen = null;
+    hochladen = null;
+    await laden();
+  }
+
+  async function zipHochladen(ev) {
     const datei = ev.currentTarget.files?.[0];
     ev.currentTarget.value = '';
     if (!datei) return;
     fehler = '';
-    hochladen = { prozent: 0 };
-    const anfrage = new XMLHttpRequest();
-    anfrage.open('POST', '/api/admin/import');
-    anfrage.setRequestHeader('Content-Type', 'application/zip');
-    anfrage.upload.onprogress = (e) => { if (e.lengthComputable) hochladen = { prozent: Math.round(e.loaded / e.total * 100) }; };
-    anfrage.onload = () => {
-      hochladen = null;
-      if (anfrage.status >= 200 && anfrage.status < 300) { laden(); return; }
-      try { fehler = JSON.parse(anfrage.responseText).error; } catch { fehler = ''; }
-      fehler ||= 'Das Hochladen ist fehlgeschlagen.';
-    };
-    anfrage.onerror = () => { hochladen = null; fehler = 'Das Hochladen ist fehlgeschlagen.'; };
-    anfrage.send(datei);
-  }
-
-  async function laden() {
+    const frei = stand?.platz?.frei;
+    if (frei && datei.size * 2 > frei) {
+      fehler = 'Auf dem Server ist zu wenig Platz für diese Datei (frei: ' + mb(frei) + ').';
+      return;
+    }
+    const id = kennung();
+    const anzahl = Math.max(1, Math.ceil(datei.size / TEIL_BYTES));
+    offen = { id, datei, anzahl };
+    hochladen = { prozent: 0, text: '' };
     try {
-      stand = await api('GET', '/jobs');
-      fehler = '';
+      await teileHochladen(id, datei, anzahl, false);
     } catch (e) {
-      fehler = e.message;
+      hochladen = null;
+      fehler = 'Hochladen unterbrochen: ' + e.message + '. Mit „Fortsetzen“ geht es weiter.';
     }
   }
 
-  /** Eine Aktion ausführen, danach den Stand neu laden; Fehlermeldungen des Servers anzeigen */
-  async function tun(aktion) {
-    beschaeftigt = true;
+  async function hochladenFortsetzen() {
+    if (!offen) return;
+    fehler = '';
+    const { id, datei, anzahl } = offen;
+    try {
+      await teileHochladen(id, datei, anzahl, true);
+    } catch (e) {
+      hochladen = null;
+      fehler = 'Hochladen unterbrochen: ' + e.message + '. Mit „Fortsetzen“ geht es weiter.';
+    }
+  }
+
+  async function leeren(ziel, name) {
+    if (!window.confirm(name + ' wirklich leeren? Die Dateien werden endgültig gelöscht.')) return;
     fehler = '';
     try {
-      await aktion();
+      const r = await api('POST', '/platz/aufraeumen', { ziel });
+      meldung = name + ' geleert, ' + mb(r.geloescht) + ' frei.';
     } catch (e) {
       fehler = e.message;
-    } finally {
-      beschaeftigt = false;
-      await laden();
     }
+    await laden();
   }
 
   const starten = (art) => tun(() => api('POST', `/jobs/${art}`, {}));
@@ -135,6 +170,28 @@
           {/if}
         </div>
       {/if}
+    {/if}
+
+    {#if stand.platz}
+      <div class="platz">
+        <span class="etikett">Speicherplatz auf dem Server</span>
+        {#if stand.platz.frei !== null}
+          <div class="balken-aussen" role="meter" aria-label="Speicherplatz" aria-valuemin="0" aria-valuemax={stand.platz.gesamt} aria-valuenow={stand.platz.gesamt - stand.platz.frei}>
+            <div class="balken" style="width: {prozent(stand.platz.gesamt - stand.platz.frei, stand.platz.gesamt)}%"></div>
+          </div>
+          <small>{mb(stand.platz.frei)} frei von {mb(stand.platz.gesamt)}</small>
+        {/if}
+        <ul class="ordner">
+          {#each stand.platz.ordner as o (o.name)}
+            <li><span>{o.name}</span> <small>{mb(o.bytes)}</small>
+              {#if o.name === 'roh' || o.name === 'hoehen' || o.name === 'import'}
+                <button class="btn btn-ghost btn-sm" disabled={beschaeftigt || o.bytes === 0} onclick={() => leeren(o.name, o.name)}>Leeren</button>
+              {/if}
+            </li>
+          {/each}
+        </ul>
+        {#if meldung}<p class="meldung-ok" role="status">{meldung}</p>{/if}
+      </div>
     {/if}
 
     <h3>Stand der Daten</h3>
@@ -231,6 +288,10 @@
   .balken-aussen { height: .6rem; border-radius: 999px; background: var(--bg-input); overflow: hidden; margin: .25rem 0; }
   .balken { height: 100%; background: var(--primary); transition: width .4s; }
   .balken.swap { background: #d97706; }
+  .platz { margin: .5rem 0 1rem; }
+  .ordner { list-style: none; padding: 0; margin: .5rem 0; display: flex; flex-direction: column; gap: .25rem; font-size: .875rem; }
+  .ordner li { display: flex; gap: .5rem; align-items: center; }
+  .ordner li span { min-width: 6rem; }
   .kerne { display: flex; align-items: flex-end; gap: .2rem; height: 3rem; margin: .25rem 0; }
   .kern { flex: 1; max-width: 1.2rem; height: 100%; background: var(--bg-input); border-radius: 3px; overflow: hidden; display: flex; align-items: flex-end; }
   .kern-balken { width: 100%; background: var(--primary); transition: height .4s; }
