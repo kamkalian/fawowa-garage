@@ -85,8 +85,12 @@ const pfad = (element) => {
 };
 const dreiD = (elemente) => elemente.map(pfad).join('');
 
+// Trike: eigene Linienzeichnung (src/shared/symbole/trike.svg), auf 48 × 48 umgerechnet
+const TRIKE_ZEICHNUNG = `<g transform="translate(4 16) scale(0.208) translate(-4.3 -121)"><g transform="matrix(1.0207741,0,0,1.0215147,-4.2451538,74.662956)" fill="none" stroke="currentColor" stroke-width="10.5" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="undefined" cy="undefined" rx="undefined" ry="undefined"/><ellipse cx="undefined" cy="undefined" rx="undefined" ry="undefined"/><path d="undefined"/><path d="undefined"/><path d="undefined"/><path d="undefined"/><path d="undefined"/><path d="undefined"/><path d="undefined"/><path d="undefined"/><path d="undefined"/></g></g>`;
+
 /** Symbol je Schlüssel (Bauart oder Art des Anhängers) als SVG-Inhalt */
 export const ICONS = {
   ...ZWEI_D,
-  ...Object.fromEntries(Object.entries(MODELLE).map(([k, elemente]) => [k, dreiD(elemente)]))
+  ...Object.fromEntries(Object.entries(MODELLE).map(([k, elemente]) => [k, dreiD(elemente)])),
+  trike: TRIKE_ZEICHNUNG
 };
