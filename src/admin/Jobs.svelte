@@ -61,6 +61,7 @@
   }
 
   const starten = (art) => tun(() => api('POST', `/jobs/${art}`, {}));
+  const karteBauen = (gebiet) => tun(() => api('POST', '/jobs/karte', { gebiet }));
   const loeschen = (job) => tun(() => api('DELETE', `/jobs/${job.id}`));
   const verschieben = (job, richtung) => tun(() => api('POST', `/jobs/${job.id}/verschieben`, { richtung }));
 
@@ -159,7 +160,8 @@
     <p class="muted">Zuerst die Kartendaten (Nordrhein-Westfalen) laden, dann die Karte bauen. Das läuft auf dem Server und kann mehrere Minuten dauern.</p>
     <div class="knoepfe">
       <button class="btn btn-outline" disabled={beschaeftigt || aktiv("download") || aktiv("karte")} onclick={() => starten("download")}>Kartendaten NRW laden</button>
-      <button class="btn btn-primary" disabled={beschaeftigt || aktiv("karte") || aktiv("download")} onclick={() => starten("karte")}>Karte bauen</button>
+      <button class="btn btn-primary" disabled={beschaeftigt || aktiv("karte") || aktiv("download")} onclick={() => karteBauen("nrw")}>Karte NRW bauen</button>
+      <button class="btn btn-primary" disabled={beschaeftigt || aktiv("karte") || aktiv("download")} onclick={() => karteBauen("deutschland")}>Karte Deutschland bauen</button>
     </div>
 
     <h3>Warteschlange</h3>
