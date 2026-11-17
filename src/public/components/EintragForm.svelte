@@ -4,6 +4,10 @@
   import { ApiFehler } from '../lib/api.js';
   import Fenster from './Fenster.svelte';
   import AntriebEditor from './AntriebEditor.svelte';
+  import { ICONS } from '../../shared/icons.js';
+
+  // Bauart und Art des Anhängers werden als Symbole zur Auswahl gezeigt, nicht als Liste
+  const SYMBOLFELDER = ['bauart', 'aufbau'];
 
   // Formular für Fahrrad und Anhänger; die Felder kommen aus lib/felder.js.
   // onsave(werte, antriebe) legt an oder ändert und wirft bei Fehlern einen ApiFehler.
@@ -90,6 +94,17 @@
               {:else if f.typ === 'zahl' || f.typ === 'ganzzahl'}
                 <input id="f-{f.key}" class="input" type="number" inputmode={f.typ === 'zahl' ? 'decimal' : 'numeric'}
                   min={f.min} max={f.max} step={f.typ === 'zahl' ? 'any' : 1} disabled={feldGesperrt(f)} aria-invalid={!!fehler[f.key]} aria-describedby="h-{f.key}" bind:value={werte[f.key]} />
+              {:else if f.typ === 'auswahl' && SYMBOLFELDER.includes(f.key)}
+                <div class="symbole" role="radiogroup" aria-label={pick(f.label, lang)}>
+                  {#each f.optionen as o (o.wert)}
+                    <button type="button" role="radio" aria-checked={werte[f.key] === o.wert} title={pick(o, lang)}
+                      class="symbol-knopf" class:aktiv={werte[f.key] === o.wert}
+                      onclick={() => (werte[f.key] = werte[f.key] === o.wert ? '' : o.wert)}>
+                      <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">{@html ICONS[o.wert] ?? ''}</svg>
+                      <span>{pick(o, lang)}</span>
+                    </button>
+                  {/each}
+                </div>
               {:else if f.typ === 'auswahl'}
                 <select id="f-{f.key}" class="input" aria-invalid={!!fehler[f.key]} aria-describedby="h-{f.key}" bind:value={werte[f.key]}>
                   <option value="">–</option>
@@ -110,21 +125,17 @@
       </fieldset>
     {/if}
 
-    {#if aktionen}
-      <fieldset class="weitere">
-        <legend>{pick({ de: 'Weitere Angaben', en: 'More details' }, lang)}</legend>
-        <div class="knoepfe">
-          <button type="button" class="btn btn-ghost btn-sm" onclick={aktionen.onloeschen}>{t(lang, 'remove')}</button>
-        </div>
-      </fieldset>
-    {/if}
-
     {#if eintrag}<p class="notiz">{t(lang, 'formResetNote')}</p>{/if}
     {#if allgemein}<p class="fehler" role="alert">{allgemein}</p>{/if}
 
     <div class="aktionen">
-      <button type="button" class="btn btn-ghost" onclick={onclose}>{t(lang, 'cancel')}</button>
-      <button type="submit" class="btn btn-primary" disabled={laeuft}>{laeuft ? t(lang, 'saving') : t(lang, 'save')}</button>
+      {#if aktionen}
+        <button type="button" class="btn btn-ghost" onclick={aktionen.onloeschen}>{t(lang, 'remove')}</button>
+      {/if}
+      <span class="rechts">
+        <button type="button" class="btn btn-ghost" onclick={onclose}>{t(lang, 'cancel')}</button>
+        <button type="submit" class="btn btn-primary" disabled={laeuft}>{laeuft ? t(lang, 'saving') : t(lang, 'save')}</button>
+      </span>
     </div>
   </form>
 </Fenster>
@@ -137,8 +148,19 @@
   .raster { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem .75rem; }
   .feld.voll { grid-column: 1 / -1; }
   .notiz { min-height: 1.1rem; margin-top: .125rem; }
-  .aktionen { display: flex; gap: .5rem; justify-content: flex-end; margin-top: 1rem; }
-  .knoepfe { display: flex; flex-wrap: wrap; gap: .5rem; }
+  .aktionen { display: flex; gap: .5rem; justify-content: space-between; align-items: center; flex-wrap: wrap; margin-top: 1rem; }
+  .rechts { display: inline-flex; gap: .5rem; margin-left: auto; }
+  /* Symbole zur Auswahl von Bauart und Art des Anhängers */
+  .symbole { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: .5rem; }
+  .symbol-knopf {
+    display: flex; flex-direction: column; align-items: center; gap: .25rem; padding: .5rem .25rem;
+    background: var(--bg-card); color: var(--fg-muted); border: 1px solid var(--border); border-radius: var(--radius-sm);
+    font-family: inherit; font-size: .75rem; cursor: pointer; transition: all .15s;
+  }
+  .symbol-knopf svg { width: 48px; height: 48px; }
+  .symbol-knopf:hover { border-color: var(--primary); color: var(--fg); }
+  .symbol-knopf.aktiv { border-color: var(--primary); color: var(--primary); background: var(--primary-bg); font-weight: 600; }
+  .symbol-knopf:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
   .foto { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; padding-bottom: 1rem; margin-bottom: .25rem; border-bottom: 1px solid var(--border); }
   .foto-titel { font-size: .875rem; font-weight: 600; margin-right: .5rem; }
   @media (max-width: 520px) { .raster { grid-template-columns: 1fr; } }
