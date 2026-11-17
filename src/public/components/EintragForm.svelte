@@ -4,7 +4,7 @@
   import { ApiFehler } from '../lib/api.js';
   import Fenster from './Fenster.svelte';
   import AntriebEditor from './AntriebEditor.svelte';
-  import { ICONS } from '../../shared/icons.js';
+  import { ICONS, BILD_SYMBOLE } from '../../shared/icons.js';
 
   // Bauart und Art des Anhängers werden als Symbole zur Auswahl gezeigt, nicht als Liste
   const SYMBOLFELDER = ['bauart', 'aufbau'];
@@ -100,7 +100,11 @@
                     <button type="button" role="radio" aria-checked={werte[f.key] === o.wert} title={pick(o, lang)}
                       class="symbol-knopf" class:aktiv={werte[f.key] === o.wert}
                       onclick={() => (werte[f.key] = werte[f.key] === o.wert ? '' : o.wert)}>
-                      <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">{@html ICONS[o.wert] ?? ''}</svg>
+                      {#if BILD_SYMBOLE[o.wert]}
+                        <img class="sym-bild" src={BILD_SYMBOLE[o.wert]} alt="" />
+                      {:else}
+                        <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">{@html ICONS[o.wert] ?? ''}</svg>
+                      {/if}
                       <span>{pick(o, lang)}</span>
                     </button>
                   {/each}
@@ -157,7 +161,8 @@
     background: var(--bg-card); color: var(--fg-muted); border: 1px solid var(--border); border-radius: var(--radius-sm);
     font-family: inherit; font-size: .75rem; cursor: pointer; transition: all .15s;
   }
-  .symbol-knopf svg { width: 48px; height: 48px; }
+  .symbol-knopf svg, .symbol-knopf .sym-bild { width: 48px; height: 48px; }
+  .symbol-knopf .sym-bild { object-fit: contain; }
   .symbol-knopf:hover { border-color: var(--primary); color: var(--fg); }
   .symbol-knopf.aktiv { border-color: var(--primary); color: var(--primary); background: var(--primary-bg); font-weight: 600; }
   .symbol-knopf:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
