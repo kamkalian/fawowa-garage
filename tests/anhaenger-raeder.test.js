@@ -12,3 +12,10 @@ test('Bauart: Fahrrad mit Wohnkabine ist auswählbar', () => {
   const bauart = ARTEN.fahrraeder.felder.find(f => f.key === 'bauart');
   assert.ok(bauart.optionen.some(o => o.wert === 'fahrrad_kabine'));
 });
+
+test('Fahrrad: Räder je Bauart (Fahrrad 2, Trike 3, Quad 4)', async () => {
+  const { anzahlRaederAusBauart } = await import('../lib/felder.js');
+  assert.equal(anzahlRaederAusBauart({ bauart: 'fahrrad' }).anzahl_raeder, 2);
+  assert.equal(anzahlRaederAusBauart({ bauart: 'trike' }).anzahl_raeder, 3);
+  assert.equal(anzahlRaederAusBauart({ bauart: 'quad' }).anzahl_raeder, 4);
+});

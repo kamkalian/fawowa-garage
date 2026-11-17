@@ -1,5 +1,5 @@
 <script>
-  import { ARTEN, GRUPPEN, ANZAHL_RAEDER_AUS_AUFBAU, anzahlRaederAbleiten } from '../../../lib/felder.js';
+  import { ARTEN, GRUPPEN, ANZAHL_RAEDER_AUS_AUFBAU, anzahlRaederAbleiten, ANZAHL_RAEDER_AUS_BAUART, anzahlRaederAusBauart } from '../../../lib/felder.js';
   import { t, pick } from '../lib/i18n.js';
   import { ApiFehler } from '../lib/api.js';
   import Fenster from './Fenster.svelte';
@@ -23,9 +23,14 @@
   let motoren = $state((eintrag?.motoren ?? []).map(m => ({ motor_art: m.motor_art, leistung_w: m.leistung_w, spannung_v: m.spannung_v ?? null, getriebe: m.getriebe ?? null })));
   // svelte-ignore state_referenced_locally
   let akkus = $state((eintrag?.akkus ?? []).map(a => ({ kapazitaet_wh: a.kapazitaet_wh, spannung_v: a.spannung_v ?? null })));
-  // Bei Anhängern mit fester Achsenzahl gibt die Art die Anzahl der Räder vor
-  $effect(() => { if (art === 'anhaenger') anzahlRaederAbleiten(werte); });
-  const feldGesperrt = (f) => art === 'anhaenger' && f.key === 'anzahl_raeder' && ANZAHL_RAEDER_AUS_AUFBAU[werte.aufbau] !== undefined;
+  // Die Bauart (Fahrrad 2, Trike 3, Quad 4) und die Art des Anhängers (Achsen) geben die Anzahl der Räder vor
+  $effect(() => {
+    if (art === 'anhaenger') anzahlRaederAbleiten(werte);
+    if (art === 'fahrraeder') anzahlRaederAusBauart(werte);
+  });
+  const feldGesperrt = (f) => f.key === 'anzahl_raeder' && (
+    (art === 'anhaenger' && ANZAHL_RAEDER_AUS_AUFBAU[werte.aufbau] !== undefined)
+    || (art === 'fahrraeder' && ANZAHL_RAEDER_AUS_BAUART[werte.bauart] !== undefined));
 
   let fehler = $state({});
   let allgemein = $state('');
