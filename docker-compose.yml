@@ -25,13 +25,12 @@ services:
       - DB_PASSWORD=${DB_PASSWORD:?DB_PASSWORD fehlt in der .env}
       # Wegenetz für den Reichweiten-Planer (siehe deploy/netz-hochladen.ps1); fehlt es, bleibt der Planer abgeschaltet
       - NETZ_DIR=/app/netz
-      - ROH_DIR=/app/roh
-      - HOEHEN_DIR=/app/hoehen
+      - IMPORT_DIR=/app/import
     volumes:
       - ./data/netz:/app/netz:ro
+      # Hochgeladene ZIP-Datei mit Wegenetz und Karte (Verwaltung schreibt, Worker packt aus)
+      - ./data/import:/app/import
       # Stand der Kartendaten und Höhendaten (nur lesen, für die Verwaltung)
-      - ./data/roh:/app/roh:ro
-      - ./data/hoehen:/app/hoehen:ro
       # Fotos der Stellplätze (Docker-Volume, bleibt bei Neustarts erhalten)
       - fotos:/app/fotos
       # Vorab erzeugte Kacheln der Karte (Docker-Volume, bleibt bei Neustarts erhalten)
@@ -52,9 +51,8 @@ services:
       - caddy-net
       - intern
 
-  # Hintergrundaufträge (Download der Kartendaten, Kartenbau, Netzbau, Reichweiten, Kacheln), nacheinander aus der Warteschlange
-  # (siehe lib/worker.js). Eigener Container, damit ein großer Lauf den Webdienst nicht ausbremst. Das Wegenetz für ganz Deutschland
-  # braucht viel Speicher; der Worker hält es nur einmal. Er braucht Internet (Download) nur über das Netz "internet".
+  # Hintergrundaufträge (Entpacken der hochgeladenen Karte, Reichweiten, Kacheln), nacheinander aus der Warteschlange (siehe lib/worker.js).
+  # Eigener Container, damit ein großer Lauf den Webdienst nicht ausbremst. Das Wegenetz für ganz Deutschland hält er nur einmal im Speicher.
   garage-worker:
     image: fawowa-garage:latest
     build: .
@@ -80,14 +78,12 @@ services:
       - DB_USER=garage
       - DB_PASSWORD=${DB_PASSWORD:?DB_PASSWORD fehlt in der .env}
       - NETZ_DIR=/app/netz
-      - ROH_DIR=/app/roh
-      - HOEHEN_DIR=/app/hoehen
+      - IMPORT_DIR=/app/import
       - KACHEL_DIR=/app/kacheln
     volumes:
       # Wegenetz (schreibbar: der Netzbau legt es hier ab), Kartendaten aus dem Download, Höhendaten, Kacheln
       - ./data/netz:/app/netz
-      - ./data/roh:/app/roh
-      - ./data/hoehen:/app/hoehen
+      - ./data/import:/app/import
       - kacheln:/app/kacheln
     read_only: true
     tmpfs:
@@ -102,7 +98,6 @@ services:
         max-size: "10m"
         max-file: "3"
     networks:
-      - internet
       - intern
 
   garage-db:
@@ -149,7 +144,5 @@ volumes:
 networks:
   caddy-net:
     external: true
-  # Nur für den Worker: lädt die Kartendaten herunter
-  internet:
   intern:
     internal: true

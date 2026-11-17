@@ -12,8 +12,30 @@
   let beschaeftigt = $state(false);
   let timer = null;
 
-  const ARTEN = { download: 'Kartendaten laden', hoehen: 'Höhendaten laden', karte: 'Kartenbau', netz: 'Netzbau', reichweite: 'Reichweite', kacheln: 'Kacheln' };
+  const ARTEN = { entpacken: 'Wegenetz einspielen', reichweite: 'Reichweite', kacheln: 'Kacheln' };
   const STATUS = { laeuft: 'läuft', wartet: 'wartet', fertig: 'fertig', fehler: 'Fehler' };
+
+  // ZIP-Datei mit Wegenetz und Karte hochladen (mit Fortschritt in Prozent)
+  let hochladen = $state(null);   // null oder { prozent }
+  function zipHochladen(ev) {
+    const datei = ev.currentTarget.files?.[0];
+    ev.currentTarget.value = '';
+    if (!datei) return;
+    fehler = '';
+    hochladen = { prozent: 0 };
+    const anfrage = new XMLHttpRequest();
+    anfrage.open('POST', '/api/admin/import');
+    anfrage.setRequestHeader('Content-Type', 'application/zip');
+    anfrage.upload.onprogress = (e) => { if (e.lengthComputable) hochladen = { prozent: Math.round(e.loaded / e.total * 100) }; };
+    anfrage.onload = () => {
+      hochladen = null;
+      if (anfrage.status >= 200 && anfrage.status < 300) { laden(); return; }
+      try { fehler = JSON.parse(anfrage.responseText).error; } catch { fehler = ''; }
+      fehler ||= 'Das Hochladen ist fehlgeschlagen.';
+    };
+    anfrage.onerror = () => { hochladen = null; fehler = 'Das Hochladen ist fehlgeschlagen.'; };
+    anfrage.send(datei);
+  }
 
   async function laden() {
     try {
@@ -61,8 +83,9 @@
 
   // Hinweis je Datenobjekt: neue Daten, aktuell oder nicht prüfbar
   const neuText = (o) => {
+    if (o.schluessel === 'netz') return 'Neue Fassung: einfach die aktuelle ZIP-Datei hochladen.';
     if (o.neu === null) return 'Ob neuere Daten vorhanden sind, lässt sich gerade nicht prüfen.';
-    if (o.neu) return o.schluessel === 'download' || o.schluessel === 'hoehen' ? 'Neue Daten beim Anbieter vorhanden.' : 'Neuer als dieser Stand: bitte neu erstellen.';
+    if (o.neu) return 'Neuer als dieser Stand: bitte neu erstellen.';
     return 'Aktuell.';
   };
 
@@ -99,6 +122,7 @@
     {/if}
 
     <h3>Stand der Daten</h3>
+    <p class="muted">Wegenetz und Karte baust du auf deinem Rechner (<code>npm run daten</code>) und lädst die ZIP-Datei hier hoch. Der Server packt sie aus und verwendet sie.</p>
     <div class="datenkacheln">
       {#each stand.datenstand as o (o.schluessel)}
         <article class="datenkachel" class:neu={o.neu === true}>
@@ -110,9 +134,23 @@
             {#if o.geladen_am}Zuletzt: {zeit(o.geladen_am)}{:else if o.vorhanden}Stand unbekannt (vor der Verwaltung entstanden).{:else}Noch nicht vorhanden.{/if}
           </p>
           <p class="info">{neuText(o)}</p>
-          <button class="btn btn-outline" disabled={beschaeftigt || aktiv(o.auftrag)} onclick={() => starten(o.auftrag)}>
-            {aktiv(o.auftrag) ? 'läuft oder wartet' : o.knopf}
-          </button>
+          {#if o.auftrag === 'entpacken'}
+            {#if hochladen}
+              <div class="fortschritt" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow={hochladen.prozent} aria-label="Hochladen">
+                <div class="balken" style="width: {hochladen.prozent}%"></div>
+              </div>
+              <small>Hochladen: {hochladen.prozent} %</small>
+            {:else}
+              <label class="btn btn-outline datei" class:aus={beschaeftigt || aktiv(o.auftrag)}>
+                {aktiv(o.auftrag) ? 'Einspielen läuft oder wartet' : o.knopf}
+                <input type="file" accept=".zip,application/zip" hidden disabled={beschaeftigt || aktiv(o.auftrag)} onchange={zipHochladen} />
+              </label>
+            {/if}
+          {:else}
+            <button class="btn btn-outline" disabled={beschaeftigt || aktiv(o.auftrag)} onclick={() => starten(o.auftrag)}>
+              {aktiv(o.auftrag) ? 'läuft oder wartet' : o.knopf}
+            </button>
+          {/if}
         </article>
       {/each}
     </div>
@@ -178,6 +216,11 @@
   .info { color: var(--fg-muted); }
   .datenkachel.neu .info { color: #b45309; font-weight: 600; }
   .datenkachel .btn { align-self: flex-start; margin-top: auto; }
+  .datei { cursor: pointer; }
+  .datei.aus { opacity: .5; pointer-events: none; }
+  .fortschritt { height: .5rem; border-radius: 999px; background: var(--bg-input); overflow: hidden; margin-top: auto; }
+  .fortschritt .balken { height: 100%; background: var(--primary); transition: width .3s; }
+  code { font-size: .8125rem; }
   .tabelle-rahmen { overflow-x: auto; }
   table { width: 100%; border-collapse: collapse; font-size: .875rem; }
   th, td { text-align: left; padding: .4rem .5rem; border-bottom: 1px solid var(--border); vertical-align: top; white-space: nowrap; }

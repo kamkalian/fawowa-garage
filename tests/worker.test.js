@@ -72,24 +72,19 @@ test('Höhenkacheln: Name wie im SRTM-Datensatz', () => {
   assert.equal(hoehenName(-3, -70), 'S03W070');
 });
 
-test('Datenstand: fehlende Daten sind neu, geladene Daten sind aktuell, wenn nichts Neueres beim Anbieter liegt', async () => {
-  const roh = mkdtempSync(join(tmpdir(), 'garage-roh-'));
-  const netz = mkdtempSync(join(tmpdir(), 'garage-stand-'));
-  writeFileSync(join(roh, 'stand.json'), JSON.stringify({ geladen_am: '2026-11-10T10:00:00Z', stand_quelle: 'Mon, 09 Nov 2026 00:00:00 GMT' }));
-  writeFileSync(join(roh, 'germany-latest.osm.pbf'), 'x');
-  const anbieter = 'Tue, 10 Nov 2026 00:00:00 GMT';
-  const ohneNetz = { NETZ_DIR: join(netz, 'netz'), ROH_DIR: roh, HOEHEN_DIR: join(netz, 'hoehen'), KACHEL_DIR: join(netz, 'kacheln') };
-  const s = await datenstand({ env: ohneNetz, letzte: { karte: new Date('2026-11-11T10:00:00Z') }, pruefeKarte: async () => anbieter, pruefeHoehen: async () => undefined });
-  const k = Object.fromEntries(s.objekte.map(o => [o.schluessel, o]));
-  assert.equal(k.download.vorhanden, true);
-  assert.equal(k.download.neu, true, 'Anbieter hat neuere Daten als unser Stand');
-  assert.equal(k.hoehen.vorhanden, false);
-  assert.equal(k.hoehen.neu, null, 'Höhen-Anbieter nicht erreichbar');
-  assert.equal(k.karte.neu, false, 'Karte ist jünger als die Kartendaten');
-  assert.equal(k.netz.vorhanden, false);
-  assert.equal(k.kacheln.vorhanden, false);
-  assert.equal(k.kacheln.neu, true, 'Karte da, aber noch keine Kacheln');
-
-  const aktuell = await datenstand({ env: ohneNetz, letzte: {}, pruefeKarte: async () => 'Mon, 01 Jan 2026 00:00:00 GMT', pruefeHoehen: async () => undefined });
-  assert.equal(aktuell.objekte.find(o => o.schluessel === 'download').neu, false);
+test('Datenstand: ohne ZIP gibt es kein Wegenetz; nach dem Entpacken gilt sein Datum; Kacheln sind älter als das Netz', async () => {
+  const netz = mkdtempSync(join(tmpdir(), 'garage-netz-'));
+  const env = { NETZ_DIR: netz, KACHEL_DIR: join(netz, '..', 'kacheln-' + Date.now()) };
+  const leer = await datenstand({ env, letzte: {} });
+  const k0 = Object.fromEntries(leer.objekte.map(o => [o.schluessel, o]));
+  assert.equal(k0.netz.vorhanden, false);
+  assert.equal(k0.netz.auftrag, 'entpacken');
+  mkdirSync(join(netz, 'karte'), { recursive: true });
+  writeFileSync(join(netz, 'karte', 'pts.i32'), 'x');
+  writeFileSync(join(netz, 'info.json'), '{}');
+  const mitNetz = await datenstand({ env, letzte: { entpacken: new Date('2026-11-10T10:00:00Z'), kacheln: new Date('2026-11-09T10:00:00Z') } });
+  const k = Object.fromEntries(mitNetz.objekte.map(o => [o.schluessel, o]));
+  assert.equal(k.netz.vorhanden, true);
+  assert.equal(k.netz.geladen_am, '2026-11-10T10:00:00.000Z');
+  assert.equal(k.kacheln.neu, true, 'Netz nach den Kacheln neu eingespielt');
 });

@@ -310,8 +310,19 @@ for (const [name, arr] of Object.entries(dateien)) {
   groessen[name] = arr.byteLength;
 }
 const gesamtBytes = Object.values(groessen).reduce((a, b) => a + b, 0);
+// Ausdehnung des Netzes (Grad): der Webdienst prüft damit, ob ein Startpunkt im Gebiet liegt
+const bbox = (() => {
+  const la = nLat.fertig(); const lo = nLon.fertig();
+  let minLat = Infinity; let maxLat = -Infinity; let minLon = Infinity; let maxLon = -Infinity;
+  for (let i = 0; i < la.length; i++) {
+    const a = la[i] / 1e7; const o = lo[i] / 1e7;
+    if (a < minLat) minLat = a; if (a > maxLat) maxLat = a;
+    if (o < minLon) minLon = o; if (o > maxLon) maxLon = o;
+  }
+  return { minLat, maxLat, minLon, maxLon };
+})();
 const info = {
-  erzeugt: new Date().toISOString(), quelle: pbfDatei, knoten: N, kanten: E, teilstuecke: legLen.n,
+  erzeugt: new Date().toISOString(), quelle: pbfDatei, knoten: N, kanten: E, teilstuecke: legLen.n, bbox,
   kmStrasse: Math.round(stat.kmKlasse[1]), kmRadweg: Math.round(stat.kmKlasse[2]), kmWeg: Math.round(stat.kmKlasse[4]),
   groessenBytes: groessen, gesamtMB: +(gesamtBytes / 1048576).toFixed(1), statistik: stat, osm: { ...zaehler, knoten: nKnoten },
   bauzeitSekunden: +((Date.now() - zeit0) / 1000).toFixed(0), spitzenRamMB: +(process.memoryUsage().rss / 1048576).toFixed(0)
