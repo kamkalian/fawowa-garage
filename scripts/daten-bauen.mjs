@@ -64,7 +64,9 @@ function anfrage(url, methode = 'GET', weiter = 0) {
  */
 async function laden(url, ziel, { optional = false, zeigeName = '' } = {}) {
   const stand = `${ziel}.stand.json`;
-  const altStand = existsSync(stand) ? JSON.parse(readFileSync(stand, 'utf8')) : null;
+  // Ohne Stand-Datei (Datei von einem früheren Lauf) gilt das Änderungsdatum der Datei als Stand
+  const altStand = existsSync(stand) ? JSON.parse(readFileSync(stand, 'utf8'))
+    : (existsSync(ziel) ? { last_modified: statSync(ziel).mtime.toUTCString() } : null);
   if (existsSync(ziel) && !neu && altStand) {
     // Kopfzeile prüfen: nur neu laden, wenn der Anbieter einen jüngeren Stand hat
     const kopf = await anfrage(url, 'HEAD');
