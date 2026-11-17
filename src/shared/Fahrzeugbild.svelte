@@ -12,7 +12,7 @@
   const bild = $derived(BILD_SYMBOLE[schluessel] ?? null);
 </script>
 
-<div class="bild" style="--groesse: {groesse}">
+<div class="bild" class:ohne-hintergrund={!foto} style="--groesse: {groesse}">
   {#if foto}
     <img src={foto} alt={alt} loading="lazy" />
   {:else if bild}
@@ -31,6 +31,8 @@
   .bild { --deck: var(--bg-input); position: relative; width: var(--groesse, 6rem); height: var(--groesse, 6rem); flex-shrink: 0; border-radius: var(--radius-sm); background: var(--bg-input); color: var(--primary); display: flex; align-items: center; justify-content: center; overflow: hidden; }
   .bild svg { width: 58%; height: 58%; }
   .bild img { width: 100%; height: 100%; object-fit: cover; }
+  /* Symbole ohne Flächenhintergrund (kein heller Kasten, weder im hellen noch im dunklen Modus) */
+  .bild.ohne-hintergrund { background: transparent; }
   /* Fertige Symbol-Datei: ganz zu sehen, nicht beschnitten */
   .bild img.symbolbild { width: 100%; height: 100%; object-fit: contain; padding: 6%; box-sizing: border-box; }
   /* Blitz ohne Hintergrund: kräftiges Gelb mit dunkler Kontur, damit er auf hell und dunkel gut sichtbar ist */
