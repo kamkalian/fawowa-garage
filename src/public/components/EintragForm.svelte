@@ -28,9 +28,8 @@
     if (art === 'anhaenger') anzahlRaederAbleiten(werte);
     if (art === 'fahrraeder') anzahlRaederAusBauart(werte);
   });
-  const feldGesperrt = (f) => f.key === 'anzahl_raeder' && (
-    (art === 'anhaenger' && ANZAHL_RAEDER_AUS_AUFBAU[werte.aufbau] !== undefined)
-    || (art === 'fahrraeder' && ANZAHL_RAEDER_AUS_BAUART[werte.bauart] !== undefined));
+  // Die Anzahl der Räder wird nach Bauart bzw. Achsen vorgeschlagen, bleibt aber änderbar
+  const feldGesperrt = () => false;
 
   let fehler = $state({});
   let allgemein = $state('');
@@ -160,7 +159,9 @@
   .aktionen { display: flex; gap: .5rem; justify-content: space-between; align-items: center; flex-wrap: wrap; margin-top: 1rem; }
   .rechts { display: inline-flex; gap: .5rem; margin-left: auto; }
   /* Symbole zur Auswahl von Bauart und Art des Anhängers */
-  .symbole { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: .5rem; }
+  /* Symbole nebeneinander, bis die Zeile voll ist; dann umbrechen */
+  .symbole { display: flex; flex-wrap: wrap; gap: .5rem; }
+  .symbol-knopf { flex: 0 0 96px; }
   .symbol-knopf { --deck: var(--bg-card);
     display: flex; flex-direction: column; align-items: center; gap: .25rem; padding: .5rem .25rem;
     background: var(--bg-card); color: var(--fg-muted); border: 1px solid var(--border); border-radius: var(--radius-sm);
