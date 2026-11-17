@@ -19,35 +19,6 @@ const log = (...a) => console.log(((Date.now() - t0) / 1000).toFixed(0).padStart
 
 const SCHLUESSEL = new Set(['natural', 'landuse', 'leisure', 'waterway', 'railway', 'water', 'highway', 'type', 'motorroad']);
 
-// Knoten (in der Datei nach ID sortiert) mit Koordinaten in 1e-7 Grad
-let kIds = new Float64Array(1 << 26);
-let kLat = new Int32Array(1 << 26);
-let kLon = new Int32Array(1 << 26);
-let nK = 0;
-function knotenDazu(ids, la, lo, n) {
-  if (nK + n > kIds.length) {
-    const m = Math.max(kIds.length * 2, nK + n);
-    const a = new Float64Array(m); a.set(kIds); kIds = a;
-    const b = new Int32Array(m); b.set(kLat); kLat = b;
-    const c = new Int32Array(m); c.set(kLon); kLon = c;
-  }
-  for (let i = 0; i < n; i++) {
-    kIds[nK] = ids[i];
-    kLat[nK] = Math.round(la[i] * 1e7);
-    kLon[nK] = Math.round(lo[i] * 1e7);
-    nK++;
-  }
-}
-function suche(id) {
-  let lo = 0; let hi = nK - 1;
-  while (lo <= hi) {
-    const m = (lo + hi) >>> 1;
-    const w = kIds[m];
-    if (w < id) lo = m + 1; else if (w > id) hi = m - 1; else return m;
-  }
-  return -1;
-}
-
 const GRUEN_LANDUSE = new Set(['grass', 'meadow', 'recreation_ground', 'village_green', 'cemetery', 'orchard', 'vineyard', 'allotments']);
 const GRUEN_LEISURE = new Set(['park', 'garden', 'playground', 'recreation_ground', 'pitch']);
 
@@ -158,11 +129,68 @@ leseDatei(pbfDatei, {
 });
 log(`Relationen: ${relationen.length}, benötigte Wege: ${benoetigteWege.size}`);
 
+// Schritt 1b: Welche Knoten braucht die Karte? Nur die Knoten der Wege, die ein Merkmal bilden oder in einer Relation stecken.
+// So bleibt der Speicher klein: nicht jeder Knoten der Datei (Deutschland: hunderte Millionen) wird behalten.
+let bed = new Float64Array(1 << 22);
+let nBed = 0;
+leseDatei(pbfDatei, {
+  schluessel: SCHLUESSEL,
+  wege: (id, tags, refs, n) => {
+    if (!benoetigteWege.has(id) && !klassifiziere(tags)) return;
+    if (nBed + n > bed.length) {
+      const b = new Float64Array(Math.max(bed.length * 2, nBed + n));
+      b.set(bed.subarray(0, nBed));
+      bed = b;
+    }
+    for (let i = 0; i < n; i++) bed[nBed++] = refs[i];
+  }
+});
+// Sortieren und Dubletten entfernen (in place); bedarf ist danach eine sortierte Liste eindeutiger Knoten-IDs
+const sortiert = bed.subarray(0, nBed);
+sortiert.sort();
+let u = 0;
+let letzter = NaN;
+for (let i = 0; i < nBed; i++) {
+  const v = sortiert[i];
+  if (v !== letzter) { sortiert[u++] = v; letzter = v; }
+}
+const bedarf = sortiert.subarray(0, u);
+bed = null;
+const kLat = new Int32Array(bedarf.length);
+const kLon = new Int32Array(bedarf.length);
+const gefunden = new Uint8Array(bedarf.length);
+log(`Benötigte Knoten: ${bedarf.length} (${(bedarf.length * 21 / 1048576).toFixed(0)} MB Speicher), Speicher jetzt ${(process.memoryUsage().rss / 1048576).toFixed(0)} MB`);
+
+// Knotenlauf: Knoten der Datei kommen nach ID sortiert; wir gehen gleichzeitig mit der benötigten Liste durch
+let zeiger = 0;
+function knotenLesen(ids, la, lo, n) {
+  for (let i = 0; i < n; i++) {
+    const id = ids[i];
+    while (zeiger < bedarf.length && bedarf[zeiger] < id) zeiger++;
+    if (zeiger < bedarf.length && bedarf[zeiger] === id) {
+      kLat[zeiger] = Math.round(la[i] * 1e7);
+      kLon[zeiger] = Math.round(lo[i] * 1e7);
+      gefunden[zeiger] = 1;
+    }
+  }
+}
+
+/** Index eines benötigten und gefundenen Knotens, sonst -1 */
+function suche(id) {
+  let lo = 0; let hi = bedarf.length - 1;
+  while (lo <= hi) {
+    const m = (lo + hi) >>> 1;
+    const w = bedarf[m];
+    if (w < id) lo = m + 1; else if (w > id) hi = m - 1; else return gefunden[m] ? m : -1;
+  }
+  return -1;
+}
+
 // Schritt 2: Knoten und Wege lesen; die Knotenketten der benötigten Wege werden gemerkt
 const wegRefs = new Map();
 leseDatei(pbfDatei, {
   schluessel: SCHLUESSEL,
-  knoten: (ids, la, lo, n) => knotenDazu(ids, la, lo, n),
+  knoten: (ids, la, lo, n) => knotenLesen(ids, la, lo, n),
   wege: (id, tags, refs, n) => {
     if (benoetigteWege.has(id)) wegRefs.set(id, Float64Array.from(refs.subarray(0, n)));
     const k = klassifiziere(tags);
@@ -177,7 +205,7 @@ leseDatei(pbfDatei, {
     aufnehmen(a, o, k);
   }
 });
-log(`Knoten: ${nK}, gemerkte Wege: ${wegRefs.size}`);
+log(`Knoten gefunden: ${gefunden.reduce((a, b) => a + b, 0)} von ${bedarf.length}, gemerkte Wege: ${wegRefs.size}, Speicher ${(process.memoryUsage().rss / 1048576).toFixed(0)} MB`);
 
 // Schritt 3: Relationen zusammensetzen: Mehrfachflächen aus geschlossenen Ringen, Flüsse als Linien
 let relFlaechen = 0; let relLinien = 0;

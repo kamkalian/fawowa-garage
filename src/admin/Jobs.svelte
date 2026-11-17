@@ -2,6 +2,9 @@
   import { onMount, onDestroy } from 'svelte';
   import { api } from './api.js';
 
+  // Öffnet die Garage in der Verwaltung (Details), wenn ein Auftrag einer Garage gehört
+  let { onoeffnen = null } = $props();
+
   // Verwaltung der Daten: Stand von Kartendaten, Höhendaten, Karte, Wegenetz und Kacheln, Neuladen, die Warteschlange und Speicher des Servers.
   // Der Stand wird alle 3 Sekunden neu geladen, damit der Fortschritt sichtbar bleibt.
   let stand = $state(null);
@@ -132,7 +135,7 @@
                 </td>
                 <td>{job.status === 'wartet' ? '–' : `${job.fortschritt} %`}</td>
                 <td>{zaehlerText(job)}</td>
-                <td>{job.garage_id ?? '–'}</td>
+                <td>{#if job.garage_id && onoeffnen}<button type="button" class="verweis" onclick={() => onoeffnen(job.garage_id)}>Garage {job.garage_id}</button>{:else}{job.garage_id ?? '–'}{/if}</td>
                 <td class="meldung">{job.meldung ?? ''}</td>
                 <td>{zeit(job.beendet_am ?? job.begonnen_am ?? job.erstellt_am)}</td>
                 <td class="aktionen">
@@ -181,12 +184,13 @@
   th { font-weight: 600; color: var(--fg-muted); }
   .meldung { max-width: 22rem; white-space: normal; word-break: break-word; color: var(--fg-muted); }
   tr.fehler td:nth-child(3) { color: var(--danger, #dc2626); }
-  /* Status farblich: blau läuft, gelb wartet, rot Fehler, grün fertig */
-  .status { display: inline-block; padding: .1rem .5rem; border-radius: 999px; font-weight: 600; font-size: .8125rem; }
-  .status.laeuft { background: #2563eb; color: #fff; }
-  .status.wartet { background: #facc15; color: #422006; }
-  .status.fehler { background: #dc2626; color: #fff; }
-  .status.fertig { background: #16a34a; color: #fff; }
+  /* Status als farbiger Text: blau läuft, gelb wartet, rot Fehler, grün fertig */
+  .status { font-weight: 600; }
+  .status.laeuft { color: #2563eb; }
+  .status.wartet { color: #ca8a04; }
+  .status.fehler { color: #dc2626; }
+  .status.fertig { color: #16a34a; }
+  .verweis { background: none; border: 0; padding: 0; color: var(--primary); text-decoration: underline; cursor: pointer; font: inherit; }
   .platz { display: inline-block; margin-left: .4rem; font-size: .8125rem; color: var(--fg-muted); }
   .aktionen { white-space: nowrap; }
   .klein { padding: .2rem .5rem; font-size: .8125rem; margin-right: .2rem; }

@@ -60,7 +60,8 @@ services:
     build: .
     container_name: fawowa-garage-worker
     # Obergrenze für den Speicher: ein sehr großer Lauf trifft dann den Worker, nicht Datenbank und Webdienst (ohne Swap auf dem Server)
-    mem_limit: 2800m
+    # Das Wegenetz von Deutschland und der Kartenbau brauchen zusammen etwa 3 GB; der Rest läuft über den Swap des Servers
+    mem_limit: 3584m
     # Der Worker hat keinen Webserver: den Gesundheitscheck des Webdienstes übernimmt er nicht
     healthcheck:
       disable: true

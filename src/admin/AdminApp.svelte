@@ -70,7 +70,7 @@
       </dl>
     {/if}
 
-    <Jobs />
+    <Jobs onoeffnen={(id) => (auswahl = id)} />
 
     <!-- Die Liste bleibt geladen (nur ausgeblendet), damit Suche und Seite beim Zurückkehren erhalten bleiben -->
     <div hidden={auswahl !== null}>
