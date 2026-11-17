@@ -37,6 +37,6 @@ if ($LASTEXITCODE -ne 0) { throw 'scp ist fehlgeschlagen.' }
 
 Write-Host '3/3 Entpacken und neu starten ...'
 # Erst in einen neuen Ordner entpacken und dann tauschen, damit die laufende Anwendung nie ein halbes Netz sieht
-Invoke-Nativ { ssh -i $Key -o IdentitiesOnly=yes "${User}@${Server}" "set -e; cd $Ziel/data && rm -rf netz.neu && mkdir netz.neu && tar -xzf /tmp/garage-netz.tar.gz -C netz.neu && rm -f /tmp/garage-netz.tar.gz && rm -rf netz.alt && { [ -d netz ] && mv netz netz.alt || true; } && mv netz.neu netz && rm -rf netz.alt && cd $Ziel && docker compose up -d --force-recreate garage 2>&1" }
+Invoke-Nativ { ssh -i $Key -o IdentitiesOnly=yes "${User}@${Server}" "set -e; cd $Ziel/data && rm -rf netz.neu && mkdir netz.neu && tar -xzf /tmp/garage-netz.tar.gz -C netz.neu && rm -f /tmp/garage-netz.tar.gz && rm -rf netz.alt && { [ -d netz ] && mv netz netz.alt || true; } && mv netz.neu netz && rm -rf netz.alt && cd $Ziel && docker compose up -d --force-recreate garage garage-worker 2>&1" }
 if ($LASTEXITCODE -ne 0) { throw 'Entpacken oder Neustart ist fehlgeschlagen.' }
 Write-Host 'Fertig.'

@@ -45,6 +45,8 @@ export const emailBestaetigen = (schluessel) => anfrage('POST', '/api/v1/email/b
 export const zugangAnfordern = (email, lang) => anfrage('POST', '/api/v1/zugang/anfordern', { body: { email, lang } });
 export const zugangEinloesen = (schluessel) => anfrage('POST', '/api/v1/zugang/einloesen', { body: { token: schluessel } });
 export const reichweiteBerechnen = (token, werte) => anfrage('POST', '/api/v1/garage/reichweite', { token, body: werte });
+/** Stand der Reichweite der Garage: { status: wartet|laeuft|fertig|fehler|null, davor, meldung, ergebnis } */
+export const reichweiteStand = (token) => anfrage('GET', '/api/v1/garage/reichweite', { token });
 export const karteOrte = () => anfrage('GET', '/api/v1/karte/orte');
 
 /** Wegelinien einer Kartenkachel (Binärformat, siehe lib/karte-daten.js) */

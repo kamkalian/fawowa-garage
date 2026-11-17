@@ -47,6 +47,53 @@ services:
       - caddy-net
       - intern
 
+  # Hintergrundaufträge (Download der Kartendaten, Kartenbau, Netzbau, Reichweiten, Kacheln), nacheinander aus der Warteschlange
+  # (siehe lib/worker.js). Eigener Container, damit ein großer Lauf den Webdienst nicht ausbremst. Das Wegenetz für ganz Deutschland
+  # braucht viel Speicher; der Worker hält es nur einmal. Er braucht Internet (Download) nur über das Netz "internet".
+  garage-worker:
+    image: fawowa-garage:latest
+    build: .
+    container_name: fawowa-garage-worker
+    restart: unless-stopped
+    command: ["node", "lib/worker.js"]
+    depends_on:
+      garage-db:
+        condition: service_healthy
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      - NODE_ENV=production
+      - DB_HOST=garage-db
+      - DB_NAME=garage
+      - DB_USER=garage
+      - DB_PASSWORD=${DB_PASSWORD:?DB_PASSWORD fehlt in der .env}
+      - NETZ_DIR=/app/netz
+      - ROH_DIR=/app/roh
+      - HOEHEN_DIR=/app/hoehen
+      - KACHEL_DIR=/app/kacheln
+    volumes:
+      # Wegenetz (schreibbar: der Netzbau legt es hier ab), Kartendaten aus dem Download, Höhendaten, Kacheln
+      - ./data/netz:/app/netz
+      - ./data/roh:/app/roh
+      - ./data/hoehen:/app/hoehen:ro
+      - kacheln:/app/kacheln
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - internet
+      - intern
+
   garage-db:
     image: mysql:8.4
     container_name: fawowa-garage-db
@@ -91,5 +138,7 @@ volumes:
 networks:
   caddy-net:
     external: true
+  # Nur für den Worker: lädt die Kartendaten herunter
+  internet:
   intern:
     internal: true

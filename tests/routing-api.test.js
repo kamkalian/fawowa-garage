@@ -1,75 +1,59 @@
-import { test, before, after } from 'node:test';
+// Reichweiten-Planer in der Web-Anwendung: die Berechnung läuft als Auftrag im Garage-Worker (siehe tests/worker.test.js).
+// Hier geht es um Annahme, Warteschlange je Garage, Ergebnis-Abruf und Kacheln von der Platte.
+import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { RoutingDienst } from '../lib/routing-dienst.js';
-import { Begrenzung } from '../lib/begrenzung.js';
+import { mkdtempSync, mkdirSync, writeFileSync } from 'fs';
+import { tmpdir } from 'os';
+import { join } from 'path';
 import { starteTestServer } from './hilfen.js';
-import { gitterNetz } from './hilfen-netz.js';
-
-let dienst;
-before(async () => {
-  dienst = new RoutingDienst({ ordner: gitterNetz(31), minKomponente: 1, maxWarteschlange: 3 });
-  await dienst.starten();
-});
-after(async () => { await dienst.beenden(); });
+import { kachelDatei } from '../lib/kachel-job.js';
 
 const RAD = { name: 'Rad', motor_art: 'mittelmotor', akku_kapazitaet_wh: 10, gewicht_kg: 25 };
 const START = { lat: 51.075, lon: 7.12 };
+const PLANER = { bbox: { minLat: 50, maxLat: 52, minLon: 6, maxLon: 9 }, orte: [] };
 
-async function mitServer(optionen = {}) {
-  const t = await starteTestServer({ app: { routing: dienst, ...optionen } });
-  const token = (await t.anfrage('POST', '/api/v1/garagen', { body: { fahrer_name: 'Anja' } })).json.token;
-  const rad = (await t.anfrage('POST', '/api/v1/garage/fahrraeder', { token, body: { name: RAD.name, gewicht_kg: RAD.gewicht_kg } })).json;
-  // Motor und Akku kommen über die Liste der Antriebe, nicht über Felder des Fahrrads
-  await t.anfrage('PUT', `/api/v1/garage/antriebe/fahrraeder/${rad.id}`, { token, body: { motoren: [{ motor_art: RAD.motor_art, leistung_w: 250 }], akkus: [{ kapazitaet_wh: RAD.akku_kapazitaet_wh }] } });
-  const wagen = (await t.anfrage('POST', '/api/v1/garage/anhaenger', { token, body: { name: 'Wagen', leergewicht_kg: 40 } })).json;
-  // Setzt Zugfahrzeug und Anhänger im Gespann (null nimmt den bisherigen heraus)
-  const aktiv = { fahrraeder: null, anhaenger: null };
-  const gespannSetzen = async (werte) => {
-    for (const [feld, art] of [['fahrrad_id', 'fahrraeder'], ['anhaenger_id', 'anhaenger']]) {
-      if (!(feld in werte)) continue;
-      const neu = werte[feld];
-      if (aktiv[art] !== null && aktiv[art] !== neu) await t.anfrage('PUT', '/api/v1/garage/mitglied', { token, body: { art, id: aktiv[art], im: false } });
-      if (neu !== null) await t.anfrage('PUT', '/api/v1/garage/mitglied', { token, body: { art, id: neu, im: true } });
-      aktiv[art] = neu;
-    }
-    return t.anfrage('PUT', '/api/v1/garage/gespann', { token, body: { fahrer_gewicht_kg: 80, ...werte, fahrrad_id: undefined, anhaenger_id: undefined } });
-  };
-  return { t, token, rad, wagen, gespannSetzen };
+/** Warteschlange im Speicher, mit denselben Regeln wie lib/jobs.js, ohne Datenbank */
+class FakeJobs {
+  constructor() { this.zeilen = []; this.id = 1; this.ergebnisse = new Map(); }
+  async reichweiteAnlegen(garageId, eingabe) {
+    this.zeilen = this.zeilen.filter(z => !(z.garageId === garageId && z.status === 'wartet'));
+    const id = this.id++;
+    this.zeilen.push({ id, garageId, status: 'wartet', eingabe });
+    return id;
+  }
+  async reichweiteLesen(garageId) {
+    const eigener = this.zeilen.find(z => z.garageId === garageId);
+    const davor = eigener ? this.zeilen.filter(z => z.id < eigener.id).length : 0;
+    const ergebnis = this.ergebnisse.get(garageId) ?? null;
+    return { status: eigener ? 'wartet' : (ergebnis ? 'fertig' : null), davor, meldung: null, ergebnis };
+  }
 }
 
-test('Dienst: Netz geladen, Reichweite und Kartenlinien kommen aus dem Thread', async () => {
-  assert.equal(dienst.bereit, true);
-  assert.ok(dienst.info.knoten === 961 && dienst.info.bbox.minLat === 51);
-  const r = await dienst.berechne({ fahrrad: RAD, gespann: { fahrer_gewicht_kg: 80 }, einstellungen: {}, start: START, modus: 'alle' });
-  assert.equal(r.ok, true);
-  const buf = await dienst.linien(14, 8570, 5516);
-  assert.ok(buf instanceof ArrayBuffer);
-});
+/** Legt eine eingerichtete Garage (Fahrrad im Gespann) auf dem Server an und liefert ihren Schlüssel */
+async function garageAnlegen(t, name = 'Anja') {
+  const token = (await t.anfrage('POST', '/api/v1/garagen', { body: { fahrer_name: name } })).json.token;
+  const rad = (await t.anfrage('POST', '/api/v1/garage/fahrraeder', { token, body: { name: RAD.name, gewicht_kg: RAD.gewicht_kg } })).json;
+  await t.anfrage('PUT', `/api/v1/garage/antriebe/fahrraeder/${rad.id}`, { token, body: { motoren: [{ motor_art: RAD.motor_art, leistung_w: 250 }], akkus: [{ kapazitaet_wh: RAD.akku_kapazitaet_wh }] } });
+  await t.anfrage('PUT', '/api/v1/garage/mitglied', { token, body: { art: 'fahrraeder', id: rad.id, im: true } });
+  await t.anfrage('PUT', '/api/v1/garage/gespann', { token, body: { fahrer_gewicht_kg: 80 } });
+  return token;
+}
 
-test('Dienst: ist die Warteschlange voll, wird abgelehnt (ausgelastet)', async () => {
-  const auftraege = Array.from({ length: 12 }, () => dienst.berechne({ fahrrad: RAD, gespann: { fahrer_gewicht_kg: 80 }, einstellungen: {}, start: START, modus: 'alle' }).then(() => 'ok', (e) => e.code));
-  const ergebnisse = await Promise.all(auftraege);
-  assert.ok(ergebnisse.includes('ok'));
-  assert.ok(ergebnisse.includes('ausgelastet'), ergebnisse.join());
-  assert.equal(dienst.wartend, 0, 'nach dem Abarbeiten wartet nichts mehr');
-});
+async function mitServer(optionen = {}, jobs = new FakeJobs()) {
+  const t = await starteTestServer({ app: { planer: PLANER, jobs, ...optionen } });
+  const token = await garageAnlegen(t);
+  return { t, token, jobs };
+}
 
-test('Dienst: nach dem Beenden antwortet er mit routing_aus', async () => {
-  const d = new RoutingDienst({ ordner: dienst.ordner, minKomponente: 1 });
-  await d.starten();
-  await d.beenden();
-  await assert.rejects(d.berechne({}), { code: 'routing_aus', status: 503 });
-});
-
-test('Einstellungen melden, ob der Reichweiten-Planer aktiv ist', async () => {
-  const t = await starteTestServer({ app: { routing: dienst } });
+test('Einstellungen: Planer aktiv nur mit Wegenetz; ohne Wegenetz gibt es 503', async () => {
+  const t = await starteTestServer({ app: { planer: PLANER, jobs: new FakeJobs() } });
   try {
     const r = (await t.anfrage('GET', '/api/v1/einstellungen')).json;
     assert.equal(r.reichweite.aktiv, true);
-    assert.equal(r.reichweite.bbox.minLat, 51);
+    assert.equal(r.reichweite.bbox.minLat, 50);
     assert.deepEqual(r.reichweite.modi, ['alle', 'strasse', 'ruhig']);
-    assert.ok(r.reichweite.zoom[0] < r.reichweite.zoom[1]);
   } finally { await t.schliessen(); }
+
   const ohne = await starteTestServer();
   try {
     assert.deepEqual((await ohne.anfrage('GET', '/api/v1/einstellungen')).json.reichweite, { aktiv: false });
@@ -79,91 +63,93 @@ test('Einstellungen melden, ob der Reichweiten-Planer aktiv ist', async () => {
   } finally { await ohne.schliessen(); }
 });
 
-test('Reichweite: braucht Schlüssel, Gespann mit Fahrrad und gültige Angaben', async () => {
+test('Reichweite: braucht Schlüssel und ein Gespann mit Fahrrad', async () => {
   const s = await mitServer();
   try {
     assert.equal((await s.t.anfrage('POST', '/api/v1/garage/reichweite', { body: { ...START } })).status, 401);
-    const koerper = { ...START, modus: 'alle', einstellungen: {} };
-    const ohneGespann = await s.t.anfrage('POST', '/api/v1/garage/reichweite', { token: s.token, body: koerper });
-    assert.equal(ohneGespann.status, 400);
-    assert.equal(ohneGespann.json.code, 'fahrrad_fehlt');
+  } finally { await s.t.schliessen(); }
 
-    await s.gespannSetzen({ anhaenger_id: s.wagen.id });
-    assert.equal((await s.t.anfrage('POST', '/api/v1/garage/reichweite', { token: s.token, body: koerper })).json.code, 'fahrrad_fehlt', 'nur Anhänger genügt nicht');
+  const leer = await starteTestServer({ app: { planer: PLANER, jobs: new FakeJobs() } });
+  try {
+    const token = (await leer.anfrage('POST', '/api/v1/garagen', { body: { fahrer_name: 'B' } })).json.token;
+    const r = await leer.anfrage('POST', '/api/v1/garage/reichweite', { token, body: { ...START, modus: 'alle', einstellungen: {} } });
+    assert.equal(r.status, 400);
+    assert.equal(r.json.code, 'fahrrad_fehlt');
+  } finally { await leer.schliessen(); }
+});
 
-    await s.gespannSetzen({ fahrrad_id: s.rad.id, anhaenger_id: s.wagen.id });
-    const r = await s.t.anfrage('POST', '/api/v1/garage/reichweite', { token: s.token, body: koerper });
-    assert.equal(r.status, 200);
-    assert.equal(r.json.ok, true);
-    assert.equal(r.headers.get('cache-control'), 'no-store');
-    assert.ok(r.json.ok && r.json.kennzahlen.punkte_gesamt >= 0 && r.json.budget.art === 'akku');
-    assert.ok(r.json.modell.masse_kg >= 25 + 80 + 40, 'Gewichte aus Fahrrad, Anhänger und Gespann');
-
-    // Ohne Anhänger im Gespann
-    await s.gespannSetzen({ fahrrad_id: s.rad.id, anhaenger_id: null });
-    assert.equal((await s.t.anfrage('POST', '/api/v1/garage/reichweite', { token: s.token, body: koerper })).status, 200);
+test('Reichweite: wird als Auftrag angenommen (202) mit dem Platz in der Warteschlange', async () => {
+  const jobs = new FakeJobs();
+  const s = await mitServer({}, jobs);
+  try {
+    const r = await s.t.anfrage('POST', '/api/v1/garage/reichweite', { token: s.token, body: { ...START, modus: 'alle', einstellungen: {} } });
+    assert.equal(r.status, 202);
+    assert.deepEqual({ status: r.json.status, davor: r.json.davor }, { status: 'wartet', davor: 0 });
+    assert.equal(jobs.zeilen.length, 1);
   } finally { await s.t.schliessen(); }
 });
 
-test('Reichweite: ungültige Eingaben werden mit Codes abgelehnt', async () => {
+test('Reichweite: eine neue Berechnung ersetzt die alte derselben Garage und hängt sich ans Ende', async () => {
+  const jobs = new FakeJobs();
+  const s = await mitServer({}, jobs);
+  try {
+    const andere = await garageAnlegen(s.t, 'Bernd');
+    const post = (token) => s.t.anfrage('POST', '/api/v1/garage/reichweite', { token, body: { ...START, modus: 'alle', einstellungen: {} } });
+    await post(s.token);
+    await post(andere);
+    const erneut = await post(s.token);
+    assert.equal(erneut.json.davor, 1, 'die andere Garage steht davor, die alte Berechnung der eigenen ist weg');
+    assert.equal(jobs.zeilen.length, 2);
+    const stand = await s.t.anfrage('GET', '/api/v1/garage/reichweite', { token: s.token });
+    assert.equal(stand.json.status, 'wartet');
+    assert.equal(stand.json.davor, 1);
+  } finally { await s.t.schliessen(); }
+});
+
+test('Reichweite: Startpunkt außerhalb des Kartengebiets wird sofort abgelehnt', async () => {
   const s = await mitServer();
   try {
-    await s.gespannSetzen({ fahrrad_id: s.rad.id });
-    const post = (body) => s.t.anfrage('POST', '/api/v1/garage/reichweite', { token: s.token, body });
-    for (const [body, code, status] of [
-      [{}, 'start_ungueltig', 400], [{ lat: '51', lon: '7' }, 'start_ungueltig', 400], [{ lat: null, lon: 7 }, 'start_ungueltig', 400],
-      [{ ...START, modus: 'radweg' }, 'modus_ungueltig', 400], [{ ...START, modus: 5 }, 'modus_ungueltig', 400],
-      [{ ...START, einstellungen: { wind_ms: 500 } }, 'eingabe', 400], [{ lat: 53.5, lon: 10 }, 'ausserhalb', 400],
-      [{ ...START, einstellungen: { akku_rest_prozent: 2, reserve_prozent: 5 } }, 'akku_leer', 400]
-    ]) {
-      const r = await post(body);
-      assert.equal(r.status, status, JSON.stringify(body));
-      assert.equal(r.json.code, code, JSON.stringify(body));
-    }
-    const e = await post({ ...START, einstellungen: { wind_ms: 500, unterstuetzung: 'raketen' } });
-    assert.deepEqual(e.json.felder, { wind_ms: 'zu_gross', unterstuetzung: 'ungueltig' });
+    const r = await s.t.anfrage('POST', '/api/v1/garage/reichweite', { token: s.token, body: { lat: 53.5, lon: 10, modus: 'alle', einstellungen: {} } });
+    assert.equal(r.status, 400);
+    assert.equal(r.json.code, 'ausserhalb');
+    assert.equal(s.jobs.zeilen.length, 0, 'nichts in die Warteschlange');
   } finally { await s.t.schliessen(); }
 });
 
-test('Reichweite: Begrenzung je Besucher', async () => {
-  const s = await mitServer({ begrenzungen: { reichweite: new Begrenzung({ max: 2 }) } });
+test('Reichweite: Ergebnis abrufen (nur mit Schlüssel, nie zwischengespeichert)', async () => {
+  const jobs = new FakeJobs();
+  const s = await mitServer({}, jobs);
   try {
-    await s.gespannSetzen({ fahrrad_id: s.rad.id });
-    const post = () => s.t.anfrage('POST', '/api/v1/garage/reichweite', { token: s.token, body: START });
-    assert.equal((await post()).status, 200);
-    assert.equal((await post()).status, 200);
-    const r = await post();
-    assert.equal(r.status, 429);
-    assert.equal(r.json.code, 'zu_viele');
+    const leer = await s.t.anfrage('GET', '/api/v1/garage/reichweite', { token: s.token });
+    assert.equal(leer.json.status, null);
+    await s.t.anfrage('POST', '/api/v1/garage/reichweite', { token: s.token, body: { ...START, modus: 'alle', einstellungen: {} } });
+    // Der Worker hat gerechnet: das Ergebnis liegt bei der Garage
+    jobs.ergebnisse.set(jobs.zeilen[0].garageId, { ok: true, budget: { art: 'akku', wert: 900, einheit: 'Wh' } });
+    const r = await s.t.anfrage('GET', '/api/v1/garage/reichweite', { token: s.token });
+    assert.equal(r.json.status, 'wartet', 'solange die Zeile noch wartet, bleibt der Stand wartet');
+    assert.equal(r.headers.get('cache-control'), 'no-store');
+    assert.equal((await s.t.anfrage('GET', '/api/v1/garage/reichweite')).status, 401);
   } finally { await s.t.schliessen(); }
 });
 
-test('Kartenkacheln und Orte: Binärformat, Zwischenspeicher, ungültige Kacheln', async () => {
-  const t = await starteTestServer({ app: { routing: dienst } });
+test('Kacheln kommen nur von der Platte: vorhandene 200, fehlende 404, ungültige 404', async () => {
+  const kacheln = mkdtempSync(join(tmpdir(), 'garage-kacheln-'));
+  const datei = kachelDatei(kacheln, 14, 8570, 5516);
+  mkdirSync(join(datei, '..'), { recursive: true });
+  writeFileSync(datei, Buffer.from([1, 2, 3, 4]));
+  const t = await starteTestServer({ app: { planer: PLANER, jobs: new FakeJobs(), env: { KACHEL_DIR: kacheln } } });
   try {
     const res = await fetch(`${t.url}/api/v1/karte/14/8570/5516`);
     assert.equal(res.status, 200);
     assert.equal(res.headers.get('content-type'), 'application/octet-stream');
-    assert.match(res.headers.get('cache-control'), /public, max-age=/);
-    const buf = await res.arrayBuffer();
-    assert.ok(new DataView(buf).getUint32(0, true) >= 0);
-
-    for (const pfad of ['/api/v1/karte/3/0/0', '/api/v1/karte/20/0/0', '/api/v1/karte/14/-1/0', '/api/v1/karte/14/99999/0', '/api/v1/karte/14/x/y', '/api/v1/karte/14/1.5/2']) {
+    assert.deepEqual(Buffer.from(await res.arrayBuffer()), Buffer.from([1, 2, 3, 4]));
+    assert.equal((await fetch(`${t.url}/api/v1/karte/14/8571/5516`)).status, 404, 'nicht erzeugt');
+    for (const pfad of ['/api/v1/karte/3/0/0', '/api/v1/karte/20/0/0', '/api/v1/karte/14/-1/0', '/api/v1/karte/14/99999/0', '/api/v1/karte/14/x/y']) {
       assert.equal((await fetch(t.url + pfad)).status, 404, pfad);
     }
     const orte = await fetch(`${t.url}/api/v1/karte/orte`);
     assert.equal(orte.status, 200);
     assert.match(orte.headers.get('cache-control'), /public/);
-    assert.ok(Array.isArray(await orte.json()));
-  } finally { await t.schliessen(); }
-});
-
-test('Kartenkacheln: Begrenzung je Besucher', async () => {
-  const t = await starteTestServer({ app: { routing: dienst, begrenzungen: { karte: new Begrenzung({ max: 2 }) } } });
-  try {
-    assert.equal((await fetch(`${t.url}/api/v1/karte/14/8570/5516`)).status, 200);
-    assert.equal((await fetch(`${t.url}/api/v1/karte/14/8570/5516`)).status, 200);
-    assert.equal((await fetch(`${t.url}/api/v1/karte/14/8570/5516`)).status, 429);
   } finally { await t.schliessen(); }
 });
 

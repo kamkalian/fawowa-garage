@@ -28,6 +28,8 @@ COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 COPY package.json server.js ./
 COPY lib/ ./lib/
+# Werkzeuge für Kartenbau und Netzbau (vom Garage-Worker gestartet)
+COPY tools/routing/ ./tools/routing/
 
 # Die Anwendung speichert Fotos im Ordner fotos (als Volume eingebunden); sonst liegt alles in der Datenbank. Sie läuft ohne Rechte
 RUN mkdir -p /app/fotos /app/kacheln && chown node:node /app/fotos /app/kacheln

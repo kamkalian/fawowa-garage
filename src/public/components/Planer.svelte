@@ -58,6 +58,7 @@
   let suche = $state('');
   let suchOffen = $state(false);
   let rechnet = $state(false);
+  let vorAuftrag = $state(null);
   let ergebnis = $state(null);
   let meldungFehler = $state('');
   let zaehler = 0;
@@ -113,14 +114,30 @@
     return r;
   }
 
+  // Die Berechnung läuft im Hintergrund (Warteschlange des Workers): nach dem Start den Stand abfragen, bis das Ergebnis da ist
+  const pause = (ms) => new Promise(r => setTimeout(r, ms));
+
   async function berechnen(anpassen = true) {
     if (!start || voraussetzung) return;
     const nr = ++zaehler;
     rechnet = true;
     meldungFehler = '';
+    vorAuftrag = null;
     try {
-      const r = await api.reichweiteBerechnen(token, { lat: start.lat, lon: start.lon, modus, einstellungen: einstellungen() });
-      if (nr !== zaehler) return;
+      await api.reichweiteBerechnen(token, { lat: start.lat, lon: start.lon, modus, einstellungen: einstellungen() });
+      let r = null;
+      for (;;) {
+        if (nr !== zaehler) return;
+        const s = await api.reichweiteStand(token);
+        if (nr !== zaehler) return;
+        if (s.status === 'fertig') { r = s.ergebnis; break; }
+        if (s.status === 'fehler') { const err = new Error(s.meldung || 'fehler'); err.code = s.meldung; throw err; }
+        if (s.status !== 'wartet' && s.status !== 'laeuft') break;
+        vorAuftrag = s.davor;
+        await pause(2500);
+      }
+      vorAuftrag = null;
+      if (!r) return;
       ergebnis = r;
       karte.setzeRaster(r.raster);
       karte.setzeStart(r.start.lat, r.start.lon);
@@ -333,6 +350,7 @@
 
   {#if rechnet}<div class="pille laden" role="status">{t(lang, 'p_rechnet')}</div>{/if}
   {#if meldungFehler}<p class="pille fehler" role="alert">{meldungFehler}</p>{/if}
+  {#if rechnet && vorAuftrag !== null}<p class="pille" role="status">{t(lang, 'p_warteschlange')} {vorAuftrag}</p>{/if}
   <p class="pille hinweis">{t(lang, 'p_kartenHinweis')}</p>
 
   {#if ergebnis}

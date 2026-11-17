@@ -3,7 +3,7 @@
   import { api } from './api.js';
   import Login from './Login.svelte';
   import Garagen from './Garagen.svelte';
-  import Kacheln from './Kacheln.svelte';
+  import Jobs from './Jobs.svelte';
   import GarageDetail from './GarageDetail.svelte';
 
   let angemeldet = $state(null);   // null = prüfe noch
@@ -70,7 +70,7 @@
       </dl>
     {/if}
 
-    <Kacheln />
+    <Jobs />
 
     <!-- Die Liste bleibt geladen (nur ausgeblendet), damit Suche und Seite beim Zurückkehren erhalten bleiben -->
     <div hidden={auswahl !== null}>
