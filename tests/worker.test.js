@@ -76,6 +76,7 @@ test('Datenstand: fehlende Daten sind neu, geladene Daten sind aktuell, wenn nic
   const roh = mkdtempSync(join(tmpdir(), 'garage-roh-'));
   const netz = mkdtempSync(join(tmpdir(), 'garage-stand-'));
   writeFileSync(join(roh, 'stand.json'), JSON.stringify({ geladen_am: '2026-11-10T10:00:00Z', stand_quelle: 'Mon, 09 Nov 2026 00:00:00 GMT' }));
+  writeFileSync(join(roh, 'germany-latest.osm.pbf'), 'x');
   const anbieter = 'Tue, 10 Nov 2026 00:00:00 GMT';
   const ohneNetz = { NETZ_DIR: join(netz, 'netz'), ROH_DIR: roh, HOEHEN_DIR: join(netz, 'hoehen'), KACHEL_DIR: join(netz, 'kacheln') };
   const s = await datenstand({ env: ohneNetz, letzte: { karte: new Date('2026-11-11T10:00:00Z') }, pruefeKarte: async () => anbieter, pruefeHoehen: async () => undefined });
