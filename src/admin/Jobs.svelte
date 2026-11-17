@@ -12,7 +12,7 @@
   let beschaeftigt = $state(false);
   let timer = null;
 
-  const ARTEN = { entpacken: 'Wegenetz einspielen', reichweite: 'Reichweite', kacheln: 'Kacheln' };
+  const ARTEN = { entpacken: 'Wegenetz einspielen', download: 'Kartendaten NRW laden', karte: 'Karte bauen', reichweite: 'Reichweite', kacheln: 'Kacheln' };
   const STATUS = { laeuft: 'läuft', wartet: 'wartet', fertig: 'fertig', fehler: 'Fehler' };
 
   // ZIP-Datei mit Wegenetz und Karte hochladen (mit Fortschritt in Prozent)
@@ -155,6 +155,13 @@
       {/each}
     </div>
 
+    <h3>Karte aus den Kartendaten bauen</h3>
+    <p class="muted">Zuerst die Kartendaten (Nordrhein-Westfalen) laden, dann die Karte bauen. Das läuft auf dem Server und kann mehrere Minuten dauern.</p>
+    <div class="knoepfe">
+      <button class="btn btn-outline" disabled={beschaeftigt || aktiv("download") || aktiv("karte")} onclick={() => starten("download")}>Kartendaten NRW laden</button>
+      <button class="btn btn-primary" disabled={beschaeftigt || aktiv("karte") || aktiv("download")} onclick={() => starten("karte")}>Karte bauen</button>
+    </div>
+
     <h3>Warteschlange</h3>
     {#if stand.jobs.length}
       <div class="tabelle-rahmen">
@@ -217,6 +224,7 @@
   .datenkachel.neu .info { color: #b45309; font-weight: 600; }
   .datenkachel .btn { align-self: flex-start; margin-top: auto; }
   .datei { cursor: pointer; }
+  .knoepfe { display: flex; flex-wrap: wrap; gap: .5rem; margin: .5rem 0 1rem; }
   .datei.aus { opacity: .5; pointer-events: none; }
   .fortschritt { height: .5rem; border-radius: 999px; background: var(--bg-input); overflow: hidden; margin-top: auto; }
   .fortschritt .balken { height: 100%; background: var(--primary); transition: width .3s; }

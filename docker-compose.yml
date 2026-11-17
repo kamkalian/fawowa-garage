@@ -79,11 +79,14 @@ services:
       - DB_PASSWORD=${DB_PASSWORD:?DB_PASSWORD fehlt in der .env}
       - NETZ_DIR=/app/netz
       - IMPORT_DIR=/app/import
+      - ROH_DIR=/app/roh
       - KACHEL_DIR=/app/kacheln
     volumes:
       # Wegenetz (schreibbar: der Netzbau legt es hier ab), Kartendaten aus dem Download, Höhendaten, Kacheln
       - ./data/netz:/app/netz
       - ./data/import:/app/import
+      # Kartendaten (NRW) für den Kartenbau im Container
+      - ./data/roh:/app/roh
       - kacheln:/app/kacheln
     read_only: true
     tmpfs:

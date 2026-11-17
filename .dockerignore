@@ -15,3 +15,5 @@ deploy/
 docker-compose.yml
 Dockerfile
 .dockerignore
+daten-bauen/daten
+daten-bauen/*.exe
