@@ -350,7 +350,7 @@ export class Karte {
     const stil = {
       1: { w: 2.6, f: '#fcd6a4', rand: '#d9a86c' },
       2: { w: 1.8, f: '#ffffff', rand: '#c9c2b5' },
-      3: { w: 1.0, f: '#4f86d9', strich: [4, 2] },
+      3: { w: 1.2, f: '#22c55e' },
       4: { w: 0.9, f: '#9a8b74', strich: [3, 2] }
     };
     const pfad = (art) => {
