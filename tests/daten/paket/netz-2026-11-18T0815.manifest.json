@@ -1,0 +1,60 @@
+{
+  "format": "fawowa-paket-1",
+  "art": "netz",
+  "version": "2026-11-18T0815",
+  "erzeugt": "2026-11-18T07:03:55Z",
+  "quelle": {
+    "osm": "beispiel"
+  },
+  "zips": [
+    {
+      "name": "netz-2026-11-18T0815.teil-001-von-001.zip",
+      "bytes": 102046,
+      "sha256": "930a7ea3f802282de5dd0124648da8553a6429ce97631ce7b3d7c2dda6683f6a"
+    }
+  ],
+  "dateien": [
+    {
+      "pfad": "info.json",
+      "bytes": 57,
+      "sha256": "977ebc67f3ea4675cd0be08aae72a5019138dbcf894b4b5738fa8775c05b666a",
+      "stuecke": [
+        {
+          "zip": "netz-2026-11-18T0815.teil-001-von-001.zip",
+          "eintrag": "info.json.000",
+          "offset": 0,
+          "bytes": 57,
+          "sha256": "977ebc67f3ea4675cd0be08aae72a5019138dbcf894b4b5738fa8775c05b666a"
+        }
+      ]
+    },
+    {
+      "pfad": "knoten_lat.i32",
+      "bytes": 40000,
+      "sha256": "26585e323b6eaec43a47c676e697c175f5decf457d46dd4f9c31c9ebf276a032",
+      "stuecke": [
+        {
+          "zip": "netz-2026-11-18T0815.teil-001-von-001.zip",
+          "eintrag": "knoten_lat.i32.000",
+          "offset": 0,
+          "bytes": 40000,
+          "sha256": "26585e323b6eaec43a47c676e697c175f5decf457d46dd4f9c31c9ebf276a032"
+        }
+      ]
+    },
+    {
+      "pfad": "karte/pts.i32",
+      "bytes": 60000,
+      "sha256": "5f69cd212a6081dac963333d70c4ace11733e848482c122520c06ba7cf7e67a7",
+      "stuecke": [
+        {
+          "zip": "netz-2026-11-18T0815.teil-001-von-001.zip",
+          "eintrag": "karte/pts.i32.000",
+          "offset": 0,
+          "bytes": 60000,
+          "sha256": "5f69cd212a6081dac963333d70c4ace11733e848482c122520c06ba7cf7e67a7"
+        }
+      ]
+    }
+  ]
+}
