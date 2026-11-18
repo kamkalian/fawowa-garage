@@ -40,7 +40,6 @@
     wind_ms: 0, wind_richtung_grad: 270, einstrahlung_w_m2: 0, temperatur_c: 15, hoehe_m: 100, oberflaeche: 1
   });
   let modus = $state('alle');
-  let live = $state(false);
   let weitere = $state(false);
   let filterOffen = $state(true);
 
@@ -63,7 +62,6 @@
   let ergebnis = $state(null);
   let meldungFehler = $state('');
   let zaehler = 0;
-  let timer;
 
   const treffer = $derived.by(() => {
     const s = suche.trim().toLowerCase();
@@ -86,7 +84,6 @@
     start = { lat, lon };
     karte?.setzeStart(lat, lon);
     if (zentrieren) karte?.zentrieren(lat, lon, Math.max(karte.zoom, 11));
-    if (live) planeBerechnung();
   }
 
   function ortWaehlen(o) {
@@ -175,18 +172,6 @@
     }
   }
 
-  function planeBerechnung() {
-    clearTimeout(timer);
-    timer = setTimeout(() => berechnen(false), 900);
-  }
-
-  // Automatisch neu rechnen, wenn sich etwas ändert (nur, wenn eingeschaltet)
-  $effect(() => {
-    modus; JSON.stringify(e); nachAkku; rad?.id; wagen?.id; daten.gespann?.fahrer_gewicht_kg; daten.gespann?.gepaeck_kg; // eslint-disable-line no-unused-expressions
-    if (live && start && !voraussetzung) planeBerechnung();
-    return () => clearTimeout(timer);
-  });
-
   // ---------- Karte ----------
   onMount(() => {
     karte = new Karte(leinwand, {
@@ -199,7 +184,7 @@
     api.karteOrte().then((o) => { orte = o; karte.opt.orte = o; karte.zeichnen(); }).catch(() => {});
     // Lief schon eine Berechnung (auch aus einer früheren Sitzung), wird ihr Stand hier angezeigt
     if (token && cfg.bbox) { const nr = ++zaehler; verfolgen(nr, false).catch(() => {}); }
-    return () => { karte.beenden(); clearTimeout(timer); };
+    return () => { karte.beenden(); };
   });
 
   // Solange die Seite offen ist: Größe der Karte anpassen, Seite nicht scrollen, Escape schließt
@@ -295,63 +280,64 @@
           {/if}
         </fieldset>
 
-        <fieldset>
-          <legend>{t(lang, 'p_fahrt')}</legend>
-          <div class="gruppe" role="radiogroup" aria-label={t(lang, 'p_fahrt')}>
-            <button type="button" role="radio" class="wahl" aria-checked={stil === 'gemuetlich'} onclick={() => stilSetzen('gemuetlich')}>{t(lang, 'p_stil_gemuetlich')}</button>
-            <button type="button" role="radio" class="wahl" aria-checked={stil === 'sportlich'} onclick={() => stilSetzen('sportlich')}>{t(lang, 'p_stil_sportlich')}</button>
-          </div>
-          <p class="notiz">{t(lang, 'p_stilHinweis')}</p>
+        <details class="weitere" bind:open={weitere}>
+          <summary>{t(lang, 'p_weitere')}</summary>
+          <div class="feinteile">
+            <fieldset>
+              <legend>{t(lang, 'p_fahrt')}</legend>
+              <div class="gruppe" role="radiogroup" aria-label={t(lang, 'p_fahrt')}>
+                <button type="button" role="radio" class="wahl" aria-checked={stil === 'gemuetlich'} onclick={() => stilSetzen('gemuetlich')}>{t(lang, 'p_stil_gemuetlich')}</button>
+                <button type="button" role="radio" class="wahl" aria-checked={stil === 'sportlich'} onclick={() => stilSetzen('sportlich')}>{t(lang, 'p_stil_sportlich')}</button>
+              </div>
+              <p class="notiz">{t(lang, 'p_stilHinweis')}</p>
+            </fieldset>
 
-          <details bind:open={weitere}>
-            <summary>{t(lang, 'p_weitere')}</summary>
-            <div class="feinteile">
-              <div class="zwei">
-                {#if nachAkku}
-                  <div>
-                    <label for="p-reserve">{t(lang, 'p_reserve')} (%)</label>
-                    <input id="p-reserve" class="input" type="number" min="0" max="50" step="1" bind:value={e.reserve_prozent} />
-                  </div>
-                {/if}
+            <fieldset>
+              <legend>{t(lang, 'p_wetter')}</legend>
+              <label for="p-wind">{t(lang, 'p_wind')}: <strong>{e.wind_ms} m/s</strong> <span class="notiz">({windKmh} km/h)</span></label>
+              <input id="p-wind" type="range" min="0" max={EINSTELLUNGEN_GRENZEN.wind_ms[1]} step="0.5" bind:value={e.wind_ms} />
+              {#if e.wind_ms > 0}
+                <label for="p-windrichtung">{t(lang, 'p_windAus')}</label>
+                <select id="p-windrichtung" class="input" bind:value={e.wind_richtung_grad}>
+                  {#each WIND as [k, grad] (k)}<option value={grad}>{t(lang, `wind_${k}`)}</option>{/each}
+                </select>
+              {/if}
+              {#if mitSolar && nachAkku}
+                <label for="p-sonne">{t(lang, 'p_sonne')}</label>
+                <select id="p-sonne" class="input" bind:value={e.einstrahlung_w_m2}>
+                  {#each SONNE as s (s)}<option value={s}>{t(lang, `sonne_${s}`)}</option>{/each}
+                </select>
+              {/if}
+            </fieldset>
+
+            <div class="zwei">
+              {#if nachAkku}
                 <div>
-                  <label for="p-belag">{t(lang, 'p_belag')}</label>
-                  <select id="p-belag" class="input" bind:value={e.oberflaeche}>
-                    <option value={1}>{t(lang, 'belag_1')}</option>
-                    <option value={1.3}>{t(lang, 'belag_1.3')}</option>
-                    <option value={1.6}>{t(lang, 'belag_1.6')}</option>
-                    <option value={2}>{t(lang, 'belag_2')}</option>
-                  </select>
+                  <label for="p-reserve">{t(lang, 'p_reserve')} (%)</label>
+                  <input id="p-reserve" class="input" type="number" min="0" max="50" step="1" bind:value={e.reserve_prozent} />
                 </div>
-                <div>
-                  <label for="p-temp">{t(lang, 'p_temp')} (°C)</label>
-                  <input id="p-temp" class="input" type="number" min={EINSTELLUNGEN_GRENZEN.temperatur_c[0]} max={EINSTELLUNGEN_GRENZEN.temperatur_c[1]} step="1" bind:value={e.temperatur_c} />
-                </div>
-                <div>
-                  <label for="p-hoehe">{t(lang, 'p_hoehe')} (m)</label>
-                  <input id="p-hoehe" class="input" type="number" min={EINSTELLUNGEN_GRENZEN.hoehe_m[0]} max={EINSTELLUNGEN_GRENZEN.hoehe_m[1]} step="10" bind:value={e.hoehe_m} />
-                </div>
+              {/if}
+              <div>
+                <label for="p-belag">{t(lang, 'p_belag')}</label>
+                <select id="p-belag" class="input" bind:value={e.oberflaeche}>
+                  <option value={1}>{t(lang, 'belag_1')}</option>
+                  <option value={1.3}>{t(lang, 'belag_1.3')}</option>
+                  <option value={1.6}>{t(lang, 'belag_1.6')}</option>
+                  <option value={2}>{t(lang, 'belag_2')}</option>
+                </select>
+              </div>
+              <div>
+                <label for="p-temp">{t(lang, 'p_temp')} (°C)</label>
+                <input id="p-temp" class="input" type="number" min={EINSTELLUNGEN_GRENZEN.temperatur_c[0]} max={EINSTELLUNGEN_GRENZEN.temperatur_c[1]} step="1" bind:value={e.temperatur_c} />
+              </div>
+              <div>
+                <label for="p-hoehe">{t(lang, 'p_hoehe')} (m)</label>
+                <input id="p-hoehe" class="input" type="number" min={EINSTELLUNGEN_GRENZEN.hoehe_m[0]} max={EINSTELLUNGEN_GRENZEN.hoehe_m[1]} step="10" bind:value={e.hoehe_m} />
               </div>
             </div>
-          </details>
-        </fieldset>
+          </div>
+        </details>
 
-        <fieldset>
-          <legend>{t(lang, 'p_wetter')}</legend>
-          <label for="p-wind">{t(lang, 'p_wind')}: <strong>{e.wind_ms} m/s</strong> <span class="notiz">({windKmh} km/h)</span></label>
-          <input id="p-wind" type="range" min="0" max={EINSTELLUNGEN_GRENZEN.wind_ms[1]} step="0.5" bind:value={e.wind_ms} />
-          {#if e.wind_ms > 0}
-            <label for="p-windrichtung">{t(lang, 'p_windAus')}</label>
-            <select id="p-windrichtung" class="input" bind:value={e.wind_richtung_grad}>
-              {#each WIND as [k, grad] (k)}<option value={grad}>{t(lang, `wind_${k}`)}</option>{/each}
-            </select>
-          {/if}
-          {#if mitSolar && nachAkku}
-            <label for="p-sonne">{t(lang, 'p_sonne')}</label>
-            <select id="p-sonne" class="input" bind:value={e.einstrahlung_w_m2}>
-              {#each SONNE as s (s)}<option value={s}>{t(lang, `sonne_${s}`)}</option>{/each}
-            </select>
-          {/if}
-        </fieldset>
 
         {#if voraussetzung}
           <div class="hinweiskasten" role="alert">
@@ -364,7 +350,6 @@
 
         <div class="aktionen">
           <button type="submit" class="btn btn-primary" disabled={!start || !!voraussetzung || rechnet}>{rechnet ? t(lang, 'p_rechnet') : t(lang, 'p_berechnen')}</button>
-          <label class="haken"><input type="checkbox" bind:checked={live} /> {t(lang, 'p_live')}</label>
         </div>
       </form>
     {/if}
@@ -435,11 +420,11 @@
   .art { color: var(--fg-muted); font-size: .75rem; margin-left: .25rem; }
 
   .zoomknoepfe { position: absolute; top: .75rem; right: .75rem; display: flex; flex-direction: column; gap: .25rem; z-index: 10; }
-  .zoomanzeige { position: absolute; left: .75rem; bottom: .5rem; z-index: 10; font-size: .875rem; font-weight: 600; white-space: nowrap; pointer-events: none; font-variant-numeric: tabular-nums; text-shadow: 0 0 4px var(--bg-card), 0 0 4px var(--bg-card); }
+  .zoomanzeige { position: absolute; left: .75rem; bottom: .5rem; z-index: 10; font-size: .875rem; font-weight: 600; white-space: nowrap; pointer-events: none; font-variant-numeric: tabular-nums; }
   .zoomknoepfe button.karte-karte { width: 2.25rem; height: 2.25rem; font: inherit; font-size: 1.25rem; cursor: pointer; }
   .zoomknoepfe button.karte-karte:hover { border-color: var(--primary); }
 
-  .filter { position: absolute; top: 4.75rem; left: .75rem; width: 19rem; max-height: calc(100% - 6rem); overflow-y: auto; z-index: 10; }
+  .filter { position: absolute; top: 4.75rem; left: .75rem; width: 15rem; max-height: calc(100% - 7.5rem); overflow-y: auto; z-index: 10; }
   .filter-kopf { display: flex; justify-content: space-between; align-items: center; width: 100%; padding: .6rem .8rem; background: none; border: none; color: var(--fg); font: inherit; font-weight: 600; cursor: pointer; position: sticky; top: 0; background: var(--bg-card); border-radius: var(--radius); }
   .filter-kopf:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
   .filter-inhalt { display: flex; flex-direction: column; gap: 1rem; padding: 0 .8rem .8rem; }

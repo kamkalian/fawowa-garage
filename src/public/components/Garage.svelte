@@ -18,7 +18,18 @@
 
   const ARTEN_LISTE = ['fahrraeder', 'anhaenger', 'gepaecke'];
   const planerAktiv = $derived(!!einst.reichweite?.aktiv);
-  let planerOffen = $state(false); // Reichweiten-Planer als Vollbild-Seite, geöffnet über einen Knopf
+  // Reichweiten-Planer als Vollbild-Seite. Er hat eine eigene Adresse (/planer#g=…): Neuladen und Zurück-Taste bleiben dort.
+  let planerOffen = $state(/\/planer\/?$/.test(location.pathname));
+  $effect(() => {
+    const zurueckOderVor = () => { planerOffen = /\/planer\/?$/.test(location.pathname); };
+    window.addEventListener('popstate', zurueckOderVor);
+    return () => window.removeEventListener('popstate', zurueckOderVor);
+  });
+  function planerAdresse(offen) {
+    const ziel = offen ? '/planer' : '/';
+    if ((location.pathname.replace(/\/+$/, '') || '/') === ziel.replace(/\/+$/, '')) return;
+    history.pushState(null, '', ziel + location.hash);
+  }
   let fotos = $state({}); // Anzeige der Fotos je Stellplatz (Schlüssel art-id)
   let fotoZiel = null;
   let fotoInput;
@@ -271,7 +282,7 @@
     <input id="garage-link" class="input" type="text" readonly value={link} onfocus={(e) => e.currentTarget.select()} />
     <button type="button" class="btn btn-outline btn-sm" onclick={kopieren}><Icon name="ui-copy" size={14} /> {kopiert ? t(lang, 'copied') : t(lang, 'copy')}</button>
     {#if planerAktiv}
-      <button type="button" class="btn btn-outline planer-knopf" disabled={!hatZugfahrzeug} onclick={() => (planerOffen = true)}
+      <button type="button" class="btn btn-outline planer-knopf" disabled={!hatZugfahrzeug} onclick={() => { planerOffen = true; planerAdresse(true); }}
         title={hatZugfahrzeug ? undefined : pick({ de: 'Zuerst ein Zugfahrzeug ins Gespann nehmen', en: 'First add a towing vehicle to the convoy' }, lang)}>{t(lang, 'p_planerOeffnen')}</button>
     {/if}
     {#if emailAktiv}
@@ -284,7 +295,7 @@
   </section>
 
   {#if planerAktiv}
-    <Planer {lang} {token} {daten} {einst} offen={planerOffen} zurueck={() => (planerOffen = false)} />
+    <Planer {lang} {token} {daten} {einst} offen={planerOffen} zurueck={() => { planerOffen = false; planerAdresse(false); }} />
   {/if}
 
   {#snippet profilKnopf()}
