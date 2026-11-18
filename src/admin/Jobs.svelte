@@ -19,6 +19,7 @@
   // lässt sich der Rest mit „Fortsetzen“ hochladen. Die Datei muss nicht von Hand geteilt werden.
   const TEIL_BYTES = 64 * 1024 * 1024;
   let offen = $state(null);   // { id, datei, anzahl } einer unterbrochenen Hochladung
+  let hochladen = $state(null); // { prozent, text } während des Hochladens
 
   const kennung = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 
