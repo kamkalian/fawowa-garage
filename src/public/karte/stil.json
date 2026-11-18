@@ -51,7 +51,7 @@
     },
     {
       "id": "weg-rampe", "type": "line", "source": "osm", "source-layer": "transportation", "minzoom": 10,
-      "filter": ["all", ["==", ["get", "ramp"], 1], ["in", "class", "motorway", "trunk", "primary", "secondary", "tertiary"]],
+      "filter": ["all", ["==", "ramp", 1], ["in", "class", "motorway", "trunk", "primary", "secondary", "tertiary"]],
       "layout": { "line-cap": "round", "line-join": "round" },
       "paint": {
         "line-color": ["match", ["get", "class"], "motorway", "#3b6fd4", ["trunk", "primary"], "#f7c96a", "#fde9b8"],
@@ -60,27 +60,27 @@
     },
     {
       "id": "weg-nebenstrasse", "type": "line", "source": "osm", "source-layer": "transportation", "minzoom": 11,
-      "filter": ["all", ["in", "class", "minor", "service", "track"], ["!=", ["get", "ramp"], 1]],
+      "filter": ["all", ["in", "class", "minor", "service", "track"], ["!=", "ramp", 1]],
       "paint": { "line-color": "#ffffff", "line-width": ["interpolate", ["linear"], ["zoom"], 11, 0.5, 14, 3] }
     },
     {
       "id": "weg-hauptstrasse", "type": "line", "source": "osm", "source-layer": "transportation", "minzoom": 7,
-      "filter": ["all", ["in", "class", "secondary", "tertiary"], ["!=", ["get", "ramp"], 1]],
+      "filter": ["all", ["in", "class", "secondary", "tertiary"], ["!=", "ramp", 1]],
       "paint": { "line-color": "#fde9b8", "line-width": ["interpolate", ["linear"], ["zoom"], 7, 0.6, 14, 5] }
     },
     {
       "id": "weg-bundesstrasse", "type": "line", "source": "osm", "source-layer": "transportation", "minzoom": 5,
-      "filter": ["all", ["in", "class", "primary", "trunk"], ["!=", ["get", "ramp"], 1]],
+      "filter": ["all", ["in", "class", "primary", "trunk"], ["!=", "ramp", 1]],
       "paint": { "line-color": "#f7c96a", "line-width": ["interpolate", ["linear"], ["zoom"], 5, 0.8, 14, 7] }
     },
     {
       "id": "weg-autobahn", "type": "line", "source": "osm", "source-layer": "transportation", "minzoom": 5,
-      "filter": ["all", ["==", "class", "motorway"], ["!=", ["get", "ramp"], 1]],
+      "filter": ["all", ["==", "class", "motorway"], ["!=", "ramp", 1]],
       "paint": { "line-color": "#3b6fd4", "line-width": ["interpolate", ["linear"], ["zoom"], 5, 1.4, 10, 2.6, 14, 8] }
     },
     {
       "id": "radweg", "type": "line", "source": "osm", "source-layer": "transportation", "minzoom": 8,
-      "filter": ["all", ["==", "class", "path"], ["any", ["==", ["get", "subclass"], "cycleway"], ["==", ["get", "bicycle"], "designated"]]],
+      "filter": ["all", ["==", "class", "path"], ["any", ["==", "subclass", "cycleway"], ["==", "bicycle", "designated"]]],
       "layout": { "line-cap": "round", "line-join": "round" },
       "paint": { "line-color": "#16a34a", "line-width": ["interpolate", ["linear"], ["zoom"], 8, 1, 14, 3] }
     },
