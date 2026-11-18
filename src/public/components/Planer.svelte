@@ -422,7 +422,7 @@
   .art { color: var(--fg-muted); font-size: .75rem; margin-left: .25rem; }
 
   .zoomknoepfe { position: absolute; top: .75rem; right: .75rem; display: flex; flex-direction: column; gap: .25rem; z-index: 10; }
-  .zoomanzeige { position: absolute; left: .75rem; bottom: .5rem; z-index: 10; font-size: .875rem; font-weight: 600; white-space: nowrap; pointer-events: none; font-variant-numeric: tabular-nums; }
+  .zoomanzeige { position: absolute; left: .75rem; bottom: .5rem; z-index: 10; font-size: .875rem; font-weight: 600; color: #111; white-space: nowrap; pointer-events: none; font-variant-numeric: tabular-nums; }
   .zoomknoepfe button.karte-karte { width: 2.25rem; height: 2.25rem; font: inherit; font-size: 1.25rem; cursor: pointer; }
   .zoomknoepfe button.karte-karte:hover { border-color: var(--primary); }
 
