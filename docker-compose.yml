@@ -26,10 +26,13 @@ services:
       # Wegenetz für den Reichweiten-Planer (siehe deploy/netz-hochladen.ps1); fehlt es, bleibt der Planer abgeschaltet
       - NETZ_DIR=/app/netz
       - IMPORT_DIR=/app/import
+      - KARTE_DIR=/app/karte
     volumes:
       - ./data/netz:/app/netz:ro
-      # Hochgeladene ZIP-Datei mit Wegenetz und Karte (Verwaltung schreibt, Worker packt aus)
+      # Hochgeladene Pakete (Verwaltung schreibt, Worker spielt ein)
       - ./data/import:/app/import
+      # Karte (germany.pmtiles) nur lesen; ab Phase 4 wird sie hieraus ausgeliefert
+      - ./data/karte:/app/karte:ro
       # Stand der Kartendaten und Höhendaten (nur lesen, für die Verwaltung)
       # Fotos der Stellplätze (Docker-Volume, bleibt bei Neustarts erhalten)
       - fotos:/app/fotos
@@ -57,9 +60,9 @@ services:
     image: fawowa-garage:latest
     build: .
     container_name: fawowa-garage-worker
-    # Obergrenze für den Speicher: ein sehr großer Lauf trifft dann den Worker, nicht Datenbank und Webdienst (ohne Swap auf dem Server)
-    # Das Wegenetz von Deutschland und der Kartenbau brauchen zusammen etwa 3 GB; der Rest läuft über den Swap des Servers
-    mem_limit: 3584m
+    # Obergrenze für den Speicher: ein Lauf, der zu viel braucht, trifft dann den Worker und nicht Datenbank und Webdienst.
+    # Das Wegenetz liegt nur einmal im Speicher dieses Containers; Speichermessung für Deutschland steht noch aus (Abnahme Punkt 7)
+    mem_limit: 2g
     # Der Worker hat keinen Webserver: den Gesundheitscheck des Webdienstes übernimmt er nicht
     healthcheck:
       disable: true
@@ -81,9 +84,11 @@ services:
       - IMPORT_DIR=/app/import
       - ROH_DIR=/app/roh
       - KACHEL_DIR=/app/kacheln
+      - KARTE_DIR=/app/karte
     volumes:
-      # Wegenetz (schreibbar: der Netzbau legt es hier ab), Kartendaten aus dem Download, Höhendaten, Kacheln
+      # Wegenetz und Karte (schreibbar: Pakete werden hier eingespielt), Import-Ordner, Kartendaten (NRW), Kacheln
       - ./data/netz:/app/netz
+      - ./data/karte:/app/karte
       - ./data/import:/app/import
       # Kartendaten (NRW) für den Kartenbau im Container
       - ./data/roh:/app/roh

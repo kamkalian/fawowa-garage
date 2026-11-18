@@ -12,7 +12,7 @@
   let beschaeftigt = $state(false);
   let timer = null;
 
-  const ARTEN = { entpacken: 'Wegenetz einspielen', download: 'Kartendaten NRW laden', karte: 'Karte bauen', reichweite: 'Reichweite', kacheln: 'Kacheln' };
+  const ARTEN = { entpacken: 'Wegenetz einspielen', paket_einspielen: 'Paket einspielen', download: 'Kartendaten NRW laden', karte: 'Karte bauen', reichweite: 'Reichweite', kacheln: 'Kacheln' };
   const STATUS = { laeuft: 'läuft', wartet: 'wartet', fertig: 'fertig', fehler: 'Fehler' };
 
   // ZIP-Datei in Teilen hochladen. Jedes Teil wird einzeln gesendet und bei Fehlern wiederholt; bricht die Verbindung ab,
@@ -119,6 +119,9 @@
   }
 
   const starten = (art) => tun(() => api('POST', `/jobs/${art}`, {}));
+  const einspielen = (paket) => tun(() => api('POST', '/jobs/paket', { ordner: paket.ordner }));
+  // Ein Paket ist eingespielt, wenn Art und Version dem Stand entsprechen
+  const eingespielt = (p) => stand?.stand?.[p.art]?.version === p.version;
   const karteBauen = (gebiet) => tun(() => api('POST', '/jobs/karte', { gebiet }));
   const loeschen = (job) => tun(() => api('DELETE', `/jobs/${job.id}`));
   const verschieben = (job, richtung) => tun(() => api('POST', `/jobs/${job.id}/verschieben`, { richtung }));
@@ -218,7 +221,7 @@
     {/if}
 
     <h3>Stand der Daten</h3>
-    <p class="muted">Wegenetz und Karte baust du auf deinem Rechner (<code>npm run daten</code>) und lädst die ZIP-Datei hier hoch. Der Server packt sie aus und verwendet sie.</p>
+    <p class="muted">Wegenetz und Karte baut das Daten-Werkzeug auf deinem Rechner und überträgt die Pakete auf den Server. Dort erscheinen sie unten unter „Pakete“, und du startest das Einspielen mit einem Klick. Die alte Version bleibt bis dahin in Benutzung.</p>
     <div class="datenkacheln">
       {#each stand.datenstand as o (o.schluessel)}
         <article class="datenkachel" class:neu={o.neu === true}>
@@ -242,7 +245,7 @@
                 <input type="file" accept=".zip,application/zip" hidden disabled={beschaeftigt || aktiv(o.auftrag)} onchange={zipHochladen} />
               </label>
             {/if}
-          {:else}
+          {:else if o.auftrag}
             <button class="btn btn-outline" disabled={beschaeftigt || aktiv(o.auftrag)} onclick={() => starten(o.auftrag)}>
               {aktiv(o.auftrag) ? 'läuft oder wartet' : o.knopf}
             </button>
@@ -250,6 +253,39 @@
         </article>
       {/each}
     </div>
+
+    <h3>Pakete</h3>
+    {#if stand.paketStand}
+      <p class="muted {stand.paketStand.ok === false ? 'warn' : ''}">
+        Letzter Lauf: {stand.paketStand.ok === false ? 'fehlgeschlagen' : 'eingespielt'}{stand.paketStand.version ? ' (' + stand.paketStand.version + ')' : ''} am {zeit(stand.paketStand.zeit)}{#if stand.paketStand.ok === false}: {stand.paketStand.meldung}{/if}
+      </p>
+    {/if}
+    {#if stand.pakete?.length}
+      <div class="tabelle-rahmen">
+        <table>
+          <thead>
+            <tr><th>Paket</th><th>ZIP-Dateien</th><th>Größe</th><th>Stand</th><th><span class="sr">Aktion</span></th></tr>
+          </thead>
+          <tbody>
+            {#each stand.pakete as p (p.ordner)}
+              <tr>
+                <td>{p.art ?? '?'} {p.version ?? ''}{#if p.fehler}<br><small>{p.fehler}</small>{/if}</td>
+                <td>{p.zips}</td>
+                <td>{mb(p.bytes)}</td>
+                <td>{eingespielt(p) ? 'bereits eingespielt' : 'neu'}</td>
+                <td>
+                  <button class="btn btn-outline klein" disabled={beschaeftigt || aktiv('paket_einspielen') || !!p.fehler} onclick={() => einspielen(p)}>
+                    {aktiv('paket_einspielen') ? 'läuft oder wartet' : 'Einspielen'}
+                  </button>
+                </td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+      </div>
+    {:else}
+      <p class="muted">Keine Pakete zum Einspielen. Sobald das Daten-Werkzeug ein Paket hochgeladen hat, erscheint es hier.</p>
+    {/if}
 
     <h3>Karte aus den Kartendaten bauen</h3>
     <p class="muted">Zuerst die Kartendaten (Nordrhein-Westfalen) laden, dann die Karte bauen. Das läuft auf dem Server und kann mehrere Minuten dauern.</p>
@@ -332,7 +368,6 @@
   .datei.aus { opacity: .5; pointer-events: none; }
   .fortschritt { height: .5rem; border-radius: 999px; background: var(--bg-input); overflow: hidden; margin-top: auto; }
   .fortschritt .balken { height: 100%; background: var(--primary); transition: width .3s; }
-  code { font-size: .8125rem; }
   .tabelle-rahmen { overflow-x: auto; }
   table { width: 100%; border-collapse: collapse; font-size: .875rem; }
   th, td { text-align: left; padding: .4rem .5rem; border-bottom: 1px solid var(--border); vertical-align: top; white-space: nowrap; }
@@ -351,4 +386,5 @@
   .klein { padding: .2rem .5rem; font-size: .8125rem; margin-right: .2rem; }
   .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
   .fehler { color: var(--danger, #dc2626); font-size: .875rem; }
+  .muted.warn { color: var(--danger, #dc2626); }
 </style>
