@@ -435,7 +435,7 @@
   .art { color: var(--fg-muted); font-size: .75rem; margin-left: .25rem; }
 
   .zoomknoepfe { position: absolute; top: .75rem; right: .75rem; display: flex; flex-direction: column; gap: .25rem; z-index: 10; }
-  .zoomanzeige { font-size: .8125rem; text-align: center; padding: .15rem .3rem; font-variant-numeric: tabular-nums; }
+  .zoomanzeige { font-size: .9375rem; font-weight: 600; text-align: center; padding: .25rem .4rem; font-variant-numeric: tabular-nums; }
   .zoomknoepfe .karte-karte { width: 2.25rem; height: 2.25rem; font: inherit; font-size: 1.25rem; cursor: pointer; }
   .zoomknoepfe .karte-karte:hover { border-color: var(--primary); }
 

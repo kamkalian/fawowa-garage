@@ -152,7 +152,7 @@ export class Karte {
       if (m.getSource('waerme')) m.getSource('waerme').updateImage({ url: z.raster.url, coordinates: z.raster.koordinaten });
       else {
         m.addSource('waerme', { type: 'image', url: z.raster.url, coordinates: z.raster.koordinaten });
-        m.addLayer({ id: 'waerme', type: 'raster', source: 'waerme', paint: { 'raster-opacity': 1, 'raster-fade-duration': 0 } });
+        m.addLayer({ id: 'waerme', type: 'raster', source: 'waerme', paint: { 'raster-opacity': 1, 'raster-fade-duration': 0, 'raster-resampling': 'nearest' } });
       }
     } else if (m.getLayer('waerme')) {
       m.removeLayer('waerme');
