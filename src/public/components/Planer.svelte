@@ -191,7 +191,6 @@
     karte = new Karte(leinwand, {
       bbox: cfg.bbox, zoom: cfg.zoom, orte: [],
       quelle: t(lang, 'kartenQuelle'),
-      kachel: (z, x, y) => api.karteKachel(z, x, y),
       beiKlick: (lat, lon) => setzeStart(lat, lon)
     });
     api.karteOrte().then((o) => { orte = o; karte.opt.orte = o; karte.zeichnen(); }).catch(() => {});
@@ -224,9 +223,7 @@
 </script>
 
 <div class="vollbild" hidden={!offen} role="dialog" aria-modal="true" aria-label={t(lang, 'tabPlaner')}>
-  <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-  <!-- svelte-ignore a11y_no_interactive_element_to_noninteractive_role -->
-  <canvas bind:this={leinwand} tabindex="0" role="img" aria-label={t(lang, 'p_kartenName')}></canvas>
+  <div class="karten-flaeche" bind:this={leinwand} role="region" aria-label={t(lang, 'p_kartenName')}></div>
 
   <header class="kopfleiste">
     <button type="button" class="btn btn-outline btn-sm" onclick={() => zurueck?.()}>← {t(lang, 'p_zurueckGarage')}</button>
@@ -417,8 +414,7 @@
   :global(html.planer-offen), :global(html.planer-offen body) { overflow: hidden; }
 
   .vollbild { position: fixed; inset: 0; z-index: 100; background: #f2efe9; overflow: hidden; }
-  .vollbild canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: crosshair; touch-action: none; }
-  .vollbild canvas:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
+  .karten-flaeche { position: absolute; inset: 0; }
   .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
   /* Schwebende Karten über der Karte */

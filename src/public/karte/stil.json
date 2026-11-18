@@ -1,0 +1,83 @@
+{
+  "version": 8,
+  "name": "FaWoWa Karte",
+  "sources": {
+    "osm": {
+      "type": "vector",
+      "minzoom": 0,
+      "maxzoom": 14
+    }
+  },
+  "layers": [
+    { "id": "hintergrund", "type": "background", "paint": { "background-color": "#f2efe9" } },
+    {
+      "id": "landnutzung-siedlung", "type": "fill", "source": "osm", "source-layer": "landuse",
+      "filter": ["in", "class", "residential", "suburb", "neighbourhood"],
+      "paint": { "fill-color": "#e6e0d4" }
+    },
+    {
+      "id": "landbedeckung-wald", "type": "fill", "source": "osm", "source-layer": "landcover",
+      "filter": ["in", "class", "wood", "forest"],
+      "paint": { "fill-color": "#add19e" }
+    },
+    {
+      "id": "landbedeckung-gruen", "type": "fill", "source": "osm", "source-layer": "landcover",
+      "filter": ["in", "class", "grass", "farmland", "meadow"],
+      "paint": { "fill-color": "#cdebb0" }
+    },
+    {
+      "id": "park", "type": "fill", "source": "osm", "source-layer": "park",
+      "paint": { "fill-color": "#cdebb0" }
+    },
+    {
+      "id": "wasser", "type": "fill", "source": "osm", "source-layer": "water",
+      "paint": { "fill-color": "#aad3df" }
+    },
+    {
+      "id": "gewaesser-linie", "type": "line", "source": "osm", "source-layer": "waterway",
+      "paint": {
+        "line-color": "#aad3df",
+        "line-width": ["interpolate", ["linear"], ["zoom"], 5, 0.6, 10, 1.2, 14, 3]
+      }
+    },
+    {
+      "id": "gebaeude", "type": "fill", "source": "osm", "source-layer": "building", "minzoom": 13,
+      "paint": { "fill-color": "#d9d0c4", "fill-opacity": 0.8 }
+    },
+    {
+      "id": "bahn", "type": "line", "source": "osm", "source-layer": "transportation",
+      "filter": ["==", "class", "rail"],
+      "paint": { "line-color": "#8c8c8c", "line-width": ["interpolate", ["linear"], ["zoom"], 8, 0.6, 14, 1.6], "line-dasharray": [3, 2] }
+    },
+    {
+      "id": "weg-nebenstrasse", "type": "line", "source": "osm", "source-layer": "transportation", "minzoom": 11,
+      "filter": ["in", "class", "minor", "service", "track"],
+      "paint": { "line-color": "#ffffff", "line-width": ["interpolate", ["linear"], ["zoom"], 11, 0.5, 14, 3] }
+    },
+    {
+      "id": "weg-hauptstrasse", "type": "line", "source": "osm", "source-layer": "transportation", "minzoom": 7,
+      "filter": ["in", "class", "secondary", "tertiary"],
+      "paint": { "line-color": "#fde9b8", "line-width": ["interpolate", ["linear"], ["zoom"], 7, 0.6, 14, 5] }
+    },
+    {
+      "id": "weg-bundesstrasse", "type": "line", "source": "osm", "source-layer": "transportation", "minzoom": 5,
+      "filter": ["in", "class", "primary", "trunk"],
+      "paint": { "line-color": "#f7c96a", "line-width": ["interpolate", ["linear"], ["zoom"], 5, 0.8, 14, 7] }
+    },
+    {
+      "id": "weg-autobahn", "type": "line", "source": "osm", "source-layer": "transportation", "minzoom": 5,
+      "filter": ["==", "class", "motorway"],
+      "paint": { "line-color": "#3b6fd4", "line-width": ["interpolate", ["linear"], ["zoom"], 5, 1.4, 10, 2.6, 14, 8] }
+    },
+    {
+      "id": "radweg-pfad", "type": "line", "source": "osm", "source-layer": "transportation", "minzoom": 12,
+      "filter": ["==", "class", "path"],
+      "paint": { "line-color": "#16a34a", "line-width": ["interpolate", ["linear"], ["zoom"], 12, 1, 14, 2.4], "line-dasharray": [2, 1.5] }
+    },
+    {
+      "id": "grenze-staat", "type": "line", "source": "osm", "source-layer": "boundary",
+      "filter": ["<=", "admin_level", 4],
+      "paint": { "line-color": "#9a8fb0", "line-width": ["interpolate", ["linear"], ["zoom"], 4, 0.8, 10, 1.6], "line-dasharray": [4, 2] }
+    }
+  ]
+}

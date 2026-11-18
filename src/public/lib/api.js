@@ -49,15 +49,6 @@ export const reichweiteBerechnen = (token, werte) => anfrage('POST', '/api/v1/ga
 export const reichweiteStand = (token) => anfrage('GET', '/api/v1/garage/reichweite', { token });
 export const karteOrte = () => anfrage('GET', '/api/v1/karte/orte');
 
-/** Wegelinien einer Kartenkachel (Binärformat, siehe lib/karte-daten.js) */
-/** Erhöhen, wenn sich die Darstellung der Kacheln ändert */
-const KARTE_VERSION = 14;
-
-export async function karteKachel(z, x, y) {
-  const res = await fetch(`/api/v1/karte/${z}/${x}/${y}?v=${KARTE_VERSION}`); // Version: alte Kacheln aus dem Browser-Cache ersetzen
-  if (!res.ok) throw new ApiFehler(res.status, null);
-  return res.arrayBuffer();
-}
 
 // Fotos eines Stellplatzes (Bild als Körper der Anfrage; zum Anzeigen wird es mit dem Zugangsschlüssel geladen)
 export async function fotoHochladen(token, art, id, datei) {
