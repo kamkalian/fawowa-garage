@@ -60,6 +60,10 @@
   let rechnet = $state(false);
   let auftrag = $state(null);
   let ergebnis = $state(null);
+  let routenAn = $state(false);   // Schalter: Routen zeichnen
+  let punkteAn = $state(false);   // Schalter: 1-km-Punkte zeichnen
+  let routen = $state(null);      // { linien, schritte } der letzten Berechnung, einmal geladen
+  let routenFehlen = $state(false);
   let meldungFehler = $state('');
   let zaehler = 0;
 
@@ -115,10 +119,25 @@
   // Die Berechnung läuft im Hintergrund (Warteschlange des Workers): nach dem Start den Stand abfragen, bis das Ergebnis da ist
   const pause = (ms) => new Promise(r => setTimeout(r, ms));
 
+  // Routen und 1-km-Punkte nur laden und zeichnen, wenn der Schalter an ist
+  async function zeigeRoutenNeu() {
+    if (!karte) return;
+    if (!routenAn && !punkteAn) { karte.setzeRouten(null); karte.setzePunkte(null); return; }
+    if (!routen) routen = await api.reichweiteRouten(token);
+    routenFehlen = !routen.linien;
+    karte.setzeRouten(routenAn && routen.linien ? routen.linien : null);
+    karte.setzePunkte(punkteAn && routen.schritte ? routen.schritte : null);
+  }
+
   // Ergebnis anzeigen (Raster auf der Karte, Startpunkt)
   function zeigeErgebnis(r, anpassen) {
     auftrag = null;
     ergebnis = r;
+    routen = null;
+    routenFehlen = false;
+    karte.setzeRouten(null);
+    karte.setzePunkte(null);
+    zeigeRoutenNeu().catch(() => {});
     karte.setzeRaster(r.raster);
     karte.setzeStart(r.start.lat, r.start.lon);
     if (anpassen) {
@@ -378,23 +397,9 @@
       {/if}
       {#if ergebnis}
       <div class="legende" aria-hidden="true"><span>0</span><span class="balken"></span><span>{zahlText(lang, ergebnis.budget.wert)} {ergebnis.budget.einheit}</span></div>
-      <p class="notiz">{t(lang, 'p_legende')}</p>
-      <dl>
-        <div><dt>{t(lang, 'p_weitester')}</dt><dd>{zahlText(lang, ergebnis.kennzahlen.weitester_km)} km</dd></div>
-        {#if ergebnis.budget.art === 'akku'}
-          <div><dt>{t(lang, 'p_energie')}</dt><dd>{zahlText(lang, ergebnis.budget.wert)} Wh</dd></div>
-        {:else}
-          <div><dt>{t(lang, 'p_fahrzeit')}</dt><dd>{zahlText(lang, ergebnis.budget.wert)} h</dd></div>
-        {/if}
-        <div><dt>{t(lang, 'totalWeight')}</dt><dd>{zahlText(lang, Math.round(ergebnis.modell.masse_kg))} kg</dd></div>
-      </dl>
-      {#if ergebnis.annahmen.length}
-        <details>
-          <summary>{t(lang, 'p_annahmen')}</summary>
-          <ul class="annahmen">{#each ergebnis.annahmen as k (k)}<li>{annahmeText(k)}</li>{/each}</ul>
-        </details>
-      {/if}
-      <p class="notiz">{t(lang, 'p_vorbehalt')}</p>
+      <label class="haken"><input type="checkbox" bind:checked={routenAn} onchange={() => zeigeRoutenNeu().catch(() => {})} /> {t(lang, 'p_routen')}</label>
+      <label class="haken"><input type="checkbox" bind:checked={punkteAn} onchange={() => zeigeRoutenNeu().catch(() => {})} /> {t(lang, 'p_punkte')}</label>
+      {#if routenFehlen && (routenAn || punkteAn)}<p class="notiz">{t(lang, 'p_routenFehlen')}</p>{/if}
       {/if}
     </section>
   {/if}
@@ -422,8 +427,8 @@
   .art { color: var(--fg-muted); font-size: .75rem; margin-left: .25rem; }
 
   .zoomknoepfe { position: absolute; top: .75rem; right: .75rem; display: flex; flex-direction: column; gap: .25rem; z-index: 10; }
-  .zoomanzeige { position: absolute; left: .75rem; bottom: .5rem; z-index: 10; font-size: .875rem; font-weight: 600; color: #111; white-space: nowrap; pointer-events: none; font-variant-numeric: tabular-nums; }
-  .zoomknoepfe button.karte-karte { width: 2.25rem; height: 2.25rem; font: inherit; font-size: 1.25rem; cursor: pointer; }
+  .zoomanzeige { position: absolute; left: .75rem; bottom: 2.6rem; z-index: 10; font-size: .875rem; font-weight: 600; color: #111; white-space: nowrap; pointer-events: none; font-variant-numeric: tabular-nums; }
+  .zoomknoepfe button.karte-karte { width: 2.25rem; height: 2.25rem; padding: 0; font: inherit; font-size: 1.25rem; line-height: 1; display: flex; align-items: center; justify-content: center; cursor: pointer; }
   .zoomknoepfe button.karte-karte:hover { border-color: var(--primary); }
 
   .filter { position: absolute; top: 4.75rem; left: .75rem; width: 15rem; max-height: calc(100% - 7.5rem); overflow-y: auto; z-index: 10; }

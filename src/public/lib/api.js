@@ -47,6 +47,8 @@ export const zugangEinloesen = (schluessel) => anfrage('POST', '/api/v1/zugang/e
 export const reichweiteBerechnen = (token, werte) => anfrage('POST', '/api/v1/garage/reichweite', { token, body: werte });
 /** Stand der Reichweite der Garage: { status: wartet|laeuft|fertig|fehler|null, davor, meldung, ergebnis } */
 export const reichweiteStand = (token) => anfrage('GET', '/api/v1/garage/reichweite', { token });
+/** Routen und 1-km-Punkte der letzten Berechnung (nur auf Abruf): { linien, schritte } oder null-Felder */
+export const reichweiteRouten = (token) => anfrage('GET', '/api/v1/garage/reichweite/routen', { token });
 export const karteOrte = () => anfrage('GET', '/api/v1/karte/orte');
 
 

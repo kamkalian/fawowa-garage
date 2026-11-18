@@ -55,6 +55,16 @@ export function rasterBild(raster) {
 }
 
 const LEER = { type: 'FeatureCollection', features: [] };
+
+// Kanten-Segmente [lat1, lon1, lat2, lon2] als Mehrlinie (Routen der Reichweite)
+function linienGeo(linien) {
+  return { type: 'Feature', properties: {}, geometry: { type: 'MultiLineString', coordinates: linien.map(([a, b, c, d]) => [[b, a], [d, c]]) } };
+}
+
+// 1-km-Punkte [lat, lon, machbar 0|1] als Punkte mit Kennzeichen
+function punkteGeo(schritte) {
+  return { type: 'FeatureCollection', features: schritte.map(([lat, lon, m]) => ({ type: 'Feature', properties: { m }, geometry: { type: 'Point', coordinates: [lon, lat] } })) };
+}
 const punkt = (lat, lon) => ({ type: 'FeatureCollection', features: [{ type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: [lon, lat] } }] });
 const rahmen = (minLat, minLon, maxLat, maxLon) => ({
   type: 'FeatureCollection',
@@ -93,7 +103,7 @@ export class Karte {
       touchPitch: false,
       canvasContextAttributes: { antialias: false }
     });
-    this.zustand = { raster: null, start: null, rechteck: null };
+    this.zustand = { raster: null, start: null, rechteck: null, routen: null, punkte: null };
     this.geladen = false;
     this.attribution = null;
     this.zeichnen();
@@ -101,6 +111,8 @@ export class Karte {
     this.map.on('click', (e) => this.opt.beiKlick?.(e.lngLat.lat, e.lngLat.lng));
     // Zoomstufe melden (Anzeige im Planer)
     this.map.on('zoom', () => this.opt.beiZoom?.(this.map.getZoom()));
+    // Maßstab je nach Zoomstufe (unten links)
+    this.map.addControl(new maplibregl.ScaleControl({ maxWidth: 110, unit: 'metric' }), 'bottom-left');
   }
 
   /** Aktueller Zoom (Stufe, auch Bruchteile) */
@@ -125,6 +137,18 @@ export class Karte {
 
   setzeStart(lat, lon) {
     this.zustand.start = lat === null ? null : { lat, lon };
+    this._anwenden();
+  }
+
+  /** linien: Kanten-Segmente der Routen (oder null) */
+  setzeRouten(linien) {
+    this.zustand.routen = linien ? { type: 'FeatureCollection', features: [linienGeo(linien)] } : null;
+    this._anwenden();
+  }
+
+  /** schritte: 1-km-Punkte (oder null) */
+  setzePunkte(schritte) {
+    this.zustand.punkte = schritte ? punkteGeo(schritte) : null;
     this._anwenden();
   }
 
@@ -160,6 +184,20 @@ export class Karte {
     } else if (m.getLayer('waerme')) {
       m.removeLayer('waerme');
       m.removeSource('waerme');
+    }
+
+    // Routen und 1-km-Punkte: Quellen anlegen oder aktualisieren; ohne Daten bleibt die Ebene leer
+    const routenDaten = z.routen ?? LEER;
+    if (m.getSource('routen')) m.getSource('routen').setData(routenDaten);
+    else {
+      m.addSource('routen', { type: 'geojson', data: routenDaten });
+      m.addLayer({ id: 'routen', type: 'line', source: 'routen', paint: { 'line-color': '#2563eb', 'line-width': 2, 'line-opacity': 0.9 } });
+    }
+    const punkteDaten = z.punkte ?? LEER;
+    if (m.getSource('punkte')) m.getSource('punkte').setData(punkteDaten);
+    else {
+      m.addSource('punkte', { type: 'geojson', data: punkteDaten });
+      m.addLayer({ id: 'punkte', type: 'circle', source: 'punkte', paint: { 'circle-radius': 2.5, 'circle-color': ['case', ['==', ['get', 'm'], 1], '#16a34a', '#dc2626'] } });
     }
 
     const rahmenDaten = z.rechteck ? rahmen(z.rechteck.minLat, z.rechteck.minLon, z.rechteck.maxLat, z.rechteck.maxLon) : LEER;
