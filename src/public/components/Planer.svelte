@@ -181,6 +181,8 @@
       beiZoom: (z) => { zoomStand = z; }
     });
     zoomStand = karte.zoom;
+    // Der Planer öffnet sich beim Laden gleich: die Karte passt ihre Größe danach an, wenn der Container sichtbar ist
+    requestAnimationFrame(() => karte?.groesse());
     api.karteOrte().then((o) => { orte = o; karte.opt.orte = o; karte.zeichnen(); }).catch(() => {});
     // Lief schon eine Berechnung (auch aus einer früheren Sitzung), wird ihr Stand hier angezeigt
     if (token && cfg.bbox) { const nr = ++zaehler; verfolgen(nr, false).catch(() => {}); }
