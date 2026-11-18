@@ -56,9 +56,19 @@ export function rasterBild(raster) {
 
 const LEER = { type: 'FeatureCollection', features: [] };
 
-// Kanten-Segmente [lat1, lon1, lat2, lon2] als Mehrlinie (Routen der Reichweite)
+// Routen nach Steigung: rot über 5 %, gelb 1 bis 5 %, blau 0 bis 1 %, grün bergab
+function steigungsKlasse(st) {
+  if (st > 5) return 'rot';
+  if (st > 1) return 'gelb';
+  if (st >= 0) return 'blau';
+  return 'gruen';
+}
+
+// Kanten-Segmente [lat1, lon1, lat2, lon2, anteil, steigung] als Mehrlinien, je Farbe eine Ebene
 function linienGeo(linien) {
-  return { type: 'Feature', properties: {}, geometry: { type: 'MultiLineString', coordinates: linien.map(([a, b, c, d]) => [[b, a], [d, c]]) } };
+  const gruppen = { rot: [], gelb: [], blau: [], gruen: [] };
+  for (const [a, b, c, d, , st] of linien) gruppen[steigungsKlasse(st ?? 0)].push([[b, a], [d, c]]);
+  return Object.entries(gruppen).filter(([, c]) => c.length).map(([k, c]) => ({ type: 'Feature', properties: { farbe: k }, geometry: { type: 'MultiLineString', coordinates: c } }));
 }
 
 // 1-km-Punkte [lat, lon, machbar 0|1] als Punkte mit Kennzeichen
@@ -142,7 +152,7 @@ export class Karte {
 
   /** linien: Kanten-Segmente der Routen (oder null) */
   setzeRouten(linien) {
-    this.zustand.routen = linien ? { type: 'FeatureCollection', features: [linienGeo(linien)] } : null;
+    this.zustand.routen = linien ? { type: 'FeatureCollection', features: linienGeo(linien) } : null;
     this._anwenden();
   }
 
@@ -191,7 +201,7 @@ export class Karte {
     if (m.getSource('routen')) m.getSource('routen').setData(routenDaten);
     else {
       m.addSource('routen', { type: 'geojson', data: routenDaten });
-      m.addLayer({ id: 'routen', type: 'line', source: 'routen', paint: { 'line-color': '#2563eb', 'line-width': 2, 'line-opacity': 0.9 } });
+      m.addLayer({ id: 'routen', type: 'line', source: 'routen', paint: { 'line-color': ['match', ['get', 'farbe'], 'rot', '#dc2626', 'gelb', '#eab308', 'blau', '#2563eb', '#16a34a'], 'line-width': 2, 'line-opacity': 0.9 } });
     }
     const punkteDaten = z.punkte ?? LEER;
     if (m.getSource('punkte')) m.getSource('punkte').setData(punkteDaten);

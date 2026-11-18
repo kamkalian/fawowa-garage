@@ -398,6 +398,9 @@
       {#if ergebnis}
       <div class="legende" aria-hidden="true"><span>0</span><span class="balken"></span><span>{zahlText(lang, ergebnis.budget.wert)} {ergebnis.budget.einheit}</span></div>
       <label class="haken"><input type="checkbox" bind:checked={routenAn} onchange={() => zeigeRoutenNeu().catch(() => {})} /> {t(lang, 'p_routen')}</label>
+      {#if routenAn}
+        <p class="steigung"><span class="st-gruen">{t(lang, 'p_stBergab')}</span> · <span class="st-blau">{t(lang, 'p_stFlach')}</span> · <span class="st-gelb">{t(lang, 'p_stMittel')}</span> · <span class="st-rot">{t(lang, 'p_stSteil')}</span></p>
+      {/if}
       <label class="haken"><input type="checkbox" bind:checked={punkteAn} onchange={() => zeigeRoutenNeu().catch(() => {})} /> {t(lang, 'p_punkte')}</label>
       {#if routenFehlen && (routenAn || punkteAn)}<p class="notiz">{t(lang, 'p_routenFehlen')}</p>{/if}
       {/if}
@@ -427,6 +430,8 @@
   .art { color: var(--fg-muted); font-size: .75rem; margin-left: .25rem; }
 
   .zoomknoepfe { position: absolute; top: .75rem; right: .75rem; display: flex; flex-direction: column; gap: .25rem; z-index: 10; }
+  .steigung { font-size: .8125rem; margin: 0; }
+  .st-gruen { color: #16a34a; font-weight: 600; } .st-blau { color: #2563eb; font-weight: 600; } .st-gelb { color: #eab308; font-weight: 600; } .st-rot { color: #dc2626; font-weight: 600; }
   .zoomanzeige { position: absolute; left: .75rem; bottom: 2.6rem; z-index: 10; font-size: .875rem; font-weight: 600; color: #111; white-space: nowrap; pointer-events: none; font-variant-numeric: tabular-nums; }
   .zoomknoepfe button.karte-karte { width: 2.25rem; height: 2.25rem; padding: 0; font: inherit; font-size: 1.25rem; line-height: 1; display: flex; align-items: center; justify-content: center; cursor: pointer; }
   .zoomknoepfe button.karte-karte:hover { border-color: var(--primary); }
