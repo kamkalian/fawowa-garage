@@ -78,7 +78,7 @@ test('Datenstand: ohne ZIP gibt es kein Wegenetz; nach dem Entpacken gilt sein D
   const leer = await datenstand({ env, letzte: {} });
   const k0 = Object.fromEntries(leer.objekte.map(o => [o.schluessel, o]));
   assert.equal(k0.netz.vorhanden, false);
-  assert.equal(k0.netz.auftrag, 'entpacken');
+  assert.equal(k0.netz.auftrag, null); // Wegenetz kommt als Paket, kein Upload-Auftrag
   mkdirSync(join(netz, 'karte'), { recursive: true });
   writeFileSync(join(netz, 'karte', 'pts.i32'), 'x');
   writeFileSync(join(netz, 'info.json'), '{}');

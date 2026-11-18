@@ -62,13 +62,13 @@
     <Login onerfolg={() => (angemeldet = true)} />
   {:else}
     <nav class="reiter" role="tablist" aria-label="Verwaltung">
-      <button type="button" role="tab" id="reiter-kartendaten" aria-selected={reiter === 'kartendaten'} aria-controls="feld-kartendaten" class:aktiv={reiter === 'kartendaten'} onclick={() => (reiter = 'kartendaten')}>Kartendaten</button>
+      <button type="button" role="tab" id="reiter-kartendaten" aria-selected={reiter === 'kartendaten'} aria-controls="feld-kartendaten" class:aktiv={reiter === 'kartendaten'} onclick={() => (reiter = 'kartendaten')}>Daten laden</button>
       <button type="button" role="tab" id="reiter-garagen" aria-selected={reiter === 'garagen'} aria-controls="feld-garagen" class:aktiv={reiter === 'garagen'} onclick={() => (reiter = 'garagen')}>Garagen</button>
     </nav>
 
     {#if reiter === 'kartendaten'}
       <div role="tabpanel" id="feld-kartendaten" aria-labelledby="reiter-kartendaten">
-        <Jobs onoeffnen={(id) => { auswahl = id; reiter = 'garagen'; }} />
+        <Jobs />
       </div>
     {:else}
       <div role="tabpanel" id="feld-garagen" aria-labelledby="reiter-garagen">
