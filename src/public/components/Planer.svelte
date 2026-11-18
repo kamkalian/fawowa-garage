@@ -435,9 +435,9 @@
   .art { color: var(--fg-muted); font-size: .75rem; margin-left: .25rem; }
 
   .zoomknoepfe { position: absolute; top: .75rem; right: .75rem; display: flex; flex-direction: column; gap: .25rem; z-index: 10; }
-  .zoomanzeige { font-size: .9375rem; font-weight: 600; text-align: center; padding: .25rem .4rem; font-variant-numeric: tabular-nums; }
-  .zoomknoepfe .karte-karte { width: 2.25rem; height: 2.25rem; font: inherit; font-size: 1.25rem; cursor: pointer; }
-  .zoomknoepfe .karte-karte:hover { border-color: var(--primary); }
+  .zoomanzeige { font-size: .9375rem; font-weight: 600; text-align: center; white-space: nowrap; padding: .25rem .4rem; font-variant-numeric: tabular-nums; }
+  .zoomknoepfe button.karte-karte { width: 2.25rem; height: 2.25rem; font: inherit; font-size: 1.25rem; cursor: pointer; }
+  .zoomknoepfe button.karte-karte:hover { border-color: var(--primary); }
 
   .filter { position: absolute; top: 4.75rem; left: .75rem; width: 19rem; max-height: calc(100% - 6rem); overflow-y: auto; z-index: 10; }
   .filter-kopf { display: flex; justify-content: space-between; align-items: center; width: 100%; padding: .6rem .8rem; background: none; border: none; color: var(--fg); font: inherit; font-weight: 600; cursor: pointer; position: sticky; top: 0; background: var(--bg-card); border-radius: var(--radius); }
