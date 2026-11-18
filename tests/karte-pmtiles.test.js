@@ -60,7 +60,7 @@ test('PMTiles-Datei wird mit HTTP-Range in Teilen geliefert (206)', async () => 
 
 test('Sicherheitsrichtlinie erlaubt MapLibre-Arbeitsprozesse aus blob: und sonst nichts Fremdes', () => {
   assert.match(CSP, /worker-src 'self' blob:/);
-  assert.match(CSP, /connect-src 'self'/);
+  assert.match(CSP, /connect-src 'self' data: blob:/); // Wärmekarte: MapLibre lädt das data:-Bild per fetch
   assert.doesNotMatch(CSP, /unsafe-eval|unsafe-inline/);
 });
 
