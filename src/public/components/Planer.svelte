@@ -80,7 +80,7 @@
     return { px: Math.round(best / mProPx), label: best >= 1000 ? `${best / 1000} km` : `${best} m` };
   }
   const massstab = $derived(zoomStand === null ? null : berechneMassstab(zoomStand, start?.lat ?? 51));
-  const budgetText = $derived(ergebnis ? `${zahlText(lang, ergebnis.budget.wert)} ${ergebnis.budget.einheit}` : (nachAkku ? '' : `${zahlText(lang, e.fahrtzeit_h)} h`));
+  const budgetText = $derived(nachAkku ? (ergebnis?.budget.art === 'akku' ? `${zahlText(lang, ergebnis.budget.wert)} Wh` : '') : `${zahlText(lang, e.fahrtzeit_h)} h`);
   let meldungFehler = $state('');
   let zaehler = 0;
 
