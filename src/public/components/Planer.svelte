@@ -248,8 +248,8 @@
   <div class="zoomknoepfe">
     <button type="button" class="karte-karte btn-icon" aria-label={t(lang, 'p_zoomIn')} onclick={() => karte?.zoomen(1.6)}>+</button>
     <button type="button" class="karte-karte btn-icon" aria-label={t(lang, 'p_zoomOut')} onclick={() => karte?.zoomen(1 / 1.6)}>−</button>
-    <span class="karte-karte zoomanzeige" aria-live="polite">Zoom {zoomStand === null ? '–' : zoomStand.toFixed(1)}</span>
   </div>
+  <span class="zoomanzeige" aria-live="polite">Zoom {zoomStand === null ? '–' : zoomStand.toFixed(1)}</span>
 
   <aside class="karte-karte filter">
     <button type="button" class="filter-kopf" aria-expanded={filterOffen} aria-controls="planer-filter" onclick={() => (filterOffen = !filterOffen)}>
@@ -435,7 +435,7 @@
   .art { color: var(--fg-muted); font-size: .75rem; margin-left: .25rem; }
 
   .zoomknoepfe { position: absolute; top: .75rem; right: .75rem; display: flex; flex-direction: column; gap: .25rem; z-index: 10; }
-  .zoomanzeige { font-size: .9375rem; font-weight: 600; text-align: center; white-space: nowrap; padding: .25rem .4rem; font-variant-numeric: tabular-nums; }
+  .zoomanzeige { position: absolute; left: .75rem; bottom: .5rem; z-index: 10; font-size: .875rem; font-weight: 600; white-space: nowrap; pointer-events: none; font-variant-numeric: tabular-nums; text-shadow: 0 0 4px var(--bg-card), 0 0 4px var(--bg-card); }
   .zoomknoepfe button.karte-karte { width: 2.25rem; height: 2.25rem; font: inherit; font-size: 1.25rem; cursor: pointer; }
   .zoomknoepfe button.karte-karte:hover { border-color: var(--primary); }
 

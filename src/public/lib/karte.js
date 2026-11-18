@@ -83,7 +83,8 @@ export class Karte {
       fitBoundsOptions: { padding: 40 },
       minZoom: this.zoomMin,
       maxZoom: this.zoomMax,
-      maxBounds: [[b.minLon - 2.5, b.minLat - 2.0], [b.maxLon + 2.5, b.maxLat + 2.0]],
+      // Weit genug, dass die Karte bei kleinem Zoom (ganz Deutschland im Fenster) noch verschiebbar bleibt
+      maxBounds: [[b.minLon - 12, b.minLat - 8], [b.maxLon + 12, b.maxLat + 8]],
       attributionControl: false,
       dragRotate: false,
       pitchWithRotate: false,
