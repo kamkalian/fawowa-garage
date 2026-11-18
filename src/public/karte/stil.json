@@ -50,34 +50,77 @@
       "paint": { "line-color": "#8c8c8c", "line-width": ["interpolate", ["linear"], ["zoom"], 8, 0.6, 14, 1.6], "line-dasharray": [3, 2] }
     },
     {
+      "id": "weg-rampe", "type": "line", "source": "osm", "source-layer": "transportation", "minzoom": 10,
+      "filter": ["all", ["==", ["get", "ramp"], 1], ["in", "class", "motorway", "trunk", "primary", "secondary", "tertiary"]],
+      "layout": { "line-cap": "round", "line-join": "round" },
+      "paint": {
+        "line-color": ["match", ["get", "class"], "motorway", "#3b6fd4", ["trunk", "primary"], "#f7c96a", "#fde9b8"],
+        "line-width": ["interpolate", ["linear"], ["zoom"], 10, 0.6, 14, 4]
+      }
+    },
+    {
       "id": "weg-nebenstrasse", "type": "line", "source": "osm", "source-layer": "transportation", "minzoom": 11,
-      "filter": ["in", "class", "minor", "service", "track"],
+      "filter": ["all", ["in", "class", "minor", "service", "track"], ["!=", ["get", "ramp"], 1]],
       "paint": { "line-color": "#ffffff", "line-width": ["interpolate", ["linear"], ["zoom"], 11, 0.5, 14, 3] }
     },
     {
       "id": "weg-hauptstrasse", "type": "line", "source": "osm", "source-layer": "transportation", "minzoom": 7,
-      "filter": ["in", "class", "secondary", "tertiary"],
+      "filter": ["all", ["in", "class", "secondary", "tertiary"], ["!=", ["get", "ramp"], 1]],
       "paint": { "line-color": "#fde9b8", "line-width": ["interpolate", ["linear"], ["zoom"], 7, 0.6, 14, 5] }
     },
     {
       "id": "weg-bundesstrasse", "type": "line", "source": "osm", "source-layer": "transportation", "minzoom": 5,
-      "filter": ["in", "class", "primary", "trunk"],
+      "filter": ["all", ["in", "class", "primary", "trunk"], ["!=", ["get", "ramp"], 1]],
       "paint": { "line-color": "#f7c96a", "line-width": ["interpolate", ["linear"], ["zoom"], 5, 0.8, 14, 7] }
     },
     {
       "id": "weg-autobahn", "type": "line", "source": "osm", "source-layer": "transportation", "minzoom": 5,
-      "filter": ["==", "class", "motorway"],
+      "filter": ["all", ["==", "class", "motorway"], ["!=", ["get", "ramp"], 1]],
       "paint": { "line-color": "#3b6fd4", "line-width": ["interpolate", ["linear"], ["zoom"], 5, 1.4, 10, 2.6, 14, 8] }
     },
     {
-      "id": "radweg-pfad", "type": "line", "source": "osm", "source-layer": "transportation", "minzoom": 12,
-      "filter": ["==", "class", "path"],
-      "paint": { "line-color": "#16a34a", "line-width": ["interpolate", ["linear"], ["zoom"], 12, 1, 14, 2.4], "line-dasharray": [2, 1.5] }
+      "id": "radweg", "type": "line", "source": "osm", "source-layer": "transportation", "minzoom": 8,
+      "filter": ["all", ["==", "class", "path"], ["any", ["==", ["get", "subclass"], "cycleway"], ["==", ["get", "bicycle"], "designated"]]],
+      "layout": { "line-cap": "round", "line-join": "round" },
+      "paint": { "line-color": "#16a34a", "line-width": ["interpolate", ["linear"], ["zoom"], 8, 1, 14, 3] }
     },
     {
       "id": "grenze-staat", "type": "line", "source": "osm", "source-layer": "boundary",
       "filter": ["<=", "admin_level", 4],
       "paint": { "line-color": "#9a8fb0", "line-width": ["interpolate", ["linear"], ["zoom"], 4, 0.8, 10, 1.6], "line-dasharray": [4, 2] }
+    },
+    {
+      "id": "ort-stadt", "type": "symbol", "source": "osm", "source-layer": "place", "minzoom": 5,
+      "filter": ["==", "class", "city"],
+      "layout": {
+        "text-field": ["coalesce", ["get", "name:de"], ["get", "name"]],
+        "text-font": ["Noto Sans Regular"],
+        "text-size": ["interpolate", ["linear"], ["zoom"], 5, 11, 10, 15],
+        "text-max-width": 8
+      },
+      "paint": { "text-color": "#2d2d2d", "text-halo-color": "#f2efe9", "text-halo-width": 1.5 }
+    },
+    {
+      "id": "ort-kleinstadt", "type": "symbol", "source": "osm", "source-layer": "place", "minzoom": 7,
+      "filter": ["==", "class", "town"],
+      "layout": {
+        "text-field": ["coalesce", ["get", "name:de"], ["get", "name"]],
+        "text-font": ["Noto Sans Regular"],
+        "text-size": ["interpolate", ["linear"], ["zoom"], 7, 9, 12, 13],
+        "text-max-width": 8
+      },
+      "paint": { "text-color": "#3d3d3d", "text-halo-color": "#f2efe9", "text-halo-width": 1.2 }
+    },
+    {
+      "id": "ort-dorf", "type": "symbol", "source": "osm", "source-layer": "place", "minzoom": 10,
+      "filter": ["in", "class", "village"],
+      "layout": {
+        "text-field": ["coalesce", ["get", "name:de"], ["get", "name"]],
+        "text-font": ["Noto Sans Regular"],
+        "text-size": ["interpolate", ["linear"], ["zoom"], 10, 9, 13, 12],
+        "text-max-width": 8
+      },
+      "paint": { "text-color": "#4a4a4a", "text-halo-color": "#f2efe9", "text-halo-width": 1.2 }
     }
   ]
 }

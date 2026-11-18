@@ -1,7 +1,7 @@
 // Karte im Browser: Auslieferung der PMTiles-Datei (mit HTTP-Range), Sicherheitsrichtlinie für MapLibre und Stil-Prüfung.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from 'fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, existsSync } from 'fs';
 import { tmpdir } from 'os';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -79,8 +79,28 @@ test('Stil: Version 8, jede Ebene nutzt eine vorhandene Quelle, Ebenen-Ids einde
   }
 });
 
-test('Stil: keine Beschriftungen (Schriften gibt es noch nicht), Autobahnen und Radwege vorhanden', () => {
-  assert.ok(!stil.layers.some((l) => l.type === 'symbol'), 'Beschriftung braucht Schriftdateien (glyphs)');
+test('Stil: Ortsnamen nutzen nur Schriften, die als Glyphen auf dem Server liegen', () => {
+  const beschriftet = stil.layers.filter((l) => l.type === 'symbol');
+  assert.ok(beschriftet.some((l) => l.id === 'ort-stadt'), 'Städte fehlen');
+  for (const l of beschriftet) {
+    for (const schrift of l.layout['text-font']) {
+      const ordner = join(hier, '..', 'public', 'karte', 'glyphs', schrift);
+      assert.ok(existsSync(join(ordner, '0-255.pbf')), `Glyphen für ${schrift} fehlen`);
+    }
+  }
   assert.ok(stil.layers.some((l) => l.id === 'weg-autobahn'), 'Autobahn-Ebene fehlt');
-  assert.ok(stil.layers.some((l) => l.id === 'radweg-pfad'), 'Radweg-Ebene fehlt');
+  assert.ok(stil.layers.some((l) => l.id === 'radweg'), 'Radweg-Ebene fehlt');
+});
+
+test('Stil: Auf- und Abfahrten liegen unter den Hauptstraßen, Radwege durchgehend grün (ohne Strichelung)', () => {
+  const reihe = stil.layers.map((l) => l.id);
+  const rampe = reihe.indexOf('weg-rampe');
+  for (const id of ['weg-nebenstrasse', 'weg-hauptstrasse', 'weg-bundesstrasse', 'weg-autobahn']) {
+    assert.ok(rampe < reihe.indexOf(id), `Rampen müssen vor ${id} gezeichnet werden`);
+    const ebene = stil.layers.find((l) => l.id === id);
+    assert.match(JSON.stringify(ebene.filter), /"ramp"/, `${id} schließt Rampen nicht aus`);
+  }
+  const rad = stil.layers.find((l) => l.id === 'radweg');
+  assert.equal(rad.paint['line-dasharray'], undefined, 'Radweg darf nicht gestrichelt sein');
+  assert.ok(rad.minzoom <= 8, 'Radweg muss ab Zoom 8 sichtbar sein');
 });

@@ -75,6 +75,8 @@ export class Karte {
     // Adresse des PMTiles-Datei auf demselben Server; der Stil wird hier nur ergänzt, nicht von außen geladen
     const stilKopie = structuredClone(stil);
     stilKopie.sources.osm.url = `pmtiles://${location.origin}/karte/germany.pmtiles`;
+    // Schriften für die Ortsnamen: Glyphen (PBF) liegen auf dem eigenen Server unter public/karte/glyphs
+    stilKopie.glyphs = `${location.origin}/karte/glyphs/{fontstack}/{range}.pbf`;
     // Verschieben über NRW hinaus (Nachbarregionen, dort ohne Daten)
     this.map = new maplibregl.Map({
       container,
