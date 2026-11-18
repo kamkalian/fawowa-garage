@@ -96,6 +96,8 @@ export class Karte {
     this.zeichnen();
     this.map.on('load', () => { this.geladen = true; this._anwenden(); });
     this.map.on('click', (e) => this.opt.beiKlick?.(e.lngLat.lat, e.lngLat.lng));
+    // Zoomstufe melden (Anzeige im Planer)
+    this.map.on('zoom', () => this.opt.beiZoom?.(this.map.getZoom()));
   }
 
   /** Aktueller Zoom (Stufe, auch Bruchteile) */

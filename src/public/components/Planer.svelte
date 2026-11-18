@@ -53,6 +53,7 @@
   // ---------- Zustand ----------
   let leinwand;
   let karte = null;
+  let zoomStand = $state(null); // aktuelle Zoomstufe der Karte, für die Anzeige
   let orte = $state([]);
   let start = $state(null);
   let suche = $state('');
@@ -191,8 +192,10 @@
     karte = new Karte(leinwand, {
       bbox: cfg.bbox, zoom: cfg.zoom, orte: [],
       quelle: t(lang, 'kartenQuelle'),
-      beiKlick: (lat, lon) => setzeStart(lat, lon)
+      beiKlick: (lat, lon) => setzeStart(lat, lon),
+      beiZoom: (z) => { zoomStand = z; }
     });
+    zoomStand = karte.zoom;
     api.karteOrte().then((o) => { orte = o; karte.opt.orte = o; karte.zeichnen(); }).catch(() => {});
     // Lief schon eine Berechnung (auch aus einer früheren Sitzung), wird ihr Stand hier angezeigt
     if (token && cfg.bbox) { const nr = ++zaehler; verfolgen(nr, false).catch(() => {}); }
@@ -245,6 +248,7 @@
   <div class="zoomknoepfe">
     <button type="button" class="karte-karte btn-icon" aria-label={t(lang, 'p_zoomIn')} onclick={() => karte?.zoomen(1.6)}>+</button>
     <button type="button" class="karte-karte btn-icon" aria-label={t(lang, 'p_zoomOut')} onclick={() => karte?.zoomen(1 / 1.6)}>−</button>
+    <span class="karte-karte zoomanzeige" aria-live="polite">Zoom {zoomStand === null ? '–' : zoomStand.toFixed(1)}</span>
   </div>
 
   <aside class="karte-karte filter">
@@ -431,6 +435,7 @@
   .art { color: var(--fg-muted); font-size: .75rem; margin-left: .25rem; }
 
   .zoomknoepfe { position: absolute; top: .75rem; right: .75rem; display: flex; flex-direction: column; gap: .25rem; z-index: 10; }
+  .zoomanzeige { font-size: .8125rem; text-align: center; padding: .15rem .3rem; font-variant-numeric: tabular-nums; }
   .zoomknoepfe .karte-karte { width: 2.25rem; height: 2.25rem; font: inherit; font-size: 1.25rem; cursor: pointer; }
   .zoomknoepfe .karte-karte:hover { border-color: var(--primary); }
 
