@@ -121,8 +121,6 @@ export class Karte {
     this.map.on('click', (e) => this.opt.beiKlick?.(e.lngLat.lat, e.lngLat.lng));
     // Zoomstufe melden (Anzeige im Planer)
     this.map.on('zoom', () => this.opt.beiZoom?.(this.map.getZoom()));
-    // Maßstab je nach Zoomstufe (unten links)
-    this.map.addControl(new maplibregl.ScaleControl({ maxWidth: 110, unit: 'metric' }), 'bottom-left');
   }
 
   /** Aktueller Zoom (Stufe, auch Bruchteile) */

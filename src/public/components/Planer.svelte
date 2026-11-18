@@ -64,6 +64,23 @@
   let punkteAn = $state(false);   // Schalter: 1-km-Punkte zeichnen
   let routen = $state(null);      // { linien, schritte } der letzten Berechnung, einmal geladen
   let routenFehlen = $state(false);
+  let schrittIdx = $state(2); // Rasterabstand: 0,5 / 1 / 2 km
+  const SCHRITTE = [{ km: 0.5, label: '0,5 km' }, { km: 1, label: '1 km' }, { km: 2, label: '2 km' }];
+  const LAUF_SCHRITTE = ['Suche vom Start aus', 'Gitterpunkte', 'Routen zusammenstellen', 'Heatmap berechnen'];
+  // Welcher Schritt läuft, aus der Meldung des Servers
+  function laufSchritt(phase) {
+    const i = LAUF_SCHRITTE.findIndex((s) => (phase ?? '').startsWith(s));
+    return i < 0 ? 0 : i;
+  }
+  // Maßstab für die Zoomstufe: eine runde Länge, die etwa 120 Pixel breit ist (512-Pixel-Kacheln)
+  function berechneMassstab(zoom, breite) {
+    const mProPx = (78271.517 * Math.cos((breite * Math.PI) / 180)) / Math.pow(2, zoom);
+    let best = 10;
+    for (const m of [10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000]) if (m / mProPx <= 120) best = m;
+    return { px: Math.round(best / mProPx), label: best >= 1000 ? `${best / 1000} km` : `${best} m` };
+  }
+  const massstab = $derived(zoomStand === null ? null : berechneMassstab(zoomStand, start?.lat ?? 51));
+  const budgetText = $derived(ergebnis ? `${zahlText(lang, ergebnis.budget.wert)} ${ergebnis.budget.einheit}` : (nachAkku ? '' : `${zahlText(lang, e.fahrtzeit_h)} h`));
   let meldungFehler = $state('');
   let zaehler = 0;
 
@@ -161,8 +178,8 @@
         return;
       }
       if (s.status === 'wartet' || s.status === 'laeuft') {
-        auftrag = { status: s.status, davor: s.davor };
-        await pause(2000);
+        auftrag = { status: s.status, davor: s.davor, phase: s.phase, fortschritt: s.fortschritt };
+        await pause(1000);
         continue;
       }
       auftrag = null;
@@ -176,7 +193,7 @@
     rechnet = true;
     meldungFehler = '';
     try {
-      const angenommen = await api.reichweiteBerechnen(token, { lat: start.lat, lon: start.lon, modus, einstellungen: einstellungen() });
+      const angenommen = await api.reichweiteBerechnen(token, { lat: start.lat, lon: start.lon, modus, einstellungen: einstellungen(), schritt_km: SCHRITTE[schrittIdx].km });
       if (nr !== zaehler) return;
       auftrag = { status: 'wartet', davor: angenommen.davor };
       await verfolgen(nr, anpassen);
@@ -280,6 +297,13 @@
         </fieldset>
 
         <fieldset>
+          <legend>Rasterabstand</legend>
+          <input id="p-raster" type="range" min="0" max="2" step="1" bind:value={schrittIdx} aria-label="Rasterabstand" />
+          <div class="raster-marken"><span>0,5 km</span><span>1 km</span><span>2 km</span></div>
+          <p class="notiz">Die Punkte liegen alle {SCHRITTE[schrittIdx].label} auf dem Netz.</p>
+        </fieldset>
+
+        <fieldset>
           <legend>{t(lang, 'p_berechnenNach')}</legend>
           <div class="gruppe" role="radiogroup" aria-label={t(lang, 'p_berechnenNach')}>
             <button type="button" role="radio" class="wahl" aria-checked={nachAkku} disabled={!motor} onclick={() => (wahlAkku = true)}>{t(lang, 'p_nachAkku')}</button>
@@ -379,33 +403,45 @@
   {#if meldungFehler}<p class="pille fehler" role="alert">{meldungFehler}</p>{/if}
   <p class="pille hinweis">{t(lang, 'p_kartenHinweis')}</p>
 
-  {#if ergebnis || auftrag}
+  <div class="unten-rechts">
+    {#if auftrag}
+      <section class="karte-karte fortschritt" role="status" aria-live="polite">
+        {#if auftrag.status === 'fehler'}
+          <strong>{t(lang, 'p_fehlgeschlagen')}</strong>
+          <span>{fehlerText(auftrag.code)}</span>
+        {:else if auftrag.status === 'laeuft'}
+          <strong>{t(lang, 'p_laeuft')}</strong>
+          <div class="balken-lauf"><div style:width={`${auftrag.fortschritt ?? 0}%`}></div></div>
+          <ol class="lauf-schritte">
+            {#each LAUF_SCHRITTE as schritt, i (schritt)}
+              <li class:erledigt={i < laufSchritt(auftrag.phase)} class:aktuell={i === laufSchritt(auftrag.phase)}>{schritt}</li>
+            {/each}
+          </ol>
+          <span class="phase">{auftrag.phase ?? ''}</span>
+        {:else}
+          <strong>{t(lang, 'p_wartet')}</strong>
+          <span class="warteschlange">{t(lang, 'p_warteschlange')} <strong>{auftrag.davor}</strong>{#if auftrag.davor === 0} ({t(lang, 'p_naechste')}){/if}</span>
+          <span class="notiz">{t(lang, 'p_spaeter')}</span>
+        {/if}
+      </section>
+    {/if}
+
     <section class="karte-karte ergebnis" aria-label={t(lang, 'p_ergebnis')}>
-      {#if auftrag}
-        <div class="auftrag" role="status">
-          {#if auftrag.status === 'fehler'}
-            <strong>{t(lang, 'p_fehlgeschlagen')}</strong>
-            <span>{fehlerText(auftrag.code)}</span>
-          {:else if auftrag.status === 'laeuft'}
-            <strong>{t(lang, 'p_laeuft')}</strong>
-          {:else}
-            <strong>{t(lang, 'p_wartet')}</strong>
-            <span class="warteschlange">{t(lang, 'p_warteschlange')} <strong>{auftrag.davor}</strong>{#if auftrag.davor === 0} ({t(lang, 'p_naechste')}){/if}</span>
-            <span class="notiz">{t(lang, 'p_spaeter')}</span>
-          {/if}
-        </div>
+      <div class="legende" aria-hidden="true"><span>0</span><span class="balken"></span><span>{budgetText}</span></div>
+      <p class="notiz">Punkte alle {SCHRITTE[schrittIdx].label}</p>
+      {#if massstab}
+        <div class="maszstab"><span class="massbalken" style:width={`${massstab.px}px`}></span><span>{massstab.label}</span></div>
       {/if}
       {#if ergebnis}
-      <div class="legende" aria-hidden="true"><span>0</span><span class="balken"></span><span>{zahlText(lang, ergebnis.budget.wert)} {ergebnis.budget.einheit}</span></div>
-      <label class="haken"><input type="checkbox" bind:checked={routenAn} onchange={() => zeigeRoutenNeu().catch(() => {})} /> {t(lang, 'p_routen')}</label>
-      {#if routenAn}
-        <p class="steigung"><span class="st-gruen">{t(lang, 'p_stBergab')}</span> · <span class="st-blau">{t(lang, 'p_stFlach')}</span> · <span class="st-gelb">{t(lang, 'p_stMittel')}</span> · <span class="st-rot">{t(lang, 'p_stSteil')}</span></p>
-      {/if}
-      <label class="haken"><input type="checkbox" bind:checked={punkteAn} onchange={() => zeigeRoutenNeu().catch(() => {})} /> {t(lang, 'p_punkte')}</label>
-      {#if routenFehlen && (routenAn || punkteAn)}<p class="notiz">{t(lang, 'p_routenFehlen')}</p>{/if}
+        <label class="haken"><input type="checkbox" bind:checked={routenAn} onchange={() => zeigeRoutenNeu().catch(() => {})} /> {t(lang, 'p_routen')}</label>
+        {#if routenAn}
+          <p class="steigung"><span class="st-gruen">{t(lang, 'p_stBergab')}</span> · <span class="st-blau">{t(lang, 'p_stFlach')}</span> · <span class="st-gelb">{t(lang, 'p_stMittel')}</span> · <span class="st-rot">{t(lang, 'p_stSteil')}</span></p>
+        {/if}
+        <label class="haken"><input type="checkbox" bind:checked={punkteAn} onchange={() => zeigeRoutenNeu().catch(() => {})} /> {t(lang, 'p_punkte')}</label>
+        {#if routenFehlen && (routenAn || punkteAn)}<p class="notiz">{t(lang, 'p_routenFehlen')}</p>{/if}
       {/if}
     </section>
-  {/if}
+  </div>
 </div>
 
 <style>
@@ -420,9 +456,9 @@
   .karte-karte { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: 0 6px 20px rgba(0,0,0,.35); color: var(--fg); }
 
   .kopfleiste { position: absolute; top: .75rem; left: .75rem; right: 4rem; display: flex; align-items: center; gap: .75rem; z-index: 10; }
-  .kopfleiste .btn { flex-shrink: 0; background: var(--bg-card); box-shadow: 0 2px 8px rgba(0,0,0,.3); }
+  .kopfleiste .btn { flex-shrink: 0; height: 2.5rem; display: inline-flex; align-items: center; background: var(--bg-card); box-shadow: 0 2px 8px rgba(0,0,0,.3); }
   .suchfeld { position: relative; flex: 1; max-width: 26rem; }
-  .suchfeld .input { box-shadow: 0 2px 8px rgba(0,0,0,.3); }
+  .suchfeld .input { height: 2.5rem; box-sizing: border-box; box-shadow: 0 2px 8px rgba(0,0,0,.3); }
   .treffer { list-style: none; position: absolute; left: 0; right: 0; top: 100%; z-index: 20; margin-top: .125rem; background: var(--bg-card); border: 1px solid var(--border);
     border-radius: var(--radius-sm); box-shadow: 0 4px 12px rgba(0,0,0,.3); max-height: 16rem; overflow-y: auto; }
   .treffer button { width: 100%; text-align: left; padding: .4rem .6rem; background: none; border: none; color: var(--fg); font: inherit; font-size: .8125rem; cursor: pointer; }
@@ -471,7 +507,19 @@
   .pille.fehler { top: 4.75rem; border-color: var(--red, #dc2626); color: var(--red, #dc2626); pointer-events: auto; }
   .pille.hinweis { bottom: .75rem; font-size: .75rem; color: var(--fg-muted); white-space: normal; max-width: calc(100% - 2rem); text-align: center; }
 
-  .ergebnis { position: absolute; right: .75rem; bottom: .75rem; width: min(22rem, calc(100% - 1.5rem)); max-height: calc(100% - 6rem); overflow-y: auto; z-index: 10; padding: .9rem 1rem; display: flex; flex-direction: column; gap: .5rem; }
+  .unten-rechts { position: absolute; right: .75rem; bottom: .75rem; width: min(22rem, calc(100% - 1.5rem)); max-height: calc(100% - 6rem); overflow-y: auto; z-index: 10; display: flex; flex-direction: column; gap: .5rem; }
+  .ergebnis { padding: .9rem 1rem; display: flex; flex-direction: column; gap: .5rem; }
+  .fortschritt { padding: .75rem 1rem; display: flex; flex-direction: column; gap: .4rem; }
+  .balken-lauf { height: 8px; border-radius: 4px; background: rgba(128,128,128,.25); overflow: hidden; }
+  .balken-lauf > div { height: 100%; background: var(--primary); transition: width .3s; }
+  .lauf-schritte { list-style: none; margin: 0; padding: 0; font-size: .8125rem; color: var(--fg-muted); display: grid; gap: .15rem; }
+  .lauf-schritte li.erledigt { color: var(--fg); }
+  .lauf-schritte li.erledigt::before { content: '✓ '; }
+  .lauf-schritte li.aktuell { color: var(--primary); font-weight: 600; }
+  .phase { font-size: .8125rem; }
+  .maszstab { display: flex; align-items: center; gap: .5rem; font-size: .8125rem; }
+  .massbalken { height: 6px; border: 2px solid var(--fg); border-top: none; display: inline-block; }
+  .raster-marken { display: flex; justify-content: space-between; font-size: .75rem; color: var(--fg-muted); }
   .legende { display: flex; align-items: center; gap: .5rem; font-size: .75rem; color: var(--fg-muted); }
   .balken { flex: 1; max-width: 14rem; height: .625rem; border-radius: 999px;
     background: linear-gradient(90deg, rgb(22,163,74), rgb(234,179,8) 50%, rgb(220,38,38)); }
@@ -486,7 +534,7 @@
     .suchfeld { order: 1; flex-basis: 100%; max-width: none; }
     .zoomknoepfe { top: auto; bottom: 9rem; right: .75rem; }
     .filter { top: auto; bottom: .75rem; left: .75rem; right: .75rem; width: auto; max-height: 45%; }
-    .ergebnis { left: .75rem; width: auto; max-height: 38%; }
+    .unten-rechts { left: .75rem; width: auto; max-height: 38%; }
     .pille.hinweis { display: none; }
   }
 </style>
