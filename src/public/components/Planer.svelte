@@ -3,7 +3,7 @@
   import { EINSTELLUNGEN_GRENZEN, ANNAHMEN, hatMotor } from '../../../lib/rechenmodell.js';
   import { t, zahlText } from '../lib/i18n.js';
   import * as api from '../lib/api.js';
-  import { Karte } from '../lib/karte.js';
+  import { Karte, grenzeAusPunkten } from '../lib/karte.js';
   import { gespannFuerRechnung } from '../../../lib/gespann.js';
 
   // Reichweiten-Planer als Vollbild-Seite: die Karte füllt den Bildschirm, Suche, Filter und Ergebnis liegen darüber.
@@ -62,6 +62,8 @@
   let ergebnis = $state(null);
   let routenAn = $state(false);   // Schalter: Routen zeichnen
   let punkteAn = $state(false);   // Schalter: 1-km-Punkte zeichnen
+  let heatAn = $state(true);     // Schalter: Heatmap zeichnen
+  let grenzeAn = $state(false);  // Schalter: Grenze um den Bereich zeichnen
   let routen = $state(null);      // { linien, schritte } der letzten Berechnung, einmal geladen
   let routenFehlen = $state(false);
   let schrittIdx = $state(2); // Rasterabstand: 0,5 / 1 / 2 km
@@ -136,26 +138,29 @@
   // Die Berechnung läuft im Hintergrund (Warteschlange des Workers): nach dem Start den Stand abfragen, bis das Ergebnis da ist
   const pause = (ms) => new Promise(r => setTimeout(r, ms));
 
-  // Routen und 1-km-Punkte nur laden und zeichnen, wenn der Schalter an ist
+  // Heatmap, Routen, 1-km-Punkte und Grenze: nur laden, wenn ein Schalter an ist
   async function zeigeRoutenNeu() {
     if (!karte) return;
-    if (!routenAn && !punkteAn) { karte.setzeRouten(null); karte.setzePunkte(null); return; }
+    karte.setzeRaster(heatAn && ergebnis ? ergebnis.raster : null);
+    if (!routenAn && !punkteAn && !grenzeAn) { karte.setzeRouten(null); karte.setzePunkte(null); karte.setzeGrenze(null); return; }
     if (!routen) routen = await api.reichweiteRouten(token);
     routenFehlen = !routen.linien;
     karte.setzeRouten(routenAn && routen.linien ? routen.linien : null);
     karte.setzePunkte(punkteAn && routen.schritte ? routen.schritte : null);
+    karte.setzeGrenze(grenzeAn && routen.schritte && start ? grenzeAusPunkten(routen.schritte, start) : null);
   }
 
   // Ergebnis anzeigen (Raster auf der Karte, Startpunkt)
   function zeigeErgebnis(r, anpassen) {
     auftrag = null;
     ergebnis = r;
+    if (!start) start = { lat: r.start.lat, lon: r.start.lon };
     routen = null;
     routenFehlen = false;
     karte.setzeRouten(null);
     karte.setzePunkte(null);
     zeigeRoutenNeu().catch(() => {});
-    karte.setzeRaster(r.raster);
+    karte.setzeRaster(heatAn ? r.raster : null);
     karte.setzeStart(r.start.lat, r.start.lon);
     if (anpassen) {
       const R = r.raster;
@@ -433,11 +438,13 @@
         <div class="maszstab"><span class="massbalken" style:width={`${massstab.px}px`}></span><span>{massstab.label}</span></div>
       {/if}
       {#if ergebnis}
+        <label class="haken"><input type="checkbox" bind:checked={heatAn} onchange={() => zeigeRoutenNeu().catch(() => {})} /> {t(lang, 'p_heat')}</label>
         <label class="haken"><input type="checkbox" bind:checked={routenAn} onchange={() => zeigeRoutenNeu().catch(() => {})} /> {t(lang, 'p_routen')}</label>
         {#if routenAn}
           <p class="steigung"><span class="st-gruen">{t(lang, 'p_stBergab')}</span> · <span class="st-blau">{t(lang, 'p_stFlach')}</span> · <span class="st-gelb">{t(lang, 'p_stMittel')}</span> · <span class="st-rot">{t(lang, 'p_stSteil')}</span></p>
         {/if}
         <label class="haken"><input type="checkbox" bind:checked={punkteAn} onchange={() => zeigeRoutenNeu().catch(() => {})} /> {t(lang, 'p_punkte')}</label>
+        <label class="haken"><input type="checkbox" bind:checked={grenzeAn} onchange={() => zeigeRoutenNeu().catch(() => {})} /> {t(lang, 'p_grenze')}</label>
         {#if routenFehlen && (routenAn || punkteAn)}<p class="notiz">{t(lang, 'p_routenFehlen')}</p>{/if}
       {/if}
     </section>

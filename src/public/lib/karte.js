@@ -81,6 +81,28 @@ const rahmen = (minLat, minLon, maxLat, maxLon) => ({
   features: [{ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: [[minLon, minLat], [maxLon, minLat], [maxLon, maxLat], [minLon, maxLat], [minLon, minLat]] } }]
 });
 
+// Grenze des Bereichs: je Richtung (72 Sektoren) der weiteste erreichbare Punkt, in Winkelreihenfolge verbunden.
+// Liefert einen geschlossenen Ring [lon, lat] oder null.
+export function grenzeAusPunkten(schritte, start) {
+  const SEKTOREN = 72;
+  const mLat = 110574;
+  const mLon = 111320 * Math.cos((start.lat * Math.PI) / 180);
+  const weitester = new Array(SEKTOREN).fill(null);
+  for (const [la, lo, m] of schritte) {
+    if (m !== 1) continue;
+    const dy = (la - start.lat) * mLat;
+    const dx = (lo - start.lon) * mLon;
+    const d = Math.hypot(dx, dy);
+    const winkel = (Math.atan2(dx, dy) + 2 * Math.PI) % (2 * Math.PI);
+    const i = Math.floor((winkel / (2 * Math.PI)) * SEKTOREN) % SEKTOREN;
+    if (!weitester[i] || d > weitester[i].d) weitester[i] = { d, la, lo };
+  }
+  const ring = weitester.filter(Boolean).map((p) => [p.lo, p.la]);
+  if (ring.length < 3) return null;
+  ring.push(ring[0]);
+  return ring;
+}
+
 export class Karte {
   /**
    * container: HTML-Element für die Karte. optionen: { bbox, zoom: [min, max], orte, quelle (Text der Quellenangabe),
@@ -113,7 +135,7 @@ export class Karte {
       touchPitch: false,
       canvasContextAttributes: { antialias: false }
     });
-    this.zustand = { raster: null, start: null, rechteck: null, routen: null, punkte: null };
+    this.zustand = { raster: null, start: null, rechteck: null, routen: null, punkte: null, grenze: null };
     this.geladen = false;
     this.attribution = null;
     this.zeichnen();
@@ -157,6 +179,12 @@ export class Karte {
   /** schritte: 1-km-Punkte (oder null) */
   setzePunkte(schritte) {
     this.zustand.punkte = schritte ? punkteGeo(schritte) : null;
+    this._anwenden();
+  }
+
+  /** ring: geschlossener Ring [lon, lat] der Grenze (oder null) */
+  setzeGrenze(ring) {
+    this.zustand.grenze = ring ? { type: 'FeatureCollection', features: [{ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: ring } }] } : null;
     this._anwenden();
   }
 
@@ -208,11 +236,11 @@ export class Karte {
       m.addLayer({ id: 'punkte', type: 'circle', source: 'punkte', paint: { 'circle-radius': 2.5, 'circle-color': ['case', ['==', ['get', 'm'], 1], '#16a34a', '#dc2626'] } });
     }
 
-    const rahmenDaten = z.rechteck ? rahmen(z.rechteck.minLat, z.rechteck.minLon, z.rechteck.maxLat, z.rechteck.maxLon) : LEER;
-    if (m.getSource('rechteck')) m.getSource('rechteck').setData(rahmenDaten);
+    const grenzeDaten = z.grenze ?? LEER;
+    if (m.getSource('grenze')) m.getSource('grenze').setData(grenzeDaten);
     else {
-      m.addSource('rechteck', { type: 'geojson', data: rahmenDaten });
-      m.addLayer({ id: 'rechteck', type: 'line', source: 'rechteck', paint: { 'line-color': '#2563eb', 'line-width': 2, 'line-dasharray': [2, 2] } });
+      m.addSource('grenze', { type: 'geojson', data: grenzeDaten });
+      m.addLayer({ id: 'grenze', type: 'line', source: 'grenze', paint: { 'line-color': '#dc2626', 'line-width': 3, 'line-opacity': 0.6 } });
     }
 
     const startDaten = z.start ? punkt(z.start.lat, z.start.lon) : LEER;
