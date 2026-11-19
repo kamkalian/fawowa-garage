@@ -29,6 +29,8 @@
   const mitZusatzakku = $derived((rad?.zusatzakku_wh ?? 0) > 0 || (wagen?.zusatzakku_wh ?? 0) > 0);
   // Ersatzakku: ein Akku am Zugfahrzeug (zusätzlich zum Hauptakku). Ein Akku am Anhänger hat einen eigenen Füllstand.
   const zusatzRad = $derived((rad?.zusatzakku_wh ?? 0) > 0);
+  // Hauptakku am Fahrrad. Fehlt er (der einzige Akku steckt im Anhänger), gibt es nur einen Füllstand-Regler.
+  const hauptAkku = $derived((rad?.akku_kapazitaet_wh ?? 0) > 0);
   const mitSolar = $derived((wagen?.solar_wp ?? 0) > 0);
   const kapazitaet = $derived((rad?.akku_kapazitaet_wh ?? 0) + (rad?.zusatzakku_wh ?? 0) + (wagen?.zusatzakku_wh ?? 0));
 
@@ -156,7 +158,7 @@
     const r = { ...e, budget_art: nachAkku ? 'akku' : 'zeit', unterstuetzung: motor ? STIL[stil].unterstuetzung : 'aus' };
     if (r.budget_art === 'akku') delete r.fahrtzeit_h;
     else { delete r.akku_rest_prozent; delete r.zusatz_rest_prozent; delete r.reserve_prozent; }
-    if (!mitZusatzakku || r.zusatz_rest_prozent === null) delete r.zusatz_rest_prozent;
+    if (!mitZusatzakku || !hauptAkku || r.zusatz_rest_prozent === null) delete r.zusatz_rest_prozent;
     if (!mitSolar) r.einstrahlung_w_m2 = 0;
     for (const k of Object.keys(r)) if (typeof r[k] === 'number' && !Number.isFinite(r[k])) delete r[k];
     return r;
@@ -339,9 +341,9 @@
           {#if !motor}<p class="notiz">{t(lang, 'p_ohneMotorHinweis')}</p>{/if}
 
           {#if nachAkku}
-            <label for="p-akku">{t(lang, 'p_akkuRest')}: <strong>{e.akku_rest_prozent} %</strong></label>
+            <label for="p-akku">{t(lang, hauptAkku ? 'p_akkuRest' : 'p_akkuEinzel')}: <strong>{e.akku_rest_prozent} %</strong></label>
             <input id="p-akku" type="range" min="0" max="100" step="1" bind:value={e.akku_rest_prozent} />
-            {#if mitZusatzakku}
+            {#if mitZusatzakku && hauptAkku}
               <label for="p-zakku">{t(lang, zusatzRad ? 'p_zusatzRest' : 'p_anhaengerRest')}: <strong>{e.zusatz_rest_prozent ?? e.akku_rest_prozent} %</strong></label>
               <input id="p-zakku" type="range" min="0" max="100" step="1" value={e.zusatz_rest_prozent ?? e.akku_rest_prozent} oninput={(ev) => (e.zusatz_rest_prozent = Number(ev.currentTarget.value))} />
             {/if}
