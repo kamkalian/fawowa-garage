@@ -253,11 +253,12 @@ for (let w = 0; w < nWege; w++) {
     hoehe = glatt;
   }
 
-  // Kanten zwischen Kreuzungen, Teilstücke je ~120 m
+  // Kanten zwischen den Knoten (jeder OSM-Punkt ist ein Knoten), Teilstücke je ~120 m
   let kantenStart = 0;
   for (let i = 1; i < n; i++) {
     const knoten = WK[s + i];
-    const istKreuzung = nutzung[knoten] >= 2 || i === n - 1 || haltOsm.has(knotenIds[knoten]);
+    // Jeder OSM-Punkt wird ein Knoten: der Verlauf der Wege bleibt genau (mehr Knoten, Kanten sind kurze Stücke zwischen zwei Punkten)
+    const istKreuzung = true;
     if (!istKreuzung) continue;
 
     const a = knotenNr(WK[s + kantenStart]);
