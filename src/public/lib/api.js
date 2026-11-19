@@ -35,6 +35,8 @@ export const eintragAnlegen = (token, art, werte) => anfrage('POST', `/api/v1/ga
 export const eintragAendern = (token, art, id, werte) => anfrage('PUT', `/api/v1/garage/${art}/${id}`, { token, body: werte });
 export const eintragLoeschen = (token, art, id) => anfrage('DELETE', `/api/v1/garage/${art}/${id}`, { token });
 export const gespannSetzen = (token, werte) => anfrage('PUT', '/api/v1/garage/gespann', { token, body: werte });
+export const planerLesen = (token) => anfrage('GET', '/api/v1/garage/planer', { token });
+export const planerSetzen = (token, werte) => anfrage('PUT', '/api/v1/garage/planer', { token, body: werte });
 export const mitgliedSetzen = (token, art, id, im) => anfrage('PUT', '/api/v1/garage/mitglied', { token, body: { art, id, im } });
 export const antriebSetzen = (token, art, id, werte) => anfrage('PUT', `/api/v1/garage/antriebe/${art}/${id}`, { token, body: werte });
 export const reihenfolgeSetzen = (token, reihenfolge) => anfrage('PUT', '/api/v1/garage/reihenfolge', { token, body: { reihenfolge } });

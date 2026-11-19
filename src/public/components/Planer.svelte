@@ -5,6 +5,8 @@
   import * as api from '../lib/api.js';
   import { Karte, grenzeAusPunkten } from '../lib/karte.js';
   import { gespannFuerRechnung } from '../../../lib/gespann.js';
+  import Fenster from './Fenster.svelte';
+  import InfoRechnung from './InfoRechnung.svelte';
 
   // Reichweiten-Planer als Vollbild-Seite: die Karte füllt den Bildschirm, Suche, Filter und Ergebnis liegen darüber.
   // Die Rechnung läuft auf dem Server mit dem Gespann der Garage.
@@ -25,6 +27,8 @@
   const wagen = $derived(kombi.anhaenger);
   const motor = $derived(hatMotor(rad));
   const mitZusatzakku = $derived((rad?.zusatzakku_wh ?? 0) > 0 || (wagen?.zusatzakku_wh ?? 0) > 0);
+  // Ersatzakku: ein Akku am Zugfahrzeug (zusätzlich zum Hauptakku). Ein Akku am Anhänger hat einen eigenen Füllstand.
+  const zusatzRad = $derived((rad?.zusatzakku_wh ?? 0) > 0);
   const mitSolar = $derived((wagen?.solar_wp ?? 0) > 0);
   const kapazitaet = $derived((rad?.akku_kapazitaet_wh ?? 0) + (rad?.zusatzakku_wh ?? 0) + (wagen?.zusatzakku_wh ?? 0));
 
@@ -82,6 +86,27 @@
     for (const m of [10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000]) if (m / mProPx <= 120) best = m;
     return { px: Math.round(best / mProPx), label: best >= 1000 ? `${best / 1000} km` : `${best} m` };
   }
+  // Infofenster über die Berechnung
+  let infoOffen = $state(false);
+
+  // Einstellungen im Profil der Garage: beim Öffnen laden, nach jeder Änderung kurz verzögert speichern
+  let planerBereit = false;
+  function planerAnwenden(p) {
+    if (!p) return;
+    if (p.stil === 'sportlich' || p.stil === 'gemuetlich') stil = p.stil;
+    if (cfg.modi.includes(p.modus)) modus = p.modus;
+    wahlAkku = p.wahlAkku !== false;
+    schrittIdx = [0, 1, 2].includes(p.schrittIdx) ? p.schrittIdx : 2;
+    weitere = p.weitere === true;
+    if (p.e) Object.assign(e, p.e);
+  }
+  $effect(() => {
+    const snap = { stil, modus, wahlAkku, schrittIdx, weitere, e: { ...e } };
+    if (!planerBereit || !token) return;
+    const t = setTimeout(() => api.planerSetzen(token, snap).catch(() => {}), 600);
+    return () => clearTimeout(t);
+  });
+
   const zeitText = (z) => new Date(z).toLocaleString(lang === 'en' ? 'en-GB' : 'de-DE', { dateStyle: 'short', timeStyle: 'short' });
   const massstab = $derived(zoomStand === null ? null : berechneMassstab(zoomStand, start?.lat ?? 51));
   const budgetText = $derived(nachAkku ? (ergebnis?.budget.art === 'akku' ? `${zahlText(lang, ergebnis.budget.wert)} Wh` : '') : `${zahlText(lang, e.fahrtzeit_h)} h`);
@@ -229,6 +254,7 @@
     requestAnimationFrame(() => karte?.groesse());
     api.karteOrte().then((o) => { orte = o; karte.opt.orte = o; karte.zeichnen(); }).catch(() => {});
     // Lief schon eine Berechnung (auch aus einer früheren Sitzung), wird ihr Stand hier angezeigt
+    if (token) api.planerLesen(token).then(planerAnwenden).catch(() => {}).finally(() => { planerBereit = true; });
     if (token && cfg.bbox) { const nr = ++zaehler; verfolgen(nr, false).catch(() => {}); }
     return () => { karte.beenden(); };
   });
@@ -316,7 +342,7 @@
             <label for="p-akku">{t(lang, 'p_akkuRest')}: <strong>{e.akku_rest_prozent} %</strong></label>
             <input id="p-akku" type="range" min="0" max="100" step="1" bind:value={e.akku_rest_prozent} />
             {#if mitZusatzakku}
-              <label for="p-zakku">{t(lang, 'p_zusatzRest')}: <strong>{e.zusatz_rest_prozent ?? e.akku_rest_prozent} %</strong></label>
+              <label for="p-zakku">{t(lang, zusatzRad ? 'p_zusatzRest' : 'p_anhaengerRest')}: <strong>{e.zusatz_rest_prozent ?? e.akku_rest_prozent} %</strong></label>
               <input id="p-zakku" type="range" min="0" max="100" step="1" value={e.zusatz_rest_prozent ?? e.akku_rest_prozent} oninput={(ev) => (e.zusatz_rest_prozent = Number(ev.currentTarget.value))} />
             {/if}
           {:else}
@@ -459,6 +485,7 @@
 
     <section class="karte-karte ergebnis" aria-label={t(lang, 'p_ergebnis')}>
       <div class="legende" aria-hidden="true"><span>0</span><span class="balken"></span><span>{budgetText}</span></div>
+      <button type="button" class="info-knopf" onclick={() => (infoOffen = true)}>{t(lang, 'p_infoKnopf')}</button>
       <p class="notiz">Punkte alle {SCHRITTE[schrittIdx].label}</p>
       {#if massstab}
         <div class="maszstab"><span class="massbalken" style:width={`${massstab.px}px`}></span><span>{massstab.label}</span></div>
@@ -476,6 +503,12 @@
     </section>
   </div>
 </div>
+
+{#if infoOffen}
+  <Fenster {lang} breit titel={t(lang, 'p_infoTitel')} onclose={() => (infoOffen = false)}>
+    <InfoRechnung {lang} />
+  </Fenster>
+{/if}
 
 <style>
   /* Vollbild: die Seite darunter wird nicht mehr gescrollt, solange der Planer offen ist */
@@ -538,6 +571,8 @@
   .hinweiskasten { border: 1px solid var(--amber); background: var(--amber-bg); border-radius: var(--radius-sm); padding: .625rem .75rem; display: flex; flex-direction: column; gap: .5rem; align-items: flex-start; }
   .hinweiskasten p { font-size: .8125rem; }
   .aktionen { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+  .info-knopf { align-self: flex-start; padding: .25rem .6rem; font: inherit; font-size: .75rem; color: var(--primary); background: none; border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; }
+  .info-knopf:hover { border-color: var(--primary); }
   .haken { display: flex; align-items: center; gap: .4rem; font-size: .8125rem; cursor: pointer; }
 
   .pille { position: absolute; left: 50%; transform: translateX(-50%); z-index: 10; background: var(--bg-card); border: 1px solid var(--border); border-radius: 999px;
