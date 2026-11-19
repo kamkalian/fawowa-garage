@@ -10,8 +10,7 @@
     "build": "vite build",
     "test": "node --test tests/*.test.js",
     "start": "NODE_ENV=production node server.js",
-    "dev:fake": "node scripts/dev-ohne-datenbank.js",
-    "daten": "node scripts/daten-bauen.mjs"
+    "dev:fake": "node scripts/dev-ohne-datenbank.js"
   },
   "dependencies": {
     "express": "^4.21.0",

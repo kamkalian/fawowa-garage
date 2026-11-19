@@ -10,7 +10,7 @@ import { RoutingDienst } from '../lib/routing-dienst.js';
 
 const PORT = process.env.PORT || 3470;
 const dist = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
-// Mit NETZ_DIR (Wegenetz von tools/routing/bauen.js) ist auch der Reichweiten-Planer aktiv
+// Mit NETZ_DIR (Wegenetz vom Daten-Werkzeug) ist auch der Reichweiten-Planer aktiv
 let routing = null;
 if (process.env.NETZ_DIR) { routing = new RoutingDienst({ ordner: process.env.NETZ_DIR }); await routing.starten(); console.log('Routing geladen:', routing.info); }
 

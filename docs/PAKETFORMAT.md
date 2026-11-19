@@ -1,6 +1,6 @@
 # Paketformat „fawowa-paket-1“
 
-Gemeinsames Format für das Daten-Werkzeug auf dem PC (Go, `daten-bauen/paket.go`) und den Server (Node, `lib/paket.js`).
+Gemeinsames Format für das Daten-Werkzeug auf dem PC (Go, eigenes Repo fawowa-daten-werkzeug) und den Server (Node, `lib/paket.js`).
 
 ## Aufbau
 
@@ -44,5 +44,5 @@ im externen Manifest. Die Prüfsummen der Dateien und Stücke stehen in beiden.
 
 ## Gemeinsame Testdaten
 
-`tests/daten/paket/` enthält ein kleines Beispielpaket. Die Go-Tests (`daten-bauen/paket_test.go`) und die Node-Tests
+`tests/daten/paket/` enthält ein kleines Beispielpaket. Die Go-Tests (im Daten-Werkzeug) und die Node-Tests
 (`tests/paket.test.js`) prüfen beide dasselbe Manifest.

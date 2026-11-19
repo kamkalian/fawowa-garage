@@ -9,7 +9,7 @@
   let beschaeftigt = $state(false);
   let timer = null;
 
-  const ARTEN = { entpacken: 'Wegenetz einspielen', paket_einspielen: 'Paket einspielen', karte: 'Karte bauen', kacheln: 'Kacheln bauen' };
+  const ARTEN = { entpacken: 'Wegenetz einspielen', paket_einspielen: 'Paket einspielen' };
 
   async function laden() {
     try {
@@ -34,16 +34,11 @@
     }
   }
 
-  const bauen = (o) => tun(() => api('POST', `/jobs/${o.auftrag}`, {}));
   const einspielen = (p) => tun(() => api('POST', '/jobs/paket', { ordner: p.ordner }));
   // Ein Paket ist eingespielt, wenn Art und Version dem Stand entsprechen
   const eingespielt = (p) => stand?.stand?.[p.art]?.version === p.version;
-  // Ob ein Auftrag dieser Art wartet oder läuft; dann ist der Knopf gesperrt
-  const aktiv = (art) => (stand?.jobs ?? []).some(j => j.art === art && (j.status === 'wartet' || j.status === 'laeuft'));
   // Laufende und wartende Aufträge für die Anzeige oben
   const laufend = $derived((stand?.jobs ?? []).filter(j => j.status === 'laeuft' || j.status === 'wartet'));
-  // Gebaut werden muss, wenn es fehlt oder neuer ist als das Ergebnis
-  const bauNoetig = (o) => !!o.auftrag && (!o.vorhanden || o.neu === true);
 
   const zeit = (s) => (s ? new Date(s).toLocaleString('de-DE') : '–');
   const mb = (n) => `${Math.round((n ?? 0) / 1048576).toLocaleString('de-DE')} MB`;
@@ -66,22 +61,13 @@
 
     <h3>Daten</h3>
     <table>
-      <thead><tr><th>Daten</th><th>Zuletzt</th><th><span class="sr">Aktion</span></th></tr></thead>
+      <thead><tr><th>Daten</th><th>Zuletzt</th></tr></thead>
       <tbody>
         {#each stand.datenstand as o (o.schluessel)}
           <tr>
             <td><strong>{o.name}</strong><br><small>{o.quelle}</small></td>
             <td>
               {#if o.geladen_am}{zeit(o.geladen_am)}{:else if o.vorhanden}Stand unbekannt{:else}Noch nicht vorhanden{/if}
-            </td>
-            <td>
-              {#if bauNoetig(o)}
-                <button class="btn btn-primary klein" disabled={beschaeftigt || aktiv(o.auftrag)} onclick={() => bauen(o)}>
-                  {aktiv(o.auftrag) ? 'läuft …' : (o.vorhanden ? 'Neu bauen' : 'Bauen')}
-                </button>
-              {:else if o.auftrag}
-                <span class="muted">Aktuell</span>
-              {/if}
             </td>
           </tr>
         {/each}

@@ -16,12 +16,6 @@ RUN npm run build
 # Nur Laufzeit-Abhängigkeiten behalten
 RUN npm prune --omit=dev
 
-# ---- Go-Stufe: Programm zum Bau der Karte (daten-bauen karte <pbf> <netz>) ----
-FROM golang:1.22-bookworm AS karte
-WORKDIR /src
-COPY daten-bauen/ ./
-RUN CGO_ENABLED=0 go build -trimpath -o /out/daten-bauen .
-
 # ---- Laufzeit-Stufe ----
 FROM node:22-bookworm-slim
 
@@ -34,13 +28,9 @@ COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 COPY package.json server.js ./
 COPY lib/ ./lib/
-# Werkzeuge für Kartenbau und Netzbau (vom Garage-Worker gestartet)
-COPY tools/routing/ ./tools/routing/
-# Karte bauen (vom Worker gestartet, siehe lib/worker.js)
-COPY --from=karte /out/daten-bauen /app/bin/daten-bauen
-
 # Die Anwendung speichert Fotos im Ordner fotos (als Volume eingebunden); sonst liegt alles in der Datenbank. Sie läuft ohne Rechte
-RUN mkdir -p /app/fotos /app/kacheln && chown node:node /app/fotos /app/kacheln
+# Karten und Wegenetz baut die Anwendung nicht: sie kommen als Paket vom Daten-Werkzeug (eigenes Repo)
+RUN mkdir -p /app/fotos && chown node:node /app/fotos
 USER node
 
 EXPOSE 3470

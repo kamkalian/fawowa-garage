@@ -1,4 +1,4 @@
-// Die ZIP-Datei vom eigenen Rechner (scripts/daten-bauen.mjs) wird auf dem Server wieder ausgepackt (lib/zip.js).
+// Die ZIP-Datei vom eigenen Rechner (Daten-Werkzeug) wird auf dem Server wieder ausgepackt (lib/zip.js).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, createWriteStream } from 'fs';

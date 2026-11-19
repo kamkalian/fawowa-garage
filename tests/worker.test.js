@@ -72,9 +72,9 @@ test('Höhenkacheln: Name wie im SRTM-Datensatz', () => {
   assert.equal(hoehenName(-3, -70), 'S03W070');
 });
 
-test('Datenstand: ohne ZIP gibt es kein Wegenetz; nach dem Entpacken gilt sein Datum; Kacheln sind älter als das Netz', async () => {
+test('Datenstand: ohne ZIP gibt es kein Wegenetz; nach dem Entpacken gilt sein Datum', async () => {
   const netz = mkdtempSync(join(tmpdir(), 'garage-netz-'));
-  const env = { NETZ_DIR: netz, KACHEL_DIR: join(netz, '..', 'kacheln-' + Date.now()) };
+  const env = { NETZ_DIR: netz };
   const leer = await datenstand({ env, letzte: {} });
   const k0 = Object.fromEntries(leer.objekte.map(o => [o.schluessel, o]));
   assert.equal(k0.netz.vorhanden, false);
@@ -82,11 +82,10 @@ test('Datenstand: ohne ZIP gibt es kein Wegenetz; nach dem Entpacken gilt sein D
   mkdirSync(join(netz, 'karte'), { recursive: true });
   writeFileSync(join(netz, 'karte', 'pts.i32'), 'x');
   writeFileSync(join(netz, 'info.json'), '{}');
-  const mitNetz = await datenstand({ env, letzte: { entpacken: new Date('2026-11-10T10:00:00Z'), kacheln: new Date('2026-11-09T10:00:00Z') } });
+  const mitNetz = await datenstand({ env, letzte: { entpacken: new Date('2026-11-10T10:00:00Z') } });
   const k = Object.fromEntries(mitNetz.objekte.map(o => [o.schluessel, o]));
   assert.equal(k.netz.vorhanden, true);
   assert.equal(k.netz.geladen_am, '2026-11-10T10:00:00.000Z');
-  assert.equal(k.kacheln.neu, true, 'Netz nach den Kacheln neu eingespielt');
 });
 
 test('Prozessor: Kernzahl, und die Auslastung je Kern kommt ab der zweiten Abfrage', () => {

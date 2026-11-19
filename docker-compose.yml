@@ -36,8 +36,6 @@ services:
       # Stand der Kartendaten und Höhendaten (nur lesen, für die Verwaltung)
       # Fotos der Stellplätze (Docker-Volume, bleibt bei Neustarts erhalten)
       - fotos:/app/fotos
-      # Vorab erzeugte Kacheln der Karte (Docker-Volume, bleibt bei Neustarts erhalten)
-      - kacheln:/app/kacheln
     read_only: true
     tmpfs:
       - /tmp
@@ -82,17 +80,12 @@ services:
       - DB_PASSWORD=${DB_PASSWORD:?DB_PASSWORD fehlt in der .env}
       - NETZ_DIR=/app/netz
       - IMPORT_DIR=/app/import
-      - ROH_DIR=/app/roh
-      - KACHEL_DIR=/app/kacheln
       - KARTE_DIR=/app/karte
     volumes:
-      # Wegenetz und Karte (schreibbar: Pakete werden hier eingespielt), Import-Ordner, Kartendaten (NRW), Kacheln
+      # Wegenetz und Karte (schreibbar: Pakete werden hier eingespielt), Import-Ordner
       - ./data/netz:/app/netz
       - ./data/karte:/app/karte
       - ./data/import:/app/import
-      # Kartendaten (NRW) für den Kartenbau im Container
-      - ./data/roh:/app/roh
-      - kacheln:/app/kacheln
     read_only: true
     tmpfs:
       - /tmp
@@ -106,8 +99,6 @@ services:
         max-size: "10m"
         max-file: "3"
     networks:
-      # Internet nur für den Download der Kartendaten
-      - internet
       - intern
 
   garage-db:
@@ -149,12 +140,9 @@ services:
 
 volumes:
   fotos:
-  kacheln:
 
 networks:
   caddy-net:
     external: true
-  # Nur für den Worker: lädt die Kartendaten herunter
-  internet:
   intern:
     internal: true

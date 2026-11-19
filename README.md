@@ -32,7 +32,7 @@ und den Design-Regeln der Hauptseite (`design_rules.md`).
   der Server rechnet mit dem Gespann der Garage (`lib/reichweite.js`, Suche in Wattstunden auf dem Wegenetz) und liefert Wärmekarte (Raster), Umrandung
   und Kennzahlen. Die Rechnung läuft in einem Hintergrund-Thread (`lib/routing-dienst.js`), ein zweiter liefert die Kartenkacheln; die Karte ist selbst
   gezeichnet (`src/public/lib/karte.js`, Wegelinien aus dem Netz, Ortsnamen aus OSM), es werden keine fremden Kartenserver angesprochen. Das Netz
-  (`tools/routing/bauen.js`, nur NRW) liegt unter `data/netz` (`NETZ_DIR`), Hochladen mit `deploy/netz-hochladen.ps1`; ohne Netz ist der Planer aus.
+  (Daten-Werkzeug, eigenes Repo) liegt unter `data/netz` (`NETZ_DIR`), Hochladen mit `deploy/netz-hochladen.ps1`; ohne Netz ist der Planer aus.
   Grenzen: 40 Berechnungen je Besucher und 10 Minuten, höchstens 4 wartende Berechnungen, Kartenkacheln 4000 je 10 Minuten. Die Seite darf den
   Standort abfragen (`Permissions-Policy: geolocation=(self)`).
 - **Alles ist privat.** Jede Garage sieht nur ihre eigenen Einträge. `status` (`ungeprueft`/`geprueft`) ist eine reine Markierung des

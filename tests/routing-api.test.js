@@ -6,7 +6,6 @@ import { mkdtempSync, mkdirSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { starteTestServer } from './hilfen.js';
-import { kachelDatei } from '../lib/kachel-job.js';
 
 const RAD = { name: 'Rad', motor_art: 'mittelmotor', akku_kapazitaet_wh: 10, gewicht_kg: 25 };
 const START = { lat: 51.075, lon: 7.12 };
@@ -130,27 +129,6 @@ test('Reichweite: Ergebnis abrufen (nur mit Schlüssel, nie zwischengespeichert)
     assert.equal(r.headers.get('cache-control'), 'no-store');
     assert.equal((await s.t.anfrage('GET', '/api/v1/garage/reichweite')).status, 401);
   } finally { await s.t.schliessen(); }
-});
-
-test('Kacheln kommen nur von der Platte: vorhandene 200, fehlende 404, ungültige 404', async () => {
-  const kacheln = mkdtempSync(join(tmpdir(), 'garage-kacheln-'));
-  const datei = kachelDatei(kacheln, 14, 8570, 5516);
-  mkdirSync(join(datei, '..'), { recursive: true });
-  writeFileSync(datei, Buffer.from([1, 2, 3, 4]));
-  const t = await starteTestServer({ app: { planer: PLANER, jobs: new FakeJobs(), env: { KACHEL_DIR: kacheln } } });
-  try {
-    const res = await fetch(`${t.url}/api/v1/karte/14/8570/5516`);
-    assert.equal(res.status, 200);
-    assert.equal(res.headers.get('content-type'), 'application/octet-stream');
-    assert.deepEqual(Buffer.from(await res.arrayBuffer()), Buffer.from([1, 2, 3, 4]));
-    assert.equal((await fetch(`${t.url}/api/v1/karte/14/8571/5516`)).status, 404, 'nicht erzeugt');
-    for (const pfad of ['/api/v1/karte/3/0/0', '/api/v1/karte/20/0/0', '/api/v1/karte/14/-1/0', '/api/v1/karte/14/99999/0', '/api/v1/karte/14/x/y']) {
-      assert.equal((await fetch(t.url + pfad)).status, 404, pfad);
-    }
-    const orte = await fetch(`${t.url}/api/v1/karte/orte`);
-    assert.equal(orte.status, 200);
-    assert.match(orte.headers.get('cache-control'), /public/);
-  } finally { await t.schliessen(); }
 });
 
 test('Die Seite darf den Standort abfragen (Permissions-Policy)', async () => {

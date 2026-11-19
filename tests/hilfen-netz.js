@@ -1,4 +1,4 @@
-// Kleines Wegenetz im Binärformat von tools/routing/bauen.js für Tests.
+// Kleines Wegenetz im Binärformat des Daten-Werkzeugs für Tests.
 import { mkdtempSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';

@@ -2,7 +2,6 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Netz } from '../lib/netz.js';
 import { rechneReichweite } from '../lib/reichweite.js';
-import { kachelKarte, kachelGrenzen, darstellungsart, zeigen } from '../lib/karte-daten.js';
 import { gitterNetz, testNetz } from './hilfen-netz.js';
 
 const FAHRRAD = { motor_art: 'mittelmotor', motor_nennleistung_w: 250, akku_kapazitaet_wh: 18, schaltung_art: 'kette', gewicht_kg: 25 };
@@ -14,26 +13,6 @@ const netz = new Netz(gitterNetz(31), { minKomponente: 1 });
 const rechne = (zusatz = {}) => rechneReichweite(netz, { fahrrad: FAHRRAD, anhaenger: null, gespann: GESPANN, einstellungen: {}, start: START, modus: 'alle', ...zusatz });
 
 /** Liest die drei Listen aus einer Kachel (Flächen, Linien, Wege) */
-function lieseKachel(buf) {
-  const dv = new DataView(buf);
-  let p = 0;
-  const liste = () => {
-    const n = dv.getUint32(p, true);
-    p += 4;
-    const out = [];
-    for (let i = 0; i < n; i++) {
-      const cls = dv.getUint8(p);
-      const np = dv.getUint16(p + 1, true);
-      p += 3;
-      const pts = [];
-      for (let k = 0; k < np; k++) { pts.push([dv.getInt32(p, true) / 1e6, dv.getInt32(p + 4, true) / 1e6]); p += 8; }
-      out.push({ cls, pts });
-    }
-    return out;
-  };
-  return { flaechen: liste(), linien: liste(), wege: liste(), ende: p };
-}
-
 test('Routen: jeder machbare Punkt bekommt eine Route, Linien starten am Start des Baums', () => {
   const r = rechne();
   assert.equal(r.ok, true);
@@ -91,50 +70,6 @@ test('Reichweite: unsinnige Eingaben stürzen nicht ab', () => {
     const r = rechneReichweite(netz, eingabe);
     assert.ok(r.fehler || r.ok);
   }
-});
-
-test('Grundkarte: Kachel als Binärformat mit drei Listen, Koordinaten in den Kachelgrenzen', () => {
-  const z = 15;
-  const n = 2 ** z;
-  const x = Math.floor((START.lon + 180) / 360 * n);
-  const y = Math.floor((1 - Math.log(Math.tan(START.lat * Math.PI / 180) + 1 / Math.cos(START.lat * Math.PI / 180)) / Math.PI) / 2 * n);
-  const g = kachelGrenzen(z, x, y);
-  assert.ok(g.minLat <= START.lat && START.lat <= g.maxLat && g.minLon <= START.lon && START.lon <= g.maxLon);
-  const buf = kachelKarte(netz, null, z, x, y);
-  const k = lieseKachel(buf);
-  assert.equal(k.flaechen.length, 0, 'ohne Grundkarte keine Flächen');
-  assert.equal(k.linien.length, 0);
-  assert.ok(k.wege.length > 0, 'Wege sind da');
-  assert.equal(k.ende, buf.byteLength, 'keine übrigen Bytes');
-  for (const w of k.wege) for (const [la, lo] of w.pts) assert.ok(la > 50.9 && la < 51.3 && lo > 6.9 && lo < 7.4, `${la}, ${lo}`);
-});
-
-test('Kachel: bei Zoom 8 fehlen kurze Straßen (500 m, auf dem Bildschirm zu klein), bei Zoom 14 sind sie da', () => {
-  const kachel = (z) => {
-    const n = 2 ** z;
-    const x = Math.floor((START.lon + 180) / 360 * n);
-    const y = Math.floor((1 - Math.log(Math.tan(START.lat * Math.PI / 180) + 1 / Math.cos(START.lat * Math.PI / 180)) / Math.PI) / 2 * n);
-    return lieseKachel(kachelKarte(netz, null, z, x, y)).wege;
-  };
-  assert.equal(kachel(8).length, 0, 'bei Zoom 8 sind 500-m-Straßen unter einem Pixel-Schwellwert');
-  assert.ok(kachel(15).length > 0, 'bei Zoom 14 erscheinen sie');
-});
-
-test('Sichtbarkeit wächst mit dem Zoom: ein Weg wird mit steigendem Zoom bei immer kürzerer Länge gezeigt', () => {
-  assert.equal(zeigen(14, 2, 60, 51), false, 'Nebenstraßen erst ab Kachelstufe 15');
-  assert.equal(zeigen(15, 2, 60, 51), true);
-  assert.equal(zeigen(13, 2, 500, 51), false, "Nebenstraßen noch nicht bei Zoom 13");
-  assert.equal(zeigen(12, 1, 3000, 51), false, 'Hauptstraßen erst ab Kachelstufe 13');
-  assert.equal(zeigen(13, 1, 3000, 51), true);
-  assert.equal(zeigen(14, 2, 3000, 51), false, 'Nebenstraßen erst ab Kachelstufe 15');
-  assert.equal(zeigen(12, 4, 3000, 51), false, 'Wege erst bei hohem Zoom');
-});
-
-test('Darstellungsart: Hauptstraße, Nebenstraße, Radweg, Weg', () => {
-  assert.equal(darstellungsart((1 << 2) | (1 << 5)), 1);
-  assert.equal(darstellungsart(1 << 2), 2);
-  assert.equal(darstellungsart(1 << 3), 3);
-  assert.equal(darstellungsart(1 << 4), 4);
 });
 
 test('Netz: Linie einer Kante beginnt und endet an den Knoten; Rechteckabfrage', () => {
