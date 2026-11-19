@@ -48,6 +48,7 @@ test('Gespann: die Akkus mit Angaben verringern die nutzbare Energie', () => {
   const { modell } = baueModell(rad, null, { fahrer_gewicht_kg: 75 }, { unterstuetzung: 'tour', budget_art: 'akku', akku_rest_prozent: 100, reserve_prozent: 0, akku_staende: {} });
   assert.equal(modell.akku.nutzbar_wh, Math.max(0, modell.akku.start_wh - modell.akku.reserve_wh));
   assert.ok(modell.akku.batterien.length === 1);
+  assert.ok(modell.akku.nutzbar_anzeige_wh <= modell.akku.nutzbar_wh);
 });
 
 test('Reichweite: starke Last auf dem Berg schaltet den Akku früher ab', () => {
