@@ -27,7 +27,7 @@
       </div>
       <div class="reihe werte">
         <input class="input" type="number" min="0" max="20000" step="1" inputmode="numeric"
-          aria-label={pick({ de: 'Leistung in Watt', en: 'Power in watts' }, lang)} placeholder="W" bind:value={m.leistung_w} />
+          aria-label={pick({ de: 'Nenndauerleistung in Watt', en: 'Continuous rated power in watts' }, lang)} placeholder="W" bind:value={m.leistung_w} />
         <input class="input" type="number" min="1" max="1000" step="1" inputmode="numeric"
           aria-label={pick({ de: 'Spannung in Volt', en: 'Voltage in volts' }, lang)} placeholder="V" bind:value={m.spannung_v} />
         <select class="input" aria-label={pick({ de: 'Getriebe oder Direktläufer', en: 'Geared or direct drive' }, lang)} bind:value={m.getriebe}>
@@ -37,7 +37,7 @@
       </div>
     </div>
   {/each}
-  <button type="button" class="btn btn-outline btn-sm" onclick={() => (motoren = [...motoren, { motor_art: 'mittelmotor', leistung_w: null, spannung_v: null, getriebe: null }])}>
+  <button type="button" class="btn btn-outline btn-sm" onclick={() => (motoren = [...motoren, { motor_art: 'mittelmotor', leistung_w: 250, spannung_v: null, getriebe: null }])}>
     {pick({ de: '+ Motor', en: '+ Motor' }, lang)}
   </button>
 

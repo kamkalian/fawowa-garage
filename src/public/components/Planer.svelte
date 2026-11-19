@@ -66,6 +66,7 @@
   let grenzeAn = $state(false);  // Schalter: Grenze um den Bereich zeichnen
   let routen = $state(null);      // { linien, schritte } der letzten Berechnung, einmal geladen
   let routenFehlen = $state(false);
+  let letzterLauf = $state(null); // Zeitpunkt des angezeigten Ergebnisses (Ende der Berechnung)
   let schrittIdx = $state(2); // Rasterabstand: 0,5 / 1 / 2 km
   const SCHRITTE = [{ km: 0.5, label: '0,5 km' }, { km: 1, label: '1 km' }, { km: 2, label: '2 km' }];
   const LAUF_SCHRITTE = ['Suche vom Start aus', 'Gitterpunkte', 'Routen zusammenstellen', 'Heatmap berechnen'];
@@ -81,6 +82,7 @@
     for (const m of [10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000]) if (m / mProPx <= 120) best = m;
     return { px: Math.round(best / mProPx), label: best >= 1000 ? `${best / 1000} km` : `${best} m` };
   }
+  const zeitText = (z) => new Date(z).toLocaleString(lang === 'en' ? 'en-GB' : 'de-DE', { dateStyle: 'short', timeStyle: 'short' });
   const massstab = $derived(zoomStand === null ? null : berechneMassstab(zoomStand, start?.lat ?? 51));
   const budgetText = $derived(nachAkku ? (ergebnis?.budget.art === 'akku' ? `${zahlText(lang, ergebnis.budget.wert)} Wh` : '') : `${zahlText(lang, e.fahrtzeit_h)} h`);
   let meldungFehler = $state('');
@@ -151,9 +153,10 @@
   }
 
   // Ergebnis anzeigen (Raster auf der Karte, Startpunkt)
-  function zeigeErgebnis(r, anpassen) {
+  function zeigeErgebnis(r, anpassen, zeitpunkt = null) {
     auftrag = null;
     ergebnis = r;
+    letzterLauf = zeitpunkt;
     if (!start) start = { lat: r.start.lat, lon: r.start.lon };
     routen = null;
     routenFehlen = false;
@@ -175,7 +178,7 @@
       if (nr !== zaehler) return;
       const s = await api.reichweiteStand(token);
       if (nr !== zaehler) return;
-      if (s.status === 'fertig' && s.ergebnis) { zeigeErgebnis(s.ergebnis, anpassen); return; }
+      if (s.status === 'fertig' && s.ergebnis) { zeigeErgebnis(s.ergebnis, anpassen, s.zeitpunkt); return; }
       if (s.status === 'fehler') {
         auftrag = { status: 'fehler', code: s.meldung };
         ergebnis = null;
@@ -279,7 +282,7 @@
   </div>
   <span class="zoomanzeige" aria-live="polite">Zoom {zoomStand === null ? '–' : zoomStand.toFixed(1)}</span>
 
-  <aside class="karte-karte filter">
+  <aside class="karte-karte filter" class:breit={weitere && filterOffen}>
     <button type="button" class="filter-kopf" aria-expanded={filterOffen} aria-controls="planer-filter" onclick={() => (filterOffen = !filterOffen)}>
       {t(lang, 'p_einstellungen')} <span aria-hidden="true">{filterOffen ? '−' : '+'}</span>
     </button>
@@ -299,13 +302,6 @@
             {#each cfg.modi as m (m)}<option value={m}>{t(lang, `modus_${m}`)}</option>{/each}
           </select>
           <p class="notiz">{t(lang, `modusHinweis_${modus}`)}</p>
-        </fieldset>
-
-        <fieldset>
-          <legend>Rasterabstand</legend>
-          <input id="p-raster" type="range" min="0" max="2" step="1" bind:value={schrittIdx} aria-label="Rasterabstand" />
-          <div class="raster-marken"><span>0,5 km</span><span>1 km</span><span>2 km</span></div>
-          <p class="notiz">Die Punkte liegen alle {SCHRITTE[schrittIdx].label} auf dem Netz.</p>
         </fieldset>
 
         <fieldset>
@@ -334,12 +330,25 @@
           <summary>{t(lang, 'p_weitere')}</summary>
           <div class="feinteile">
             <fieldset>
+              <legend>{t(lang, 'p_raster')}</legend>
+              <input id="p-raster" type="range" min="0" max="2" step="1" bind:value={schrittIdx} aria-label={t(lang, 'p_raster')} />
+              <div class="raster-marken"><span>0,5 km</span><span>1 km</span><span>2 km</span></div>
+              <p class="notiz">{t(lang, 'p_rasterHinweis', SCHRITTE[schrittIdx].label)}</p>
+            </fieldset>
+
+            <fieldset>
               <legend>{t(lang, 'p_fahrt')}</legend>
               <div class="gruppe" role="radiogroup" aria-label={t(lang, 'p_fahrt')}>
                 <button type="button" role="radio" class="wahl" aria-checked={stil === 'gemuetlich'} onclick={() => stilSetzen('gemuetlich')}>{t(lang, 'p_stil_gemuetlich')}</button>
                 <button type="button" role="radio" class="wahl" aria-checked={stil === 'sportlich'} onclick={() => stilSetzen('sportlich')}>{t(lang, 'p_stil_sportlich')}</button>
               </div>
               <p class="notiz">{t(lang, 'p_stilHinweis')}</p>
+            </fieldset>
+
+            <fieldset>
+              <label for="p-eigen">{t(lang, 'p_eigen')}: <strong>{e.eigenleistung_max_w} W</strong></label>
+              <input id="p-eigen" type="range" min={EINSTELLUNGEN_GRENZEN.eigenleistung_max_w[0]} max={EINSTELLUNGEN_GRENZEN.eigenleistung_max_w[1]} step="5" bind:value={e.eigenleistung_max_w} />
+              <p class="notiz">{t(lang, 'p_eigenHinweis')}</p>
             </fieldset>
 
             <fieldset>
@@ -409,14 +418,26 @@
   <p class="pille hinweis">{t(lang, 'p_kartenHinweis')}</p>
 
   <div class="unten-rechts">
-    {#if auftrag}
+    {#if auftrag || ergebnis}
       <section class="karte-karte fortschritt" role="status" aria-live="polite">
-        {#if auftrag.status === 'fehler'}
+        {#if !auftrag}
+          <strong>{t(lang, 'p_letzterLauf')}</strong>
+          <span class="notiz">{letzterLauf ? zeitText(letzterLauf) : ''}</span>
+          {#if ergebnis?.kennzahlen}
+            <dl class="metriken">
+              <div><dt>{t(lang, 'p_mReichweite')}</dt><dd>{budgetText}</dd></div>
+              <div><dt>{t(lang, 'p_mWeit')}</dt><dd>{zahlText(lang, ergebnis.kennzahlen.weitester_km)} km</dd></div>
+              <div><dt>{t(lang, 'p_mPunkte')}</dt><dd>{ergebnis.kennzahlen.punkte_machbar} / {ergebnis.kennzahlen.punkte_gesamt}</dd></div>
+              <div><dt>{t(lang, 'p_mRechen')}</dt><dd>{zahlText(lang, Math.round(ergebnis.kennzahlen.ms / 100) / 10)} s</dd></div>
+              <div><dt>{t(lang, 'p_mRaster')}</dt><dd>{zahlText(lang, ergebnis.schritt_m / 1000)} km</dd></div>
+            </dl>
+          {/if}
+        {:else if auftrag.status === 'fehler'}
           <strong>{t(lang, 'p_fehlgeschlagen')}</strong>
           <span>{fehlerText(auftrag.code)}</span>
         {:else if auftrag.status === 'laeuft'}
           <strong>{t(lang, 'p_laeuft')}</strong>
-          <div class="balken-lauf"><div style:width={`${auftrag.fortschritt ?? 0}%`}></div></div>
+          <div class="balken-zeile"><div class="balken-lauf"><div style:width={`${auftrag.fortschritt ?? 0}%`}></div></div><span class="prozent">{auftrag.fortschritt ?? 0} %</span></div>
           <ol class="lauf-schritte">
             {#each LAUF_SCHRITTE as schritt, i (schritt)}
               <li class:erledigt={i < laufSchritt(auftrag.phase)} class:aktuell={i === laufSchritt(auftrag.phase)}>{schritt}</li>
@@ -425,7 +446,7 @@
           <span class="phase">{auftrag.phase ?? ''}</span>
         {:else}
           <strong>{t(lang, 'p_wartet')}</strong>
-          <span class="warteschlange">{t(lang, 'p_warteschlange')} <strong>{auftrag.davor}</strong>{#if auftrag.davor === 0} ({t(lang, 'p_naechste')}){/if}</span>
+          <span class="warteschlange">{t(lang, 'p_warteschlange')} <strong>{auftrag.davor}</strong></span>
           <span class="notiz">{t(lang, 'p_spaeter')}</span>
         {/if}
       </section>
@@ -482,6 +503,8 @@
   .filter { position: absolute; top: 4.75rem; left: .75rem; width: 15rem; max-height: calc(100% - 7.5rem); overflow-y: auto; z-index: 10; }
   .filter-kopf { display: flex; justify-content: space-between; align-items: center; width: 100%; padding: .6rem .8rem; background: none; border: none; color: var(--fg); font: inherit; font-weight: 600; cursor: pointer; position: sticky; top: 0; background: var(--bg-card); border-radius: var(--radius); }
   .filter-kopf:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
+  .filter.breit { width: auto; right: .75rem; max-height: calc(100% - 7.5rem); z-index: 15; }
+  .filter.breit .feinteile { display: grid; grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr)); gap: 1rem 1.5rem; }
   .filter-inhalt { display: flex; flex-direction: column; gap: 1rem; padding: 0 .8rem .8rem; }
 
   fieldset { border: none; border-top: 1px solid var(--border); padding: .75rem 0 0; display: flex; flex-direction: column; gap: .375rem; min-width: 0; }
@@ -524,6 +547,12 @@
   .lauf-schritte li.erledigt::before { content: '✓ '; }
   .lauf-schritte li.aktuell { color: var(--primary); font-weight: 600; }
   .phase { font-size: .8125rem; }
+  .balken-zeile { display: flex; align-items: center; gap: .5rem; }
+  .balken-zeile .balken-lauf { flex: 1; }
+  .prozent { font-size: .8125rem; font-variant-numeric: tabular-nums; min-width: 2.75rem; text-align: right; }
+  .metriken { display: grid; grid-template-columns: 1fr 1fr; gap: .4rem .75rem; margin: 0; }
+  .metriken dt { font-size: .75rem; color: var(--fg-muted); }
+  .metriken dd { font-size: .9375rem; font-weight: 600; margin: 0; }
   .maszstab { display: flex; align-items: center; gap: .5rem; font-size: .8125rem; }
   .massbalken { height: 6px; border: 2px solid var(--fg); border-top: none; display: inline-block; }
   .raster-marken { display: flex; justify-content: space-between; font-size: .75rem; color: var(--fg-muted); }
