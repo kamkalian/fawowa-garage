@@ -46,9 +46,8 @@ test('Gespann: die Akkus mit Angaben verringern die nutzbare Energie', () => {
   const rad = { motor_art: 'mittelmotor', motor_nennleistung_w: 250, schaltung_art: 'kette', gewicht_kg: 25, akku_kapazitaet_wh: 500,
     akkuListe: [{ key: 'rad1_0', name: 'Rad', nummer: 1, kapazitaet_wh: 500, chemie: 'nmc', zellen_s: 10, zellen_p: 1, ah: 13.9, spannung_v: null }] };
   const { modell } = baueModell(rad, null, { fahrer_gewicht_kg: 75 }, { unterstuetzung: 'tour', budget_art: 'akku', akku_rest_prozent: 100, reserve_prozent: 0, akku_staende: {} });
-  assert.ok(modell.akku.unbrauchbar_wh > 0);
-  assert.ok(modell.akku.nutzbar_wh < modell.akku.start_wh);
-  assert.equal(modell.akku.nutzbar_wh, Math.max(0, modell.akku.start_wh - modell.akku.reserve_wh - modell.akku.unbrauchbar_wh));
+  assert.equal(modell.akku.nutzbar_wh, Math.max(0, modell.akku.start_wh - modell.akku.reserve_wh));
+  assert.ok(modell.akku.batterien.length === 1);
 });
 
 test('Reichweite: starke Last auf dem Berg schaltet den Akku früher ab', () => {
@@ -62,4 +61,22 @@ test('Reichweite: starke Last auf dem Berg schaltet den Akku früher ab', () => 
   const ebene = reichweiteEntlang(modell, Array(200).fill(eben));
   const bergig = reichweiteEntlang(modell, Array(200).fill(berg));
   assert.ok(bergig.strecke_m < ebene.strecke_m);
+});
+
+test('Suche: die Abschaltung je Teilstück verkleinert das erreichbare Gebiet, ohne Chemie gibt es keine Abschaltung', async () => {
+  const { Netz } = await import('../lib/netz.js');
+  const { gitterNetz } = await import('./hilfen-netz.js');
+  const netz = new Netz(gitterNetz(31), { minKomponente: 1 });
+  const basis = { motor_art: 'mittelmotor', motor_nennleistung_w: 250, akku_kapazitaet_wh: 5, schaltung_art: 'kette', gewicht_kg: 25 };
+  const liste = (chemie) => [{ key: 'rad1_0', name: 'Rad', nummer: 1, kapazitaet_wh: 5, chemie, zellen_s: 3, zellen_p: 1, ah: 1.7, spannung_v: null }];
+  const erreichbar = (chemie) => {
+    const { modell } = baueModell({ ...basis, akkuListe: liste(chemie) }, null, { fahrer_gewicht_kg: 80 }, { unterstuetzung: 'sport', eigenleistung_modus: 'volle_power', reserve_prozent: 0 });
+    const r = netz.reichweite(modell, netz.naechster(51.075, 7.12).knoten, 'alle');
+    return r.dist.filter((d) => Number.isFinite(d)).length;
+  };
+  const ohne = erreichbar(null);
+  const lfp = erreichbar('lfp');
+  assert.ok(ohne > 0);
+  assert.ok(lfp < ohne, 'mit Abschaltung weniger erreichbare Knoten (' + lfp + ' < ' + ohne + ')');
+  assert.equal(erreichbar(null), ohne, 'ohne Chemie keine Abschaltung');
 });
