@@ -69,7 +69,7 @@
   let letzterLauf = $state(null); // Zeitpunkt des angezeigten Ergebnisses (Ende der Berechnung)
   let schrittIdx = $state(2); // Rasterabstand: 0,5 / 1 / 2 km
   const SCHRITTE = [{ km: 0.5, label: '0,5 km' }, { km: 1, label: '1 km' }, { km: 2, label: '2 km' }];
-  const LAUF_SCHRITTE = ['Suche vom Start aus', 'Gitterpunkte', 'Routen zusammenstellen', 'Heatmap berechnen'];
+  const LAUF_SCHRITTE = ['Wegenetz laden', 'Suche vom Start aus', 'Punkte im Raster festlegen', 'Routen berechnen', 'Heatmap berechnen'];
   // Welcher Schritt läuft, aus der Meldung des Servers
   function laufSchritt(phase) {
     const i = LAUF_SCHRITTE.findIndex((s) => (phase ?? '').startsWith(s));
@@ -187,7 +187,7 @@
       }
       if (s.status === 'wartet' || s.status === 'laeuft') {
         auftrag = { status: s.status, davor: s.davor, phase: s.phase, fortschritt: s.fortschritt };
-        await pause(1000);
+        await pause(500);
         continue;
       }
       auftrag = null;
@@ -282,7 +282,7 @@
   </div>
   <span class="zoomanzeige" aria-live="polite">Zoom {zoomStand === null ? '–' : zoomStand.toFixed(1)}</span>
 
-  <aside class="karte-karte filter" class:breit={weitere && filterOffen}>
+  <aside class="karte-karte filter">
     <button type="button" class="filter-kopf" aria-expanded={filterOffen} aria-controls="planer-filter" onclick={() => (filterOffen = !filterOffen)}>
       {t(lang, 'p_einstellungen')} <span aria-hidden="true">{filterOffen ? '−' : '+'}</span>
     </button>
@@ -326,9 +326,30 @@
           {/if}
         </fieldset>
 
-        <details class="weitere" bind:open={weitere}>
-          <summary>{t(lang, 'p_weitere')}</summary>
-          <div class="feinteile">
+        <button type="button" class="weitere-knopf" aria-expanded={weitere} aria-controls="planer-erweitert" onclick={() => (weitere = !weitere)}>
+          {t(lang, 'p_weitere')} <span aria-hidden="true">{weitere ? '−' : '+'}</span>
+        </button>
+
+
+        {#if voraussetzung}
+          <div class="hinweiskasten" role="alert">
+            <p>{t(lang, `vor_${voraussetzung}`)}</p>
+            <button type="button" class="btn btn-outline btn-sm" onclick={() => zurueck?.()}>{t(lang, 'p_zumGespann')}</button>
+          </div>
+        {:else}
+          <p class="notiz">{t(lang, 'p_mit')}: {rad.name}{#if wagen} + {wagen.name}{/if}</p>
+        {/if}
+
+        <div class="aktionen">
+          <button type="submit" class="btn btn-primary" disabled={!start || !!voraussetzung || rechnet}>{rechnet ? t(lang, 'p_rechnet') : t(lang, 'p_berechnen')}</button>
+        </div>
+      </form>
+    {/if}
+  </aside>
+
+  {#if weitere && filterOffen}
+    <aside id="planer-erweitert" class="karte-karte erweitert" aria-label={t(lang, 'p_weitere')}>
+      <div class="feinteile">
             <fieldset>
               <legend>{t(lang, 'p_raster')}</legend>
               <input id="p-raster" type="range" min="0" max="2" step="1" bind:value={schrittIdx} aria-label={t(lang, 'p_raster')} />
@@ -395,24 +416,8 @@
               </div>
             </div>
           </div>
-        </details>
-
-
-        {#if voraussetzung}
-          <div class="hinweiskasten" role="alert">
-            <p>{t(lang, `vor_${voraussetzung}`)}</p>
-            <button type="button" class="btn btn-outline btn-sm" onclick={() => zurueck?.()}>{t(lang, 'p_zumGespann')}</button>
-          </div>
-        {:else}
-          <p class="notiz">{t(lang, 'p_mit')}: {rad.name}{#if wagen} + {wagen.name}{/if}</p>
-        {/if}
-
-        <div class="aktionen">
-          <button type="submit" class="btn btn-primary" disabled={!start || !!voraussetzung || rechnet}>{rechnet ? t(lang, 'p_rechnet') : t(lang, 'p_berechnen')}</button>
-        </div>
-      </form>
-    {/if}
-  </aside>
+    </aside>
+  {/if}
 
   {#if meldungFehler}<p class="pille fehler" role="alert">{meldungFehler}</p>{/if}
   <p class="pille hinweis">{t(lang, 'p_kartenHinweis')}</p>
@@ -503,8 +508,12 @@
   .filter { position: absolute; top: 4.75rem; left: .75rem; width: 15rem; max-height: calc(100% - 7.5rem); overflow-y: auto; z-index: 10; }
   .filter-kopf { display: flex; justify-content: space-between; align-items: center; width: 100%; padding: .6rem .8rem; background: none; border: none; color: var(--fg); font: inherit; font-weight: 600; cursor: pointer; position: sticky; top: 0; background: var(--bg-card); border-radius: var(--radius); }
   .filter-kopf:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
-  .filter.breit { width: auto; right: .75rem; max-height: calc(100% - 7.5rem); z-index: 15; }
-  .filter.breit .feinteile { display: grid; grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr)); gap: 1rem 1.5rem; }
+  .weitere-knopf { width: 100%; display: flex; justify-content: space-between; align-items: center; padding: .5rem .6rem; background: var(--bg-input); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--fg); font: inherit; font-size: .8125rem; font-weight: 600; cursor: pointer; }
+  .weitere-knopf:hover { border-color: var(--primary); }
+  .weitere-knopf:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+  /* Die erweiterten Einstellungen: rechts neben dem linken Bereich, bis an den Bereich „Letzter Lauf“ */
+  .erweitert { position: absolute; top: 4.75rem; left: calc(.75rem + 15rem + .5rem); right: calc(.75rem + min(22rem, 100% - 1.5rem) + .5rem); max-height: calc(100% - 7.5rem); overflow-y: auto; z-index: 12; padding: .75rem 1rem; }
+  .erweitert .feinteile { display: grid; grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr)); gap: 1rem 1.5rem; padding-top: 0; }
   .filter-inhalt { display: flex; flex-direction: column; gap: 1rem; padding: 0 .8rem .8rem; }
 
   fieldset { border: none; border-top: 1px solid var(--border); padding: .75rem 0 0; display: flex; flex-direction: column; gap: .375rem; min-width: 0; }
@@ -571,6 +580,7 @@
     .zoomknoepfe { top: auto; bottom: 9rem; right: .75rem; }
     .filter { top: auto; bottom: .75rem; left: .75rem; right: .75rem; width: auto; max-height: 45%; }
     .unten-rechts { left: .75rem; width: auto; max-height: 38%; }
+    .erweitert { left: .75rem; right: .75rem; }
     .pille.hinweis { display: none; }
   }
 </style>
