@@ -31,6 +31,9 @@
   const zusatzRad = $derived((rad?.zusatzakku_wh ?? 0) > 0);
   // Hauptakku am Fahrrad. Fehlt er (der einzige Akku steckt im Anhänger), gibt es nur einen Füllstand-Regler.
   const hauptAkku = $derived((rad?.akku_kapazitaet_wh ?? 0) > 0);
+  // Ein Füllstand je Akku im Gespann (Fahrrad und Anhänger)
+  const akkuListe = $derived([...(rad?.akkuListe ?? []), ...(wagen?.akkuListe ?? [])]);
+  function standSetzen(key, wert) { e.akku_staende = { ...(e.akku_staende ?? {}), [key]: wert }; }
   const mitSolar = $derived((wagen?.solar_wp ?? 0) > 0);
   const kapazitaet = $derived((rad?.akku_kapazitaet_wh ?? 0) + (rad?.zusatzakku_wh ?? 0) + (wagen?.zusatzakku_wh ?? 0));
 
@@ -41,7 +44,7 @@
 
   let stil = $state('gemuetlich');
   let e = $state({
-    akku_rest_prozent: 100, zusatz_rest_prozent: null, fahrtzeit_h: 3, reserve_prozent: 5,
+    akku_rest_prozent: 100, zusatz_rest_prozent: null, fahrtzeit_h: 3, reserve_prozent: 5, akku_staende: {},
     ...STIL.gemuetlich,
     wind_ms: 0, wind_richtung_grad: 270, einstrahlung_w_m2: 0, temperatur_c: 15, hoehe_m: 100, oberflaeche: 1
   });
@@ -341,12 +344,10 @@
           {#if !motor}<p class="notiz">{t(lang, 'p_ohneMotorHinweis')}</p>{/if}
 
           {#if nachAkku}
-            <label for="p-akku">{t(lang, hauptAkku ? 'p_akkuRest' : 'p_akkuEinzel')}: <strong>{e.akku_rest_prozent} %</strong></label>
-            <input id="p-akku" type="range" min="0" max="100" step="1" bind:value={e.akku_rest_prozent} />
-            {#if mitZusatzakku && hauptAkku}
-              <label for="p-zakku">{t(lang, zusatzRad ? 'p_zusatzRest' : 'p_anhaengerRest')}: <strong>{e.zusatz_rest_prozent ?? e.akku_rest_prozent} %</strong></label>
-              <input id="p-zakku" type="range" min="0" max="100" step="1" value={e.zusatz_rest_prozent ?? e.akku_rest_prozent} oninput={(ev) => (e.zusatz_rest_prozent = Number(ev.currentTarget.value))} />
-            {/if}
+            {#each akkuListe as a (a.key)}
+              <label for="p-akku-{a.key}">{a.name} · {t(lang, 'p_akkuNr', a.nummer)}: <strong>{e.akku_staende?.[a.key] ?? e.akku_rest_prozent} %</strong></label>
+              <input id="p-akku-{a.key}" type="range" min="0" max="100" step="1" value={e.akku_staende?.[a.key] ?? e.akku_rest_prozent} oninput={(ev) => standSetzen(a.key, Number(ev.currentTarget.value))} />
+            {/each}
           {:else}
             <label for="p-zeit">{t(lang, 'p_fahrtzeit')}: <strong>{zahlText(lang, e.fahrtzeit_h)} h</strong></label>
             <input id="p-zeit" type="range" min={EINSTELLUNGEN_GRENZEN.fahrtzeit_h[0]} max={EINSTELLUNGEN_GRENZEN.fahrtzeit_h[1]} step="0.5" bind:value={e.fahrtzeit_h} />
