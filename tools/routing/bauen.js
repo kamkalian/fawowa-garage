@@ -148,7 +148,40 @@ const eLegN = new Liste(Uint8Array, 1 << 22);
 const legLen = new Liste(Uint16Array, 1 << 23);   // Dezimeter
 const legGrad = new Liste(Int8Array, 1 << 23);    // halbe Prozent
 const legKurs = new Liste(Uint8Array, 1 << 23);   // 360° / 256
+// Verlauf jeder Kante als Punkte (vereinfacht, Abweichung höchstens 2 m): so folgen die Routen der Straße und nicht der Luftlinie
+const formLat = new Liste(Int32Array, 1 << 24);  // 1e-7 Grad
+const formLon = new Liste(Int32Array, 1 << 24);
+const eFormStart = new Liste(Uint32Array, 1 << 22);
+const eFormN = new Liste(Uint32Array, 1 << 22);
 const stat = { kmKlasse: { 1: 0, 2: 0, 4: 0 }, kantenLang: 0, schleifen: 0, ohneHoehe: 0, legsGekappt: 0, gradKlemmung: 0, wegeMitSprung: 0 };
+
+/** Punkte eines Wegs zwischen von und bis (Indizes) nach Douglas-Peucker, Abweichung höchstens 2 m; liefert die Indizes */
+function formPunkte(lat, lon, von, bis, toleranz = 2) {
+  const k0 = Math.cos(lat[von] * grad2rad);
+  const x = (k) => (lon[k] - lon[von]) * 111320 * k0;
+  const y = (k) => (lat[k] - lat[von]) * 110574;
+  const behalten = new Uint8Array(bis - von + 1);
+  behalten[0] = 1;
+  behalten[bis - von] = 1;
+  const stapel = [[von, bis]];
+  while (stapel.length) {
+    const [a, b] = stapel.pop();
+    if (b <= a + 1) continue;
+    const dx = x(b) - x(a);
+    const dy = y(b) - y(a);
+    const laenge = Math.hypot(dx, dy) || 1e-9;
+    let beste = -1;
+    let bestAbst = toleranz;
+    for (let k = a + 1; k < b; k++) {
+      const abst = Math.abs((x(k) - x(a)) * dy - (y(k) - y(a)) * dx) / laenge;
+      if (abst > bestAbst) { bestAbst = abst; beste = k; }
+    }
+    if (beste >= 0) { behalten[beste - von] = 1; stapel.push([a, beste], [beste, b]); }
+  }
+  const punkte = [];
+  for (let k = von; k <= bis; k++) if (behalten[k - von]) punkte.push(k);
+  return punkte;
+}
 
 const knotenNr = (idx) => {
   let n = neuNr[idx];
@@ -255,6 +288,11 @@ for (let w = 0; w < nWege; w++) {
     }
     const nLegs = legLen.n - legsAnfang;
     if (nLegs > 255) { stat.kantenLang++; legLen.n = legsAnfang; legGrad.n = legsAnfang; legKurs.n = legsAnfang; kantenStart = i; continue; }
+    // Verlauf der Kante (Weg-Punkte von kantenStart bis i), vereinfacht
+    const formIdx = formPunkte(lat, lon, kantenStart, i);
+    eFormStart.push(formLat.n);
+    eFormN.push(formIdx.length);
+    for (const k of formIdx) { formLat.push(Math.round(lat[k] * 1e7)); formLon.push(Math.round(lon[k] * 1e7)); }
     eA.push(a); eB.push(b);
     // Bits 0-1 Fahrtrichtung, 2-4 Klasse (Straße, Radweg, Weg), 5 Hauptstraße, 6 Radweg-Pflicht
     eFlags.push(fahrt | (klasseBits << 2) | (haupt << 5) | (sidepath << 6));
@@ -302,7 +340,8 @@ const dateien = {
   'knoten_lat.i32': nLat.fertig(), 'knoten_lon.i32': nLon.fertig(), 'adj_start.u32': grad, 'adj.u32': adj,
   'kante_a.u32': A, 'kante_b.u32': B, 'kante_flags.u8': eFlags.fertig(), 'kante_belag.u8': eBelag.fertig(),
   'kante_leg_start.u32': eLegStart.fertig(), 'kante_leg_n.u8': eLegN.fertig(),
-  'leg_len.u16': legLen.fertig(), 'leg_grad.i8': legGrad.fertig(), 'leg_kurs.u8': legKurs.fertig(), 'knoten_typ.u8': knotenTyp
+  'leg_len.u16': legLen.fertig(), 'leg_grad.i8': legGrad.fertig(), 'leg_kurs.u8': legKurs.fertig(), 'knoten_typ.u8': knotenTyp,
+  'kante_form_start.u32': eFormStart.fertig(), 'kante_form_n.u32': eFormN.fertig(), 'form_lat.i32': formLat.fertig(), 'form_lon.i32': formLon.fertig()
 };
 const groessen = {};
 for (const [name, arr] of Object.entries(dateien)) {

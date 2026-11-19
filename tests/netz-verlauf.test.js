@@ -43,3 +43,15 @@ test('Verlauf in umgekehrter Richtung beginnt beim anderen Knoten', () => {
   assert.deepEqual(zurueck[0], hin[hin.length - 1]);
   assert.deepEqual(zurueck[zurueck.length - 1], hin[0]);
 });
+
+test('Mit gespeichertem Verlauf je Kante werden die Weg-Punkte genau übernommen (inkl. Knick)', () => {
+  const n = minimalesNetz();
+  // Verlauf aus dem Bau: Anfang, Knick, Ende – als Punkte je Kante (1e-7 Grad)
+  n.formStart = Uint32Array.from([0]);
+  n.formN = Uint32Array.from([3]);
+  n.formLat = Int32Array.from([500000000, 500007200, 500007200]);
+  n.formLon = Int32Array.from([80000000, 80000000, 80008380]);
+  const punkte = n.verlaufZwischen(0, 1);
+  assert.deepEqual(punkte, [[50, 8], [50.00072, 8], [50.00072, 8.000838]]);
+  assert.deepEqual(n.verlaufZwischen(1, 0)[1], [50.00072, 8]);
+});
