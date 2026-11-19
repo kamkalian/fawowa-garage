@@ -22,7 +22,7 @@
   // svelte-ignore state_referenced_locally
   let motoren = $state((eintrag?.motoren ?? []).map(m => ({ motor_art: m.motor_art, leistung_w: m.leistung_w, spannung_v: m.spannung_v ?? null, getriebe: m.getriebe ?? null })));
   // svelte-ignore state_referenced_locally
-  let akkus = $state((eintrag?.akkus ?? []).map(a => ({ kapazitaet_wh: a.kapazitaet_wh, spannung_v: a.spannung_v ?? null })));
+  let akkus = $state((eintrag?.akkus ?? []).map(a => ({ kapazitaet_wh: a.kapazitaet_wh, spannung_v: a.spannung_v ?? null, chemie: a.chemie ?? null, zellen_s: a.zellen_s ?? null, zellen_p: a.zellen_p ?? null, ah: a.ah ?? null, schluss_v: a.schluss_v ?? null, max_strom_a: a.max_strom_a ?? null })));
   // Die Bauart (Fahrrad 2, Trike 3, Quad 4) und die Art des Anhängers (Achsen) geben die Anzahl der Räder vor
   $effect(() => {
     if (art === 'anhaenger') anzahlRaederAbleiten(werte);
@@ -58,7 +58,7 @@
     try {
       await onsave({ ...werte }, {
         motoren: motoren.map(m => ({ motor_art: m.motor_art, leistung_w: m.leistung_w === '' ? null : m.leistung_w, spannung_v: m.spannung_v === '' ? null : m.spannung_v, getriebe: m.getriebe || null })),
-        akkus: akkus.map(a => ({ kapazitaet_wh: a.kapazitaet_wh, spannung_v: a.spannung_v === '' ? null : a.spannung_v }))
+        akkus: akkus.map(a => ({ kapazitaet_wh: a.kapazitaet_wh, spannung_v: a.spannung_v === '' ? null : a.spannung_v, chemie: a.chemie || null, zellen_s: a.zellen_s ?? null, zellen_p: a.zellen_p ?? null, ah: a.ah ?? null, schluss_v: a.schluss_v ?? null, max_strom_a: a.max_strom_a ?? null }))
       });
     } catch (err) {
       if (err instanceof ApiFehler && err.felder) fehler = err.felder;

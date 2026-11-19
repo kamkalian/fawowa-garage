@@ -1,10 +1,23 @@
 <script>
   import { pick } from '../lib/i18n.js';
   import { MOTOR_ARTEN } from '../../shared/antrieb.js';
+  import Fenster from './Fenster.svelte';
+  import AkkuAssistent from './AkkuAssistent.svelte';
+  import { AKKU_CHEMIE } from '../../../lib/akku.js';
 
   // Motoren und Akkus eines Fahrrads oder Anhängers als Listen; beliebig viele. Die Werte gehören dem umgebenden Formular.
   let { lang, motoren = $bindable([]), akkus = $bindable([]) } = $props();
 
+  // Index des Akkus, für den der Assistent offen ist (null: zu)
+  let assistent = $state(null);
+  // Kurzinfo unter dem Akku: Chemie, Zellen, Abschaltung, Dauerstrom
+  function akkuInfo(a) {
+    const teile = [a.chemie ? AKKU_CHEMIE[a.chemie]?.name : pick({ de: 'Chemie unbekannt', en: 'Chemistry unknown' }, lang)];
+    if (a.zellen_s) teile.push(`${a.zellen_s}s${a.zellen_p ?? 1}p`);
+    if (a.schluss_v) teile.push(`${pick({ de: 'Abschaltung', en: 'cut-off' }, lang)} ${a.schluss_v} V`);
+    if (a.max_strom_a) teile.push(`${a.max_strom_a} A`);
+    return teile.join(' · ');
+  }
   const GETRIEBE = [
     { wert: 'getriebe', de: 'Mit Getriebe', en: 'Geared' },
     { wert: 'direkt', de: 'Direktläufer', en: 'Direct drive' }
@@ -48,14 +61,27 @@
         aria-label={pick({ de: 'Kapazität in Wh', en: 'Capacity in Wh' }, lang)} placeholder="Wh" bind:value={a.kapazitaet_wh} />
       <input class="input" type="number" min="1" max="1000" step="1" inputmode="numeric"
         aria-label={pick({ de: 'Spannung in Volt', en: 'Voltage in volts' }, lang)} placeholder="V" bind:value={a.spannung_v} />
+      <button type="button" class="btn btn-outline btn-sm" onclick={() => (assistent = i)}>
+        {pick({ de: 'Assistent', en: 'Wizard' }, lang)}
+      </button>
       <button type="button" class="btn btn-ghost btn-sm" onclick={() => (akkus = akkus.filter((_, k) => k !== i))}>
         {pick({ de: 'Entfernen', en: 'Remove' }, lang)}
       </button>
     </div>
+    {#if a.chemie || a.zellen_s}
+      <p class="akku-info">{akkuInfo(a)}</p>
+    {/if}
   {/each}
-  <button type="button" class="btn btn-outline btn-sm" onclick={() => (akkus = [...akkus, { kapazitaet_wh: null, spannung_v: null }])}>
+  <button type="button" class="btn btn-outline btn-sm" onclick={() => (akkus = [...akkus, { kapazitaet_wh: null, spannung_v: null, chemie: null, zellen_s: null, zellen_p: null, ah: null, schluss_v: null, max_strom_a: null }])}>
     {pick({ de: '+ Akku', en: '+ Battery' }, lang)}
   </button>
+  {#if assistent !== null && akkus[assistent]}
+    <Fenster {lang} breit titel={pick({ de: 'Akku-Assistent', en: 'Battery wizard' }, lang)} onclose={() => (assistent = null)}>
+      <AkkuAssistent {lang} start={akkus[assistent]}
+        onfertig={(werte) => { akkus[assistent] = { ...akkus[assistent], ...werte }; assistent = null; }}
+        onabbrechen={() => (assistent = null)} />
+    </Fenster>
+  {/if}
 </div>
 
 <style>
@@ -65,6 +91,7 @@
   .reihe { display: grid; gap: .5rem; align-items: center; }
   .kopf-reihe { grid-template-columns: minmax(0, 1fr) auto; }
   .werte { grid-template-columns: 1fr 1fr 1fr; }
-  .akku { grid-template-columns: 1fr 1fr auto; margin-bottom: .5rem; }
+  .akku { grid-template-columns: 1fr 1fr auto auto; margin-bottom: .25rem; }
+  .akku-info { font-size: .75rem; color: var(--fg-muted); margin: 0 0 .5rem; }
   @media (max-width: 520px) { .werte { grid-template-columns: 1fr 1fr; } }
 </style>
