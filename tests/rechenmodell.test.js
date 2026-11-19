@@ -124,11 +124,12 @@ test('Die Fahrerleistung ist das Ergebnis: auf der Ebene wenig, bergauf mehr, ni
   assert.equal(berechneSegment(m, { ...eben, steigung: -0.05 }).eigenleistung_w, 0, 'bergab tritt der Fahrer nicht');
 });
 
-test('Unterstützungsstufe: höhere Stufe schafft Steigungen schneller, ohne Motor gar nicht mit schwerem Gespann', () => {
-  const stufen = ['aus', 'eco', 'tour', 'sport', 'turbo'];
-  const tempo = stufen.map(s => berechneSegment(modell({ unterstuetzung: s, geschwindigkeit_kmh: 20, eigenleistung_modus: 'volle_power' }), { ...eben, steigung: 0.08 }).v_ms);
-  for (let i = 1; i < tempo.length; i++) assert.ok(tempo[i] >= tempo[i - 1] - 1e-9, `${stufen[i]} nicht langsamer als ${stufen[i - 1]}`);
-  assert.ok(tempo[4] > tempo[0]);
+test('Unterstützung aus: kein Motor, auch nicht am Berg; mit Unterstützung hilft er dort', () => {
+  const steil = { ...eben, steigung: 0.08 };
+  const ohne = berechneSegment(modell({ unterstuetzung: 'aus', geschwindigkeit_kmh: 20, eigenleistung_modus: 'volle_power' }), steil);
+  assert.equal(ohne.motor_wh, 0);
+  const mit = berechneSegment(modell({ unterstuetzung: 'tour', geschwindigkeit_kmh: 20, eigenleistung_modus: 'volle_power' }), steil);
+  assert.ok(mit.v_ms > ohne.v_ms);
   assert.equal(berechneSegment(modell({ unterstuetzung: 'aus' }), eben).motor_wh, 0);
 });
 
@@ -138,11 +139,17 @@ test('Wirkungsgrade: Nabenmotor und Nabenschaltung kosten mehr Energie', () => {
   assert.ok(berechneSegment(modell({}, { ...RAD, schaltung_art: 'stufenlos' }), eben).wh_pro_km > basis);
 });
 
-test('Unterstützung ist proportional zur Fahrerleistung: stärkere Stufe kostet bergauf mehr Akku', () => {
-  const steil = { ...eben, steigung: 0.05 };
-  const eco = berechneSegment(modell({ unterstuetzung: 'eco', geschwindigkeit_kmh: 16, eigenleistung_modus: 'volle_power' }), steil).wh_pro_km;
-  const sport = berechneSegment(modell({ unterstuetzung: 'sport', geschwindigkeit_kmh: 16, eigenleistung_modus: 'volle_power' }), steil).wh_pro_km;
+test('Auf der Ebene ist die Unterstützung proportional zur Fahrerleistung: stärkere Stufe kostet mehr Akku', () => {
+  const eco = berechneSegment(modell({ unterstuetzung: 'eco', geschwindigkeit_kmh: 20 }), eben).wh_pro_km;
+  const sport = berechneSegment(modell({ unterstuetzung: 'sport', geschwindigkeit_kmh: 20 }), eben).wh_pro_km;
   assert.ok(sport > eco, `sport ${sport} > eco ${eco}`);
+});
+
+test('Am Berg spart mehr Tretkraft Akku: der Motor deckt nur den Rest', () => {
+  const steil = { ...eben, steigung: 0.08 };
+  const wenig = berechneSegment(modell({ geschwindigkeit_kmh: 18, eigenleistung_max_w: 60, eigenleistung_modus: 'volle_power' }), steil);
+  const viel = berechneSegment(modell({ geschwindigkeit_kmh: 18, eigenleistung_max_w: 250, eigenleistung_modus: 'volle_power' }), steil);
+  assert.ok(viel.wh_pro_km < wenig.wh_pro_km, `mehr Tretkraft: ${viel.wh_pro_km} < ${wenig.wh_pro_km}`);
 });
 
 test('Motor: im Modus entspannt nie mehr als die Nennleistung (250 W)', () => {
@@ -161,7 +168,7 @@ test('Eigenleistung-Modus: volle Power holt am Berg mehr Motorleistung (bis zur 
   assert.ok(motorW(voll) > 250, 'Motor über Nennleistung am Berg');
   assert.ok(motorW(ent) <= 250 + 1e-6, 'entspannt bleibt bei der Nennleistung');
   assert.ok(voll.eigenleistung_w > ent.eigenleistung_w || voll.v_ms > ent.v_ms, 'volle Power fährt schneller oder tritt mehr');
-  assert.ok(voll.wh_pro_km < ent.wh_pro_km, 'volle Power verbraucht weniger Akku je km');
+  assert.ok(voll.akku_leistung_w > ent.akku_leistung_w, 'volle Power zieht mehr Strom aus dem Akku');
 });
 
 test('Eigenleistung-Modus wirkt nicht auf der Ebene', () => {

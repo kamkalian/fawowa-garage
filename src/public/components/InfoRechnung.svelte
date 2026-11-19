@@ -59,8 +59,8 @@
       'Rider (default 75 kg), bike, trailer with empty weight and luggage. If a value is missing, a default is used and named in the result.'
     )}</li>
     <li><strong>{p('Fahrweise', 'Riding style')}</strong>: {p(
-      'Gemütlich oder sportlich. Dazu die Reisegeschwindigkeit, die eigene Tretleistung (höchstens so viel, wie der Fahrer schafft) und die Unterstützung: das Verhältnis von Motor- zu Eigenleistung (Eco 1,0, Tour 1,5, Sport 2,0). Der Motor unterstützt nur bis 25 km/h.',
-      'Relaxed or sporty. Plus the cruising speed, the own pedalling power (at most what the rider manages) and the assistance: the ratio of motor to own power (Eco 1.0, Tour 1.5, Sport 2.0). The motor assists only up to 25 km/h.'
+      'Gemütlich oder sportlich. Dazu die Reisegeschwindigkeit, die eigene Tretleistung (höchstens so viel, wie der Fahrer schafft) und die Unterstützung: das Verhältnis von Motor- zu Eigenleistung (Eco 1,0, Tour 1,5, Sport 2,0). Am Berg tritt der Fahrer mit seiner Kraft (je nach Modus Entspannt oder Volle Power) und der Motor deckt den Rest bis zu seiner Grenze. Der Motor unterstützt nur bis 25 km/h.',
+      'Relaxed or sporty. Plus the cruising speed, the own pedalling power (at most what the rider manages) and the assistance: the ratio of motor to own power on the flat (Eco 1.0, Tour 1.5, Sport 2.0). On climbs the rider pedals with his strength (Relaxed or Full power) and the motor covers the rest up to its limit. The motor assists only up to 25 km/h.'
     )}</li>
     <li><strong>{p('Eigenleistung bei Steigungen', 'Own power on climbs')}</strong>: {p(
       'Entspannt: der Motor trägt am Berg mehr, der Fahrer tritt höchstens 60 % seiner Höchstleistung, der Motor bleibt bei seiner Nennleistung (250 W). Volle Power: der Fahrer tritt wie eingestellt, der Motor darf kurzzeitig bis zu seiner Spitze (450 W) helfen. Das gilt nur auf Steigungen.',
