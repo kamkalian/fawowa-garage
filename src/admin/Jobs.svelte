@@ -37,6 +37,8 @@
   const einspielen = (p) => tun(() => api('POST', '/jobs/paket', { ordner: p.ordner }));
   // Ein Paket ist eingespielt, wenn Art und Version dem Stand entsprechen
   const eingespielt = (p) => stand?.stand?.[p.art]?.version === p.version;
+  // Ob ein Auftrag dieser Art wartet oder läuft; dann ist der Knopf gesperrt
+  const aktiv = (art) => (stand?.jobs ?? []).some(j => j.art === art && (j.status === 'wartet' || j.status === 'laeuft'));
   // Laufende und wartende Aufträge für die Anzeige oben
   const laufend = $derived((stand?.jobs ?? []).filter(j => j.status === 'laeuft' || j.status === 'wartet'));
 
