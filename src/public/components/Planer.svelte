@@ -44,7 +44,7 @@
 
   let stil = $state('gemuetlich');
   let e = $state({
-    akku_rest_prozent: 100, zusatz_rest_prozent: null, fahrtzeit_h: 3, reserve_prozent: 5, akku_staende: {},
+    akku_rest_prozent: 100, zusatz_rest_prozent: null, fahrtzeit_h: 3, reserve_prozent: 5, akku_staende: {}, eigenleistung_modus: 'entspannt',
     ...STIL.gemuetlich,
     wind_ms: 0, wind_richtung_grad: 270, einstrahlung_w_m2: 0, temperatur_c: 15, hoehe_m: 100, oberflaeche: 1
   });
@@ -402,6 +402,17 @@
             </fieldset>
 
             <fieldset>
+              <label for="p-modus">{t(lang, 'p_modus')}: <strong>{e.eigenleistung_modus === 'volle_power' ? t(lang, 'p_modusVolle') : t(lang, 'p_modusEntspannt')}</strong></label>
+              <div class="modus-regler">
+                <span>{t(lang, 'p_modusEntspannt')}</span>
+                <input id="p-modus" type="range" min="0" max="1" step="1" value={e.eigenleistung_modus === 'volle_power' ? 1 : 0}
+                  oninput={(ev) => { e.eigenleistung_modus = Number(ev.currentTarget.value) === 1 ? 'volle_power' : 'entspannt'; }} />
+                <span>{t(lang, 'p_modusVolle')}</span>
+              </div>
+              <p class="notiz">{t(lang, 'p_modusHinweis')}</p>
+            </fieldset>
+
+            <fieldset>
               <legend>{t(lang, 'p_wetter')}</legend>
               <label for="p-wind">{t(lang, 'p_wind')}: <strong>{e.wind_ms} m/s</strong> <span class="notiz">({windKmh} km/h)</span></label>
               <input id="p-wind" type="range" min="0" max={EINSTELLUNGEN_GRENZEN.wind_ms[1]} step="0.5" bind:value={e.wind_ms} />
@@ -514,6 +525,8 @@
 {/if}
 
 <style>
+  .modus-regler { display: flex; align-items: center; gap: .5rem; }
+  .modus-regler input { flex: 1; }
   /* Vollbild: die Seite darunter wird nicht mehr gescrollt, solange der Planer offen ist */
   :global(html.planer-offen), :global(html.planer-offen body) { overflow: hidden; }
 

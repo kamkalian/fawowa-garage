@@ -59,8 +59,12 @@
       'Rider (default 75 kg), bike, trailer with empty weight and luggage. If a value is missing, a default is used and named in the result.'
     )}</li>
     <li><strong>{p('Fahrweise', 'Riding style')}</strong>: {p(
-      'Gemütlich oder sportlich. Dazu die Reisegeschwindigkeit, die eigene Tretleistung (höchstens so viel, wie der Fahrer schafft) und die Unterstützung: das Verhältnis von Motor- zu Eigenleistung (Eco 1,0, Tour 1,5, Sport 2,0). Der Motor unterstützt nur bis zu seiner Nennleistung (250 W) und bis 25 km/h.',
-      'Relaxed or sporty. Plus the cruising speed, the own pedalling power (at most what the rider manages) and the assistance: the ratio of motor to own power (Eco 1.0, Tour 1.5, Sport 2.0). The motor assists only up to its rated power (250 W) and up to 25 km/h.'
+      'Gemütlich oder sportlich. Dazu die Reisegeschwindigkeit, die eigene Tretleistung (höchstens so viel, wie der Fahrer schafft) und die Unterstützung: das Verhältnis von Motor- zu Eigenleistung (Eco 1,0, Tour 1,5, Sport 2,0). Der Motor unterstützt nur bis 25 km/h.',
+      'Relaxed or sporty. Plus the cruising speed, the own pedalling power (at most what the rider manages) and the assistance: the ratio of motor to own power (Eco 1.0, Tour 1.5, Sport 2.0). The motor assists only up to 25 km/h.'
+    )}</li>
+    <li><strong>{p('Eigenleistung bei Steigungen', 'Own power on climbs')}</strong>: {p(
+      'Entspannt: der Motor trägt am Berg mehr, der Fahrer tritt höchstens 60 % seiner Höchstleistung, der Motor bleibt bei seiner Nennleistung (250 W). Volle Power: der Fahrer tritt wie eingestellt, der Motor darf kurzzeitig bis zu seiner Spitze (450 W) helfen. Das gilt nur auf Steigungen.',
+      'Relaxed: the motor carries more on climbs, the rider pedals at most 60 % of their maximum, the motor stays at its rated 250 W. Full power: the rider pedals as set, the motor may briefly help up to its peak (450 W). This applies only on climbs.'
     )}</li>
     <li><strong>{p('Motor, Schaltung, Akku', 'Motor, gears, battery')}</strong>: {p(
       'Wirkungsgrade: Mittelmotor 80 %, Nabenmotor 75 %, Kette 95 %, Akkuentladung 95 %. Die Akkus des Gespanns werden addiert. Die Reserve bleibt unangetastet. Ein Ersatzakku wird nur gerechnet, wenn er im Gespann eingetragen ist.',
