@@ -8,16 +8,44 @@
   // Motoren und Akkus eines Fahrrads oder Anhängers als Listen; beliebig viele. Die Werte gehören dem umgebenden Formular.
   let { lang, motoren = $bindable([]), akkus = $bindable([]) } = $props();
 
-  // Index des Akkus, für den der Assistent offen ist (null: zu)
+  // Index des Akkus, für den der Assistent offen ist (null: zu); neu: der Akku wurde gerade angelegt und wird beim Abbrechen entfernt
   let assistent = $state(null);
+  let neu = $state(false);
+
   // Kurzinfo unter dem Akku: Chemie, Zellen, Abschaltung, Dauerstrom
   function akkuInfo(a) {
+    if (!a.zellen_s && !a.chemie) return pick({ de: 'Angaben fehlen: Assistent öffnen', en: 'Details missing: open the wizard' }, lang);
     const teile = [a.chemie ? AKKU_CHEMIE[a.chemie]?.name : pick({ de: 'Chemie unbekannt', en: 'Chemistry unknown' }, lang)];
     if (a.zellen_s) teile.push(`${a.zellen_s}s${a.zellen_p ?? 1}p`);
     if (a.schluss_v) teile.push(`${pick({ de: 'Abschaltung', en: 'cut-off' }, lang)} ${a.schluss_v} V`);
     if (a.max_strom_a) teile.push(`${a.max_strom_a} A`);
     return teile.join(' · ');
   }
+
+  const LEER_AKKU = () => ({ kapazitaet_wh: null, spannung_v: null, chemie: null, zellen_s: null, zellen_p: null, ah: null, schluss_v: null, max_strom_a: null });
+
+  /** Neuer Akku: legt ihn an und öffnet direkt den Assistenten */
+  function neuerAkku() {
+    akkus = [...akkus, LEER_AKKU()];
+    assistent = akkus.length - 1;
+    neu = true;
+  }
+  function bearbeiten(i) {
+    assistent = i;
+    neu = false;
+  }
+  function uebernehmen(werte) {
+    akkus[assistent] = { ...akkus[assistent], ...werte };
+    assistent = null;
+    neu = false;
+  }
+  /** Schließen ohne Übernehmen; ein gerade angelegter Akku entfällt wieder */
+  function schliessen() {
+    if (neu && assistent !== null) akkus = akkus.filter((_, k) => k !== assistent);
+    assistent = null;
+    neu = false;
+  }
+
   const GETRIEBE = [
     { wert: 'getriebe', de: 'Mit Getriebe', en: 'Geared' },
     { wert: 'direkt', de: 'Direktläufer', en: 'Direct drive' }
@@ -55,31 +83,33 @@
   </button>
 
   <h4 class="abschnitt">{pick({ de: 'Akkus', en: 'Batteries' }, lang)}</h4>
-  {#each akkus as a, i (i)}
-    <div class="reihe akku">
-      <input class="input" type="number" min="1" max="10000" step="1" inputmode="numeric"
-        aria-label={pick({ de: 'Kapazität in Wh', en: 'Capacity in Wh' }, lang)} placeholder="Wh" bind:value={a.kapazitaet_wh} />
-      <input class="input" type="number" min="1" max="1000" step="1" inputmode="numeric"
-        aria-label={pick({ de: 'Spannung in Volt', en: 'Voltage in volts' }, lang)} placeholder="V" bind:value={a.spannung_v} />
-      <button type="button" class="btn btn-outline btn-sm" onclick={() => (assistent = i)}>
-        {pick({ de: 'Assistent', en: 'Wizard' }, lang)}
-      </button>
-      <button type="button" class="btn btn-ghost btn-sm" onclick={() => (akkus = akkus.filter((_, k) => k !== i))}>
-        {pick({ de: 'Entfernen', en: 'Remove' }, lang)}
-      </button>
-    </div>
-    {#if a.chemie || a.zellen_s}
-      <p class="akku-info">{akkuInfo(a)}</p>
-    {/if}
-  {/each}
-  <button type="button" class="btn btn-outline btn-sm" onclick={() => (akkus = [...akkus, { kapazitaet_wh: null, spannung_v: null, chemie: null, zellen_s: null, zellen_p: null, ah: null, schluss_v: null, max_strom_a: null }])}>
-    {pick({ de: '+ Akku', en: '+ Battery' }, lang)}
-  </button>
+  <div class="akku-kacheln">
+    {#each akkus as a, i (i)}
+      <article class="akku-kachel">
+        <header class="kopf">
+          <strong>{pick({ de: 'Akku', en: 'Battery' }, lang)} {i + 1}</strong>
+        </header>
+        <p class="wert">{a.kapazitaet_wh ?? '–'} Wh · {a.spannung_v ?? '–'} V</p>
+        {#if a.ah}<p class="zeile">{a.ah} Ah</p>{/if}
+        <p class="zeile info">{akkuInfo(a)}</p>
+        <div class="aktionen">
+          <button type="button" class="btn btn-outline btn-sm" onclick={() => bearbeiten(i)}>
+            {pick({ de: 'Bearbeiten', en: 'Edit' }, lang)}
+          </button>
+          <button type="button" class="btn btn-ghost btn-sm" onclick={() => (akkus = akkus.filter((_, k) => k !== i))}>
+            {pick({ de: 'Entfernen', en: 'Remove' }, lang)}
+          </button>
+        </div>
+      </article>
+    {/each}
+    <button type="button" class="akku-kachel neu" onclick={neuerAkku}>
+      <span>+ {pick({ de: 'Akku', en: 'Battery' }, lang)}</span>
+    </button>
+  </div>
+
   {#if assistent !== null && akkus[assistent]}
-    <Fenster {lang} breit titel={pick({ de: 'Akku-Assistent', en: 'Battery wizard' }, lang)} onclose={() => (assistent = null)}>
-      <AkkuAssistent {lang} start={akkus[assistent]}
-        onfertig={(werte) => { akkus[assistent] = { ...akkus[assistent], ...werte }; assistent = null; }}
-        onabbrechen={() => (assistent = null)} />
+    <Fenster {lang} breit titel={pick({ de: 'Akku-Assistent', en: 'Battery wizard' }, lang)} onclose={schliessen}>
+      <AkkuAssistent {lang} start={akkus[assistent]} bearbeiten={!neu} onfertig={uebernehmen} onabbrechen={schliessen} />
     </Fenster>
   {/if}
 </div>
@@ -91,7 +121,12 @@
   .reihe { display: grid; gap: .5rem; align-items: center; }
   .kopf-reihe { grid-template-columns: minmax(0, 1fr) auto; }
   .werte { grid-template-columns: 1fr 1fr 1fr; }
-  .akku { grid-template-columns: 1fr 1fr auto auto; margin-bottom: .25rem; }
-  .akku-info { font-size: .75rem; color: var(--fg-muted); margin: 0 0 .5rem; }
+  .akku-kacheln { display: grid; grid-template-columns: repeat(auto-fill, minmax(11.5rem, 1fr)); gap: .5rem; }
+  .akku-kachel { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: .6rem; display: flex; flex-direction: column; gap: .2rem; background: var(--bg); min-width: 0; }
+  .akku-kachel .kopf { font-size: .875rem; }
+  .akku-kachel .wert { margin: 0; font-weight: 600; font-size: .9375rem; }
+  .akku-kachel .zeile { margin: 0; font-size: .8125rem; color: var(--fg-muted); overflow-wrap: anywhere; }
+  .akku-kachel .aktionen { display: flex; gap: .3rem; flex-wrap: wrap; margin-top: auto; padding-top: .4rem; }
+  .akku-kachel.neu { align-items: center; justify-content: center; border-style: dashed; cursor: pointer; color: var(--fg-muted); background: none; font: inherit; min-height: 7rem; }
   @media (max-width: 520px) { .werte { grid-template-columns: 1fr 1fr; } }
 </style>
