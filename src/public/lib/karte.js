@@ -211,15 +211,23 @@ export class Karte {
     const m = this.map;
     const z = this.zustand;
 
+    // Das Bild nur neu setzen, wenn sich das Raster ändert. Sonst lädt MapLibre bei jedem Aufruf (z. B. Routen leeren) das alte
+    // Bild erneut; kommt dieser Ladevorgang nach dem des neuen Rasters, überschreibt er dessen Lage auf der Karte.
     if (z.raster) {
-      if (m.getSource('waerme')) m.getSource('waerme').updateImage({ url: z.raster.url, coordinates: z.raster.koordinaten });
-      else {
+      if (m.getSource('waerme')) {
+        if (this._waermeUrl !== z.raster.url) {
+          m.getSource('waerme').updateImage({ url: z.raster.url, coordinates: z.raster.koordinaten });
+          this._waermeUrl = z.raster.url;
+        }
+      } else {
         m.addSource('waerme', { type: 'image', url: z.raster.url, coordinates: z.raster.koordinaten });
         m.addLayer({ id: 'waerme', type: 'raster', source: 'waerme', paint: { 'raster-opacity': 1, 'raster-fade-duration': 0, 'raster-resampling': 'nearest' } });
+        this._waermeUrl = z.raster.url;
       }
     } else if (m.getLayer('waerme')) {
       m.removeLayer('waerme');
       m.removeSource('waerme');
+      this._waermeUrl = null;
     }
 
     // Routen und 1-km-Punkte: Quellen anlegen oder aktualisieren; ohne Daten bleibt die Ebene leer
