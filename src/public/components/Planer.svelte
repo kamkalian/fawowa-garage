@@ -500,7 +500,7 @@
     <section class="karte-karte ergebnis" aria-label={t(lang, 'p_ergebnis')}>
       <div class="legende" aria-hidden="true"><span>0</span><span class="balken"></span><span>{budgetText}</span></div>
       <button type="button" class="info-knopf" onclick={() => (infoOffen = true)}>{t(lang, 'p_infoKnopf')}</button>
-      <p class="notiz">Punkte alle {SCHRITTE[schrittIdx].label}</p>
+      <p class="notiz">{t(lang, 'p_punkteAlle', SCHRITTE[schrittIdx].label)}</p>
       {#if massstab}
         <div class="maszstab"><span class="massbalken" style:width={`${massstab.px}px`}></span><span>{massstab.label}</span></div>
       {/if}
