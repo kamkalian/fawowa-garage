@@ -2,12 +2,22 @@
   import Fahrzeugbild from '../../shared/Fahrzeugbild.svelte';
   import { t, pick, zahlText } from '../lib/i18n.js';
   import Icon from '../../shared/Icon.svelte';
+  import { ARTEN } from '../../../lib/felder.js';
 
   // Stellplatz-Kachel (quadratisch, leicht transparent): Titel oben links, Gespann-Marke oben rechts; in der Mitte Foto oder Icon,
   // quadratisch und mittig; unten Knöpfe (Löschen, Gespann, Bearbeiten) und bei ungeprüften Einträgen das Ausrufezeichen.
   // Alle Abstände sind gleich groß (K): oben bis zum Titel, zwischen Titel und Bild, zwischen Bild und Knöpfen, unten.
   // Die Größe des Bildes ergibt sich aus der Kachelbreite (cqw), damit alles in die Kachel passt.
-  let { lang, art, eintrag, flach = false, imGespann = false, onedit, onGespann, onremove, foto = null } = $props();
+  let { lang, art, eintrag, flach = false, imGespann = false, onedit, onGespann, onremove, onpacken, foto = null } = $props();
+
+  // Packliste eines Gepäckstücks: Art, Gegenstände und wie viele schon gepackt sind
+  const typOptionen = ARTEN.gepaecke.felder.find((f) => f.key === 'typ')?.optionen ?? [];
+  const inhalt = $derived(eintrag.inhalt ?? []);
+  const gepacktAnzahl = $derived(inhalt.filter((p) => p.gepackt).length);
+  const typText = $derived.by(() => {
+    const o = typOptionen.find((x) => x.wert === eintrag.typ);
+    return o ? pick(o, lang) : '';
+  });
 
   const motoren = $derived(eintrag.motoren ?? []);
   const akkus = $derived(eintrag.akkus ?? []);
@@ -22,10 +32,21 @@
       {#if imGespann}<span class="badge badge-active gespann">{t(lang, 'inGespann')}</span>{/if}
     </div>
 
+    {#if art === 'gepaecke'}
+      <div class="packliste-rahmen">
+        <p class="pack-kopf">{[typText, inhalt.length ? `${gepacktAnzahl} / ${inhalt.length} ${pick({ de: 'gepackt', en: 'packed' }, lang)}` : pick({ de: 'Noch keine Gegenstände', en: 'No items yet' }, lang)].filter(Boolean).join(' · ')}</p>
+        <ul class="packliste">
+          {#each inhalt as p, i (i)}
+            <li><label><input type="checkbox" checked={p.gepackt} onchange={(e) => onpacken?.(i, e.currentTarget.checked)} /> <span class:erledigt={p.gepackt}>{p.name}</span></label></li>
+          {/each}
+        </ul>
+      </div>
+    {:else}
     <div class="bild">
       <!-- Fläche für Foto oder Icon: quadratisch, so groß wie der Platz zwischen Titel und Knöpfen erlaubt -->
       <Fahrzeugbild art={art} bauart={eintrag.bauart} aufbau={eintrag.aufbau} motor={art === 'fahrraeder' && motoren.length > 0} akku={akkus.length > 0} foto={foto} alt={eintrag.name} groesse="calc(100cqw - 5.75rem)" />
     </div>
+    {/if}
 
     <div class="fuss">
       {#if onGespann}
@@ -61,4 +82,9 @@
   .warn { position: relative; margin-left: auto; width: 1.5rem; height: 1.5rem; border-radius: 999px; background: #f59e0b; color: #fff; font-weight: 700; font-size: .875rem; display: flex; align-items: center; justify-content: center; cursor: help; flex-shrink: 0; }
   .tipp { display: none; position: absolute; right: 0; bottom: 130%; width: max-content; max-width: 16rem; background: var(--bg-card); color: var(--fg); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: .4rem .6rem; font-size: .75rem; font-weight: 400; line-height: 1.35; box-shadow: 0 4px 12px rgba(0, 0, 0, .15); z-index: 5; }
   .warn:hover .tipp { display: block; }
+  .packliste-rahmen { flex: 1 1 auto; min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: .3rem; }
+  .pack-kopf { font-size: .75rem; color: var(--fg-muted); margin: 0; }
+  .packliste { list-style: none; margin: 0; padding: 0; display: grid; gap: .2rem; font-size: .85rem; }
+  .packliste label { display: flex; gap: .4rem; align-items: center; cursor: pointer; }
+  .erledigt { text-decoration: line-through; color: var(--fg-muted); }
 </style>

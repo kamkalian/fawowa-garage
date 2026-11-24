@@ -115,14 +115,29 @@
       ? await api.eintragAendern(token, art, eintrag.id, werte)
       : await api.eintragAnlegen(token, art, werte);
     // Gepäck hat keine Motoren und Akkus
-    const antrieb = art === 'gepaecke' ? { motoren: [], akkus: [] } : await api.antriebSetzen(token, art, neu.id, antriebe);
+    const antrieb = art === 'gepaecke'
+      ? { motoren: [], akkus: [], inhalt: await api.gepaeckInhaltSetzen(token, neu.id, antriebe?.inhalt ?? []) }
+      : await api.antriebSetzen(token, art, neu.id, antriebe);
     // Die Serverantwort enthält keine Motoren, Akkus und keine Fotoangabe: die bisherigen Werte bleiben erhalten
-    const eintragNeu = { ...neu, motoren: antrieb.motoren, akkus: antrieb.akkus };
+    const eintragNeu = { ...neu, motoren: antrieb.motoren, akkus: antrieb.akkus, inhalt: antrieb.inhalt ?? [] };
     daten[art] = eintrag
       ? daten[art].map(x => (x.id === neu.id ? { ...x, ...eintragNeu } : x))
       : [...daten[art], { foto_vorhanden: false, ...eintragNeu }];
     form = null;
     melde(t(lang, 'saved'));
+  }
+
+  /** Häkchen einer Packliste: der neue Stand wird gleich gespeichert */
+  async function packeGegenstand(f, index, gepackt) {
+    const liste = f.e.inhalt.map((p, i) => (i === index ? { ...p, gepackt } : p));
+    const setze = (werte) => { daten[f.art] = daten[f.art].map((x) => (x.id === f.e.id ? { ...x, inhalt: werte } : x)); };
+    setze(liste);
+    try {
+      setze(await api.gepaeckInhaltSetzen(token, f.e.id, liste.map((p) => ({ name: p.name, gepackt: p.gepackt }))));
+    } catch (e) {
+      if (e.status === 401) onungueltig();
+      else melde(t(lang, 'e_allgemein'));
+    }
   }
 
   // --- Drag and Drop (HTML5): Kacheln neu anordnen ---
@@ -315,7 +330,8 @@
           ondragover={(e) => ueberKachel(e, schluessel(f))} ondrop={(e) => ablegenKachel(e, f)}>
           <EintragKarte {lang} art={f.art} eintrag={f.e} imGespann={imInGespann(f.art, f.e)} foto={fotos[schluessel(f)] ?? null}
             onGespann={() => umschalten(f)}
-            onedit={() => (form = { art: f.art, eintrag: f.e })} />
+            onedit={() => (form = { art: f.art, eintrag: f.e })}
+            onpacken={(i, gepackt) => packeGegenstand(f, i, gepackt)} />
         </div>
       {/each}
       <div class="plus-wrap" role="listitem" ondragover={(e) => ueberKachel(e, 'ende')} ondrop={(e) => ablegenKachel(e, null)}>

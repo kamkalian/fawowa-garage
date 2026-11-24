@@ -247,6 +247,14 @@ export class FakeSpeicher {
     return this.alles(garageId);
   }
 
+  // Packliste eines Gepäckstücks: wie in der Datenbank, nur im Speicher
+  async gepaeckInhaltSetzen(garageId, id, inhalt) {
+    const zeile = this.daten.gepaecke?.find(z => z.id === id && z.garage_id === garageId);
+    if (!zeile) return undefined;
+    zeile.inhalt = inhalt.map(p => ({ id: this.naechsteId++, name: p.name, gepackt: !!p.gepackt }));
+    return zeile.inhalt;
+  }
+
   async antriebSetzen(garageId, art, id, { motoren, akkus }) {
     const zeile = this.daten[art]?.find(z => z.id === id && z.garage_id === garageId);
     if (!zeile) return undefined;

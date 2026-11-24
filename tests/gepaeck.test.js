@@ -16,6 +16,22 @@ test('Gepäck: Kachel anlegen, dem Gespann zuordnen', async () => {
   } finally { await s.schliessen(); }
 });
 
+test('Gepäck: Art und Packliste speichern, Häkchen bleiben erhalten', async () => {
+  const s = await starteTestServer();
+  try {
+    const token = (await s.anfrage('POST', '/api/v1/garagen', { body: { fahrer_name: 'Anja' } })).json.token;
+    const g = await s.anfrage('POST', '/api/v1/garage/gepaecke', { token, body: { name: 'Lenkertasche rot', typ: 'lenkertasche' } });
+    assert.equal(g.status, 201);
+    assert.equal(g.json.typ, 'lenkertasche');
+    const url = '/api/v1/garage/gepaecke/' + g.json.id + '/inhalt';
+    const p = await s.anfrage('PUT', url, { token, body: { inhalt: [{ name: 'Regenjacke', gepackt: false }, { name: 'Ladegerät', gepackt: true }] } });
+    assert.equal(p.status, 200);
+    assert.deepEqual(p.json.map((x) => [x.name, x.gepackt]), [['Regenjacke', false], ['Ladegerät', true]]);
+    const kaputt = await s.anfrage('PUT', url, { token, body: { inhalt: [{ name: '', gepackt: true }] } });
+    assert.equal(kaputt.status, 400);
+  } finally { await s.schliessen(); }
+});
+
 test('Gespann: Zuladung ist die Summe der Gepäck-Kacheln im Gespann', () => {
   const rad = { id: 1, name: 'Rad', gewicht_kg: 20, motoren: [], akkus: [] };
   const gepaecke = [{ id: 7, gewicht_kg: 12.5 }, { id: 8, gewicht_kg: 4 }, { id: 9, gewicht_kg: 100 }];
