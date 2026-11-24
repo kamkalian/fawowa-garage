@@ -50,16 +50,6 @@
     return t(lang, `v_${code}`, grenze, f.einheit ?? '');
   }
 
-  // Packliste (nur Gepäck): die Gegenstände dieses Gepäckstücks
-  let inhalt = $state((eintrag?.inhalt ?? []).map((p) => ({ name: p.name, gepackt: !!p.gepackt })));
-  let neuerGegenstand = $state('');
-  function gegenstandHinzu() {
-    const name = neuerGegenstand.trim();
-    if (!name) return;
-    inhalt = [...inhalt, { name, gepackt: false }];
-    neuerGegenstand = '';
-  }
-
   async function senden(e) {
     e.preventDefault();
     laeuft = true;
@@ -68,8 +58,7 @@
     try {
       await onsave({ ...werte }, {
         motoren: motoren.map(m => ({ motor_art: m.motor_art, leistung_w: m.leistung_w === '' ? null : m.leistung_w, spannung_v: m.spannung_v === '' ? null : m.spannung_v, getriebe: m.getriebe || null })),
-        akkus: akkus.map(a => ({ kapazitaet_wh: a.kapazitaet_wh, spannung_v: a.spannung_v === '' ? null : a.spannung_v, chemie: a.chemie || null, zellen_s: a.zellen_s ?? null, zellen_p: a.zellen_p ?? null, ah: a.ah ?? null, schluss_v: a.schluss_v ?? null, max_strom_a: a.max_strom_a ?? null })),
-        inhalt: inhalt.map((p) => ({ name: p.name, gepackt: p.gepackt }))
+        akkus: akkus.map(a => ({ kapazitaet_wh: a.kapazitaet_wh, spannung_v: a.spannung_v === '' ? null : a.spannung_v, chemie: a.chemie || null, zellen_s: a.zellen_s ?? null, zellen_p: a.zellen_p ?? null, ah: a.ah ?? null, schluss_v: a.schluss_v ?? null, max_strom_a: a.max_strom_a ?? null }))
       });
     } catch (err) {
       if (err instanceof ApiFehler && err.felder) fehler = err.felder;
@@ -141,22 +130,6 @@
       <fieldset>
         <legend>{pick({ de: 'Motor & Akku', en: 'Motor & battery' }, lang)}</legend>
         <AntriebEditor {lang} bind:motoren bind:akkus />
-      </fieldset>
-    {:else}
-      <fieldset>
-        <legend>{pick({ de: 'Packliste', en: 'Packing list' }, lang)}</legend>
-        <p class="notiz">{pick({ de: 'Was in diesem Gepäckstück steckt. Im Gespann lässt sich beim Packen jeder Gegenstand abhaken.', en: 'What is in this piece of luggage. When packing you can tick off each item.' }, lang)}</p>
-        {#each inhalt as p, i (i)}
-          <div class="zeile-gegen">
-            <input class="input" type="text" maxlength="80" aria-label={pick({ de: 'Gegenstand', en: 'Item' }, lang)} bind:value={p.name} />
-            <button type="button" class="btn btn-ghost btn-sm" onclick={() => (inhalt = inhalt.filter((_, k) => k !== i))}>{pick({ de: 'Entfernen', en: 'Remove' }, lang)}</button>
-          </div>
-        {/each}
-        <div class="zeile-gegen">
-          <input class="input" type="text" maxlength="80" placeholder={pick({ de: 'z. B. Regenjacke', en: 'e.g. rain jacket' }, lang)} bind:value={neuerGegenstand}
-            onkeydown={(e) => { if (e.key === 'Enter') { e.preventDefault(); gegenstandHinzu(); } }} />
-          <button type="button" class="btn btn-outline btn-sm" onclick={gegenstandHinzu}>{pick({ de: '+ Gegenstand', en: '+ Item' }, lang)}</button>
-        </div>
       </fieldset>
     {/if}
 

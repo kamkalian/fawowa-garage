@@ -2,27 +2,17 @@
   import Fahrzeugbild from '../../shared/Fahrzeugbild.svelte';
   import { t, pick, zahlText } from '../lib/i18n.js';
   import Icon from '../../shared/Icon.svelte';
-  import { ARTEN } from '../../../lib/felder.js';
 
   // Stellplatz-Kachel (quadratisch, leicht transparent): Titel oben links, Gespann-Marke oben rechts; in der Mitte Foto oder Icon,
   // quadratisch und mittig; unten Knöpfe (Löschen, Gespann, Bearbeiten) und bei ungeprüften Einträgen das Ausrufezeichen.
   // Alle Abstände sind gleich groß (K): oben bis zum Titel, zwischen Titel und Bild, zwischen Bild und Knöpfen, unten.
   // Die Größe des Bildes ergibt sich aus der Kachelbreite (cqw), damit alles in die Kachel passt.
-  let { lang, art, eintrag, flach = false, imGespann = false, onedit, onGespann, onremove, onpacken, foto = null } = $props();
+  let { lang, art, eintrag, flach = false, imGespann = false, onedit, onGespann, onremove, onoeffnen, foto = null } = $props();
 
-  // Packliste eines Gepäckstücks: Art, Gegenstände und wie viele schon gepackt sind
-  const typOptionen = ARTEN.gepaecke.felder.find((f) => f.key === 'typ')?.optionen ?? [];
-  const inhalt = $derived(eintrag.inhalt ?? []);
-  const gepacktAnzahl = $derived(inhalt.filter((p) => p.gepackt).length);
-  const typText = $derived.by(() => {
-    const o = typOptionen.find((x) => x.wert === eintrag.typ);
-    return o ? pick(o, lang) : '';
-  });
-
-  const motoren = $derived(eintrag.motoren ?? []);
-  const akkus = $derived(eintrag.akkus ?? []);
-  const ungeprueft = $derived(eintrag.status !== 'geprueft');
-  const gepaeck = $derived(art === 'gepaecke' && eintrag.gewicht_kg != null);
+  // Gepäck: Übersicht über Taschen und Gegenstände
+  const taschen = $derived(eintrag.taschen ?? []);
+  const gegenstaende = $derived(taschen.reduce((n, x) => n + x.gegenstaende.length, 0));
+  const gepacktAnzahl = $derived(taschen.reduce((n, x) => n + x.gegenstaende.filter((g) => g.gepackt).length, 0));
 </script>
 
 <article class:card={!flach}>
@@ -33,13 +23,12 @@
     </div>
 
     {#if art === 'gepaecke'}
-      <div class="packliste-rahmen">
-        <p class="pack-kopf">{[typText, inhalt.length ? `${gepacktAnzahl} / ${inhalt.length} ${pick({ de: 'gepackt', en: 'packed' }, lang)}` : pick({ de: 'Noch keine Gegenstände', en: 'No items yet' }, lang)].filter(Boolean).join(' · ')}</p>
-        <ul class="packliste">
-          {#each inhalt as p, i (i)}
-            <li><label><input type="checkbox" checked={p.gepackt} onchange={(e) => onpacken?.(i, e.currentTarget.checked)} /> <span class:erledigt={p.gepackt}>{p.name}</span></label></li>
-          {/each}
-        </ul>
+      <div class="gepaeck-info">
+        <p class="pack-kopf">{taschen.length} {pick({ de: taschen.length === 1 ? 'Tasche' : 'Taschen', en: taschen.length === 1 ? 'bag' : 'bags' }, lang)} · {gegenstaende} {pick({ de: 'Gegenstände', en: 'items' }, lang)}</p>
+        <p class="pack-kopf">{gepacktAnzahl} / {gegenstaende} {pick({ de: 'gepackt', en: 'packed' }, lang)}</p>
+        {#if onoeffnen}
+          <button type="button" class="btn btn-primary btn-sm inventar-knopf" onclick={onoeffnen}>{pick({ de: 'Inventar öffnen', en: 'Open inventory' }, lang)}</button>
+        {/if}
       </div>
     {:else}
     <div class="bild">
@@ -82,6 +71,8 @@
   .warn { position: relative; margin-left: auto; width: 1.5rem; height: 1.5rem; border-radius: 999px; background: #f59e0b; color: #fff; font-weight: 700; font-size: .875rem; display: flex; align-items: center; justify-content: center; cursor: help; flex-shrink: 0; }
   .tipp { display: none; position: absolute; right: 0; bottom: 130%; width: max-content; max-width: 16rem; background: var(--bg-card); color: var(--fg); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: .4rem .6rem; font-size: .75rem; font-weight: 400; line-height: 1.35; box-shadow: 0 4px 12px rgba(0, 0, 0, .15); z-index: 5; }
   .warn:hover .tipp { display: block; }
+  .gepaeck-info { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: .4rem; align-items: flex-start; justify-content: center; }
+  .inventar-knopf { margin-top: .4rem; }
   .packliste-rahmen { flex: 1 1 auto; min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: .3rem; }
   .pack-kopf { font-size: .75rem; color: var(--fg-muted); margin: 0; }
   .packliste { list-style: none; margin: 0; padding: 0; display: grid; gap: .2rem; font-size: .85rem; }

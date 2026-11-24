@@ -7,6 +7,7 @@
   import * as api from '../lib/api.js';
   import EintragForm from './EintragForm.svelte';
   import EintragKarte from './EintragKarte.svelte';
+  import Inventar from './Inventar.svelte';
   import GarageRaum from './GarageRaum.svelte';
   import { portal } from '../lib/portal.js';
   import Fenster from './Fenster.svelte';
@@ -115,11 +116,9 @@
       ? await api.eintragAendern(token, art, eintrag.id, werte)
       : await api.eintragAnlegen(token, art, werte);
     // Gepäck hat keine Motoren und Akkus
-    const antrieb = art === 'gepaecke'
-      ? { motoren: [], akkus: [], inhalt: await api.gepaeckInhaltSetzen(token, neu.id, antriebe?.inhalt ?? []) }
-      : await api.antriebSetzen(token, art, neu.id, antriebe);
+    const antrieb = art === 'gepaecke' ? { motoren: [], akkus: [] } : await api.antriebSetzen(token, art, neu.id, antriebe);
     // Die Serverantwort enthält keine Motoren, Akkus und keine Fotoangabe: die bisherigen Werte bleiben erhalten
-    const eintragNeu = { ...neu, motoren: antrieb.motoren, akkus: antrieb.akkus, inhalt: antrieb.inhalt ?? [] };
+    const eintragNeu = { ...neu, motoren: antrieb.motoren, akkus: antrieb.akkus };
     daten[art] = eintrag
       ? daten[art].map(x => (x.id === neu.id ? { ...x, ...eintragNeu } : x))
       : [...daten[art], { foto_vorhanden: false, ...eintragNeu }];
@@ -127,18 +126,9 @@
     melde(t(lang, 'saved'));
   }
 
-  /** Häkchen einer Packliste: der neue Stand wird gleich gespeichert */
-  async function packeGegenstand(f, index, gepackt) {
-    const liste = f.e.inhalt.map((p, i) => (i === index ? { ...p, gepackt } : p));
-    const setze = (werte) => { daten[f.art] = daten[f.art].map((x) => (x.id === f.e.id ? { ...x, inhalt: werte } : x)); };
-    setze(liste);
-    try {
-      setze(await api.gepaeckInhaltSetzen(token, f.e.id, liste.map((p) => ({ name: p.name, gepackt: p.gepackt }))));
-    } catch (e) {
-      if (e.status === 401) onungueltig();
-      else melde(t(lang, 'e_allgemein'));
-    }
-  }
+  // Inventar eines Gepäcks: welches Gepäck gerade geöffnet ist
+  let inventarId = $state(null);
+  const inventarGepaeck = $derived(inventarId ? (daten.gepaecke ?? []).find((x) => x.id === inventarId) : null);
 
   // --- Drag and Drop (HTML5): Kacheln neu anordnen ---
   function ziehStart(e, f) {
@@ -323,6 +313,11 @@
   <GarageRaum {lang} kopf={profilKnopf}>
   <div class="stellplaetze">
     <input bind:this={fotoInput} type="file" accept="image/*" hidden onchange={fotoGewaehlt} />
+    {#if inventarGepaeck}
+      <Inventar {lang} {token} gepaeck={inventarGepaeck} {melde} {onungueltig}
+        onaktualisiert={(taschen) => { daten.gepaecke = daten.gepaecke.map((x) => (x.id === inventarGepaeck.id ? { ...x, taschen } : x)); }}
+        onschliessen={() => (inventarId = null)} />
+    {/if}
     <div class="liste" role="list">
       {#each fahrzeuge as f (schluessel(f))}
         <div class="kachel" role="listitem" draggable="true" class:gezogen={ziehend?.art === f.art && ziehend?.id === f.e.id} class:ziel={ziel === schluessel(f)}
@@ -331,7 +326,7 @@
           <EintragKarte {lang} art={f.art} eintrag={f.e} imGespann={imInGespann(f.art, f.e)} foto={fotos[schluessel(f)] ?? null}
             onGespann={() => umschalten(f)}
             onedit={() => (form = { art: f.art, eintrag: f.e })}
-            onpacken={(i, gepackt) => packeGegenstand(f, i, gepackt)} />
+            onoeffnen={f.art === 'gepaecke' ? () => (inventarId = f.e.id) : null} />
         </div>
       {/each}
       <div class="plus-wrap" role="listitem" ondragover={(e) => ueberKachel(e, 'ende')} ondrop={(e) => ablegenKachel(e, null)}>

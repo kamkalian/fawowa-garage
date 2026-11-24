@@ -16,19 +16,30 @@ test('Gepäck: Kachel anlegen, dem Gespann zuordnen', async () => {
   } finally { await s.schliessen(); }
 });
 
-test('Gepäck: Art und Packliste speichern, Häkchen bleiben erhalten', async () => {
+test('Gepäck: Taschen anlegen, Gegenstände hineinlegen, verschieben, abhaken, löschen', async () => {
   const s = await starteTestServer();
   try {
     const token = (await s.anfrage('POST', '/api/v1/garagen', { body: { fahrer_name: 'Anja' } })).json.token;
-    const g = await s.anfrage('POST', '/api/v1/garage/gepaecke', { token, body: { name: 'Lenkertasche rot', typ: 'lenkertasche' } });
+    const g = await s.anfrage('POST', '/api/v1/garage/gepaecke', { token, body: { name: 'Radreise' } });
     assert.equal(g.status, 201);
-    assert.equal(g.json.typ, 'lenkertasche');
-    const url = '/api/v1/garage/gepaecke/' + g.json.id + '/inhalt';
-    const p = await s.anfrage('PUT', url, { token, body: { inhalt: [{ name: 'Regenjacke', gepackt: false }, { name: 'Ladegerät', gepackt: true }] } });
-    assert.equal(p.status, 200);
-    assert.deepEqual(p.json.map((x) => [x.name, x.gepackt]), [['Regenjacke', false], ['Ladegerät', true]]);
-    const kaputt = await s.anfrage('PUT', url, { token, body: { inhalt: [{ name: '', gepackt: true }] } });
+    const vorne = await s.anfrage('POST', '/api/v1/garage/gepaecke/' + g.json.id + '/taschen', { token, body: { name: 'Lenkertasche', typ: 'lenkertasche' } });
+    assert.equal(vorne.status, 201);
+    assert.equal(vorne.json.typ, 'lenkertasche');
+    const hinten = await s.anfrage('POST', '/api/v1/garage/gepaecke/' + g.json.id + '/taschen', { token, body: { name: 'Gepäckträger', typ: 'gepaecktraeger' } });
+    const jacke = await s.anfrage('POST', '/api/v1/garage/taschen/' + vorne.json.id + '/gegenstaende', { token, body: { name: 'Regenjacke' } });
+    assert.equal(jacke.status, 201);
+    const verschoben = await s.anfrage('PUT', '/api/v1/garage/gegenstaende/' + jacke.json.id, { token, body: { taschenId: hinten.json.id } });
+    assert.equal(verschoben.status, 200);
+    const abgehakt = await s.anfrage('PUT', '/api/v1/garage/gegenstaende/' + jacke.json.id, { token, body: { gepackt: true } });
+    assert.equal(abgehakt.json.gepackt, true);
+    const liste = (await s.anfrage('GET', '/api/v1/garage', { token })).json.gepaecke.find(x => x.id === g.json.id);
+    assert.equal(liste.taschen.length, 2);
+    assert.deepEqual(liste.taschen.find(t => t.id === hinten.json.id).gegenstaende.map(x => [x.name, x.gepackt]), [['Regenjacke', true]]);
+    assert.equal(liste.taschen.find(t => t.id === vorne.json.id).gegenstaende.length, 0);
+    const kaputt = await s.anfrage('POST', '/api/v1/garage/taschen/' + vorne.json.id + '/gegenstaende', { token, body: { name: '' } });
     assert.equal(kaputt.status, 400);
+    assert.equal((await s.anfrage('DELETE', '/api/v1/garage/gegenstaende/' + jacke.json.id, { token })).status, 200);
+    assert.equal((await s.anfrage('DELETE', '/api/v1/garage/taschen/' + hinten.json.id, { token })).status, 200);
   } finally { await s.schliessen(); }
 });
 
