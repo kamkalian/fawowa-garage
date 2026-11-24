@@ -9,6 +9,11 @@
   // Die Größe des Bildes ergibt sich aus der Kachelbreite (cqw), damit alles in die Kachel passt.
   let { lang, art, eintrag, flach = false, imGespann = false, onedit, onGespann, onremove, onoeffnen, foto = null } = $props();
 
+  const motoren = $derived(eintrag.motoren ?? []);
+  const akkus = $derived(eintrag.akkus ?? []);
+  const ungeprueft = $derived(eintrag.status !== 'geprueft');
+  const gepaeck = $derived(art === 'gepaecke' && eintrag.gewicht_kg != null);
+
   // Gepäck: Übersicht über Taschen und Gegenstände
   const taschen = $derived(eintrag.taschen ?? []);
   const gegenstaende = $derived(taschen.reduce((n, x) => n + x.gegenstaende.length, 0));
