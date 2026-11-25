@@ -58,8 +58,8 @@
   const vorneZuHinten = $derived(sortiert.slice().reverse());
   // Platz des gerade gezogenen Eintrags in der Liste (-1, wenn nichts gezogen wird)
   const vonIndex = $derived(ziehEintrag ? vorneZuHinten.findIndex((x) => schluessel(x.f) === ziehEintrag) : -1);
-  // Die Zeile, auf deren Platz der Eintrag landen würde (umrandet); nichts, wenn er dort schon steht
-  const zielZeile = $derived(ziehEintrag && slot !== null && slot !== vonIndex && slot !== vonIndex + 1 ? Math.min(slot, vorneZuHinten.length - 1) : null);
+  // Höhe des leeren Feldes: so hoch wie der gezogene Eintrag
+  let platzHoehe = $state(40);
   // Hinweise unten rechts: erst nach einem Klick auf das i
   let infoOffen = $state(false);
 
@@ -138,6 +138,11 @@
     if (!listeZieht) return;
     if (!listeZieht.aktiv) {
       if (Math.abs(e.clientY - listeZieht.startY) < 5) return;
+      // Die Lage der Zeilen wird einmal beim Start gemerkt. Der leere Platz verschiebt die Zeilen danach;
+      // mit den gemerkten Lagen bleibt die Einfügestelle stabil (kein Flackern).
+      listeZieht.rechte = zeilenEl.map((el) => (el ? el.getBoundingClientRect() : null));
+      const von = vorneZuHinten.findIndex((x) => schluessel(x.f) === listeZieht.s);
+      platzHoehe = zeilenEl[von]?.offsetHeight ?? 40;
       listeZieht.aktiv = true;
       ziehEintrag = listeZieht.s;
       listeEl?.setPointerCapture?.(e.pointerId);
@@ -146,9 +151,8 @@
     const n = vorneZuHinten.length;
     let s = n;
     for (let k = 0; k < n; k++) {
-      const zeile = zeilenEl[k];
-      if (!zeile) continue;
-      const r = zeile.getBoundingClientRect();
+      const r = listeZieht.rechte[k];
+      if (!r) continue;
       if (e.clientY < r.top + r.height / 2) { s = k; break; }
     }
     slot = s;
@@ -232,7 +236,10 @@
           <p class="reihenfolge-hinweis">{pick({ de: 'Oben ist vorne. Zum Ordnen ziehen.', en: 'Top is in front. Drag to reorder.' }, lang)}</p>
           <ul class="liste" bind:this={listeEl} onpointermove={listeMove} onpointerup={listeUp} onpointercancel={listeAbbruch}>
             {#each vorneZuHinten as { f }, k (schluessel(f))}
-              <li class="zeile" class:gezogen={ziehEintrag === schluessel(f)} class:ziel={zielZeile === k} bind:this={zeilenEl[k]}
+              {#if ziehEintrag && slot === k}
+                <li class="platz" style="height: {platzHoehe}px;" aria-hidden="true"></li>
+              {/if}
+              <li class="zeile" class:gezogen={ziehEintrag === schluessel(f)} bind:this={zeilenEl[k]}
                 onpointerdown={(e) => listeDown(e, schluessel(f))}>
                 <button type="button" class="eintrag" class:markiert={markiert === schluessel(f)} aria-pressed={markiert === schluessel(f)}
                   onclick={() => { if (nachZiehen) { nachZiehen = false; return; } listeKlick(schluessel(f)); }}>
@@ -245,6 +252,9 @@
             {:else}
               <li class="leer">{pick({ de: 'Noch niemand im Gespann.', en: 'Nobody in the convoy yet.' }, lang)}</li>
             {/each}
+            {#if ziehEintrag && slot === vorneZuHinten.length}
+              <li class="platz" style="height: {platzHoehe}px;" aria-hidden="true"></li>
+            {/if}
           </ul>
 
           <!-- Hinweise: unten rechts, erst nach einem Klick auf das i -->
@@ -338,9 +348,10 @@
   .zeile { position: relative; display: flex; align-items: center; gap: .25rem; cursor: grab; border-radius: var(--radius-sm); transition: margin .15s; }
   /* Ziellinie: zeigt an, wohin der Eintrag beim Loslassen kommt (oberhalb des Ziels beim Hochziehen, unterhalb beim Runterziehen).
      Eine Linie statt eines Platzes, damit sich die Liste beim Ziehen nicht verschiebt. */
-  /* Beim Ziehen: der gezogene Eintrag wird blass, der Zielplatz umrandet (ohne die Liste zu verschieben) */
-  .zeile.gezogen { opacity: .4; }
-  .zeile.ziel { outline: 2px dashed var(--accent, #3b82f6); outline-offset: 2px; }
+  /* Beim Ziehen: der gezogene Eintrag wird aus der Liste genommen und an seiner Stelle ein leeres Feld gezeigt;
+     die Einträge darunter rutschen nach unten */
+  .zeile.gezogen { display: none; }
+  .platz { list-style: none; box-sizing: border-box; border: 2px dashed var(--accent, #3b82f6); border-radius: var(--radius-sm); background: transparent; }
   /* Hinweise unten rechts */
   .info-zeile { margin-top: auto; display: flex; flex-direction: column; align-items: flex-end; gap: .4rem; }
   .info-knopf { width: 1.7rem; height: 1.7rem; border-radius: 999px; border: 1px solid var(--border); background: var(--bg-card); color: var(--fg); font: inherit; font-weight: 600; font-style: italic; cursor: pointer; }
