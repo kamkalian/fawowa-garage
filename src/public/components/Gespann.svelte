@@ -99,24 +99,19 @@
   .flaeche.ueber { border-color: var(--accent, #3b82f6); box-shadow: 0 0 0 2px var(--accent, #3b82f6); }
   .element {
     position: absolute;
-    width: 112px;
-    height: 112px;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    background: var(--bg);
+    width: 96px;
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
-    gap: .3rem;
+    gap: .25rem;
     cursor: grab;
     user-select: none;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, .15);
   }
-  .element.zieht { cursor: grabbing; box-shadow: 0 6px 16px rgba(0, 0, 0, .3); }
-  /* Platzhalter für das Bild: die Icons kommen später */
-  .bild { width: 56px; height: 56px; border: 1px dashed var(--border); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: .8rem; color: var(--fg-muted); }
-  .beschriftung { font-size: .75rem; max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .entfernen { position: absolute; top: 2px; right: 4px; background: none; border: 0; color: var(--fg-muted); cursor: pointer; font: inherit; font-size: .8rem; padding: 0 .2rem; }
+  .element.zieht { cursor: grabbing; }
+  .element:hover .entfernen { opacity: 1; }
+  /* Platzhalter für das Icon: die Icons kommen später */
+  .bild { width: 64px; height: 64px; border-radius: 10px; background: var(--bg-card); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: .9rem; color: var(--fg-muted); }
+  .beschriftung { font-size: .7rem; color: var(--fg-muted); max-width: 96px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center; }
+  .entfernen { position: absolute; top: -4px; right: 4px; opacity: 0; transition: opacity .15s; background: var(--bg); border: 1px solid var(--border); border-radius: 999px; width: 18px; height: 18px; color: var(--fg-muted); cursor: pointer; font: inherit; font-size: .6rem; line-height: 1; padding: 0; }
   .hinweis { position: absolute; left: 16px; bottom: 12px; font-size: .875rem; color: var(--fg-muted); margin: 0; }
 </style>
