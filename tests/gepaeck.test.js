@@ -54,7 +54,7 @@ test('Gespann-Fläche: Position eines Gepäckstücks speichern und wieder laden'
     const ok = await s.anfrage('PUT', '/api/v1/garage/mitglied/position', { token, body: { art: 'gepaecke', id: g.json.id, x: 40, y: 60 } });
     assert.equal(ok.status, 200);
     const liste = (await s.anfrage('GET', '/api/v1/garage', { token })).json;
-    assert.deepEqual(liste.mitglieder.positionen['gepaecke-' + g.json.id], { x: 40, y: 60 });
+    assert.deepEqual(liste.mitglieder.positionen['gepaecke-' + g.json.id], { x: 40, y: 60, s: 1 });
     const kaputt = await s.anfrage('PUT', '/api/v1/garage/mitglied/position', { token, body: { art: 'gepaecke', id: g.json.id, x: -5, y: 60 } });
     assert.equal(kaputt.status, 400);
   } finally { await s.schliessen(); }

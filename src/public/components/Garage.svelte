@@ -73,11 +73,11 @@
   // Mitglieder des Gespanns für den Gespann-Bereich
   const gespannMitglieder = $derived(fahrzeuge.filter((f) => imInGespann(f.art, f.e)));
   // Position eines Gespann-Mitglieds auf der Fläche speichern und im Stand merken
-  async function gespannPosition(art, id, x, y) {
+  async function gespannPosition(art, id, x, y, skal) {
     // Sofort im Stand merken, damit das Element nicht zur alten Position zurückspringt; danach speichern
-    daten.mitglieder = { ...daten.mitglieder, positionen: { ...(daten.mitglieder?.positionen ?? {}), [art + '-' + id]: { x, y } } };
+    daten.mitglieder = { ...daten.mitglieder, positionen: { ...(daten.mitglieder?.positionen ?? {}), [art + '-' + id]: { x, y, s: skal } } };
     try {
-      await api.mitgliedPositionSetzen(token, art, id, x, y);
+      await api.mitgliedPositionSetzen(token, art, id, x, y, skal);
     } catch (e) {
       if (e.status === 401) onungueltig();
       else melde(fehlerMeldung(e), 'error');

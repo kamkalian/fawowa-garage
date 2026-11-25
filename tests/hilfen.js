@@ -297,11 +297,11 @@ export class FakeSpeicher {
     return { motoren: zeile.motoren, akkus: zeile.akkus };
   }
 
-  async mitgliedPositionSetzen(garageId, art, id, x, y) {
+  async mitgliedPositionSetzen(garageId, art, id, x, y, s) {
     const m = this._mitgliederVon(garageId);
     if (!m[art]?.has(id)) return false;
     m.positionen ??= new Map();
-    m.positionen.set(art + '-' + id, { x, y });
+    m.positionen.set(art + '-' + id, { x, y, s });
     return true;
   }
   _mitgliederVon(garageId) {
