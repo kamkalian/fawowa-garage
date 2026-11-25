@@ -1,7 +1,6 @@
 <script>
   import { pick } from '../lib/i18n.js';
   import Fahrzeugbild from '../../shared/Fahrzeugbild.svelte';
-  import { paarZu } from '../../shared/farben.js';
   import Fenster from './Fenster.svelte';
 
   // Gespann: eine kleine Vorschau der Anordnung. Ein Klick darauf öffnet die Fläche im modalen Fenster.
@@ -33,11 +32,13 @@
   const schluessel = (f) => f.art + '-' + f.e.id;
   const sWert = (v) => (typeof v === 'number' && v >= S_MIN && v <= S_MAX ? v : 1);
   const farbe = (f) => f.e.farbe ?? null;
-  // Hinterlegung des ausgewählten Elements: die andere Farbe des Farbpaares (auf hellem Grund die helle, auf dunklem die dunkle)
-  const gegenStil = (f) => {
-    const p = paarZu(farbe(f));
-    return p ? `--gegen-hell: ${p.hell}; --gegen-dunkel: ${p.dunkel};` : '';
-  };
+  // Erklärung unten rechts: was man tun kann
+  const ERKLAERUNG = [
+    { de: 'Klicke rechts einen Button an um das Element zu markieren.', en: 'Click a button on the right to mark the element.' },
+    { de: 'Verschiebe links das Element an die gewünschte Stelle.', en: 'Drag the element on the left to the place you want.' },
+    { de: 'Benutze die untere Ecke zum Ändern der Größe.', en: 'Use the bottom corner to change the size.' },
+    { de: 'Ändere links die Reihenfolge der Buttons um ein Element in den Vordergrund zu holen.', en: 'Change the order of the buttons to bring an element to the front.' }
+  ];
 
   // Lage eines Mitglieds: während des Ziehens, sonst gespeichert, sonst im Raster (vier pro Zeile); e = Ebene
   const lage = (f, i) => {
@@ -154,17 +155,10 @@
             {@const sel = markiert === s}
             {@const p = liste[indexVon(s)].p}
             <div class="element" class:markiert={sel} class:zieht={zieht?.schluessel === s}
-              style="left: {((live[s]?.x ?? p.x) / FLAECHE_B) * 100}%; top: {((live[s]?.y ?? p.y) / FLAECHE_H) * 100}%; --s: {p.s}; z-index: {p.e}; {gegenStil(f)}"
+              style="left: {((live[s]?.x ?? p.x) / FLAECHE_B) * 100}%; top: {((live[s]?.y ?? p.y) / FLAECHE_H) * 100}%; --s: {p.s}; z-index: {p.e};"
               onpointerdown={(e) => { if (sel) zeigerStart(e, f, 'bewegen'); }} role="group" aria-label={f.e.name}>
               <div class="icon">
                 <Fahrzeugbild art={f.art} bauart={f.e.bauart} aufbau={f.e.aufbau} motor={f.art === 'fahrraeder' && (f.e.motoren ?? []).length > 0} akku={(f.e.akkus ?? []).length > 0} alt={f.e.name} groesse="calc(64px * var(--s))" farbe={farbe(f)} />
-                {#if sel}
-                  <span class="verschieben-zeichen" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                      <path d="M12 2v20M2 12h20M12 2l-3 3M12 2l3 3M12 22l-3-3M12 22l3-3M2 12l3-3M2 12l3 3M22 12l-3-3M22 12l-3 3" />
-                    </svg>
-                  </span>
-                {/if}
               </div>
               <div class="beschriftung">{f.e.name}</div>
               {#if sel}
@@ -202,6 +196,13 @@
               </li>
             {:else}
               <li class="leer">{pick({ de: 'Noch niemand im Gespann.', en: 'Nobody in the convoy yet.' }, lang)}</li>
+            {/each}
+          </ul>
+
+          <!-- Erklärung unten rechts -->
+          <ul class="erklaerung">
+            {#each ERKLAERUNG as satz}
+              <li>{pick(satz, lang)}</li>
             {/each}
           </ul>
         </aside>
@@ -260,25 +261,19 @@
     user-select: none;
     cursor: default;
   }
-  /* Ausgewählt: ganzes Element ziehbar; hinterlegt in der anderen Farbe des Farbpaares */
-  .element.markiert {
-    --gegen: var(--gegen-hell, #3b82f6);
-    background: color-mix(in srgb, var(--gegen) 50%, transparent);
-    cursor: grab;
-  }
-  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .element.markiert { --gegen: var(--gegen-dunkel, #3b82f6); } }
-  :root[data-theme="dark"] .element.markiert { --gegen: var(--gegen-dunkel, #3b82f6); }
+  /* Ausgewählt: gestrichelter Rahmen; das ganze Element ist ziehbar */
+  .element.markiert { outline: 2px dashed var(--accent, #3b82f6); outline-offset: 3px; cursor: grab; }
   .element.zieht { cursor: grabbing; }
   .icon { position: relative; display: flex; align-items: center; justify-content: center; }
   .beschriftung { font-size: .7rem; color: var(--fg-muted); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center; }
-  /* Verschieben-Zeichen in der Mitte: groß, leicht transparent, kein Knopf */
-  .verschieben-zeichen { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); color: var(--fg); opacity: .7; pointer-events: none; filter: drop-shadow(0 0 2px var(--bg-card)); }
   /* Skalieren-Zeichen unten rechts */
   .skalieren { position: absolute; right: 0; bottom: 0; width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; border-radius: 4px; background: var(--bg-card); color: var(--fg); opacity: .85; cursor: nwse-resize; touch-action: none; }
   .hinweis { position: absolute; left: 16px; bottom: 12px; font-size: .875rem; color: var(--fg-muted); margin: 0; }
 
   /* Seite rechts: Liste der Mitglieder */
-  .seite { flex: 0 0 13rem; display: flex; flex-direction: column; gap: .4rem; }
+  .seite { flex: 0 0 13rem; align-self: stretch; display: flex; flex-direction: column; gap: .4rem; }
+  /* Erklärung unten rechts, als Aufzählung */
+  .erklaerung { list-style: disc; margin: auto 0 0; padding: .6rem 0 0 1.1rem; border-top: 1px solid var(--border); font-size: .75rem; color: var(--fg-muted); display: flex; flex-direction: column; gap: .3rem; }
   .seite h3 { font-size: .9375rem; margin: 0; }
   .reihenfolge-hinweis { font-size: .75rem; color: var(--fg-muted); margin: 0; }
   .liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .35rem; max-height: 22rem; overflow-y: auto; }
