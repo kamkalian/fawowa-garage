@@ -232,5 +232,5 @@
   .zuletzt { display: flex; flex-wrap: wrap; gap: .3rem; margin-top: .4rem; }
   .farbpunkt.verwendet { width: 1.1rem; height: 1.1rem; border-radius: 999px; border: 1px solid var(--border); }
   .farbpunkt.verwendet.aktiv { box-shadow: 0 0 0 2px var(--primary); }
-  @media (max-width: 520px) { .raster { grid-template-columns: 1fr; } .zeile { flex-direction: column; } .zeile > .feld:last-child { width: 100%; } }
+  @media (max-width: 520px) { .raster { grid-template-columns: 1fr; } .zeile { grid-template-columns: 1fr; } }
 </style>
