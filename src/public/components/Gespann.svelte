@@ -5,14 +5,22 @@
 
   // Gespann: eine feste Kachel mit der Überschrift „Gespann“ und einer Vorschau der Anordnung.
   // Ein Klick auf die Kachel öffnet die Fläche im modalen Fenster. Dort lassen sich die Icons verschieben und skalieren.
+  // Positionen sind in einem festen Koordinatensystem (FLAECHE_B × FLAECHE_H). Die Fläche und die Vorschau zeigen es im
+  // gleichen Seitenverhältnis, nur in unterschiedlicher Größe.
   let { lang, mitglieder = [], positionen = {}, ondrop, onentfernen, onposition } = $props();
+
+  const FLAECHE_B = 640;          // logische Breite der Fläche in Pixeln
+  const FLAECHE_H = 480;          // logische Höhe (Seitenverhältnis 4:3)
+  const VORSCHAU_B = 216;         // feste Größe der Vorschau
+  const VORSCHAU_H = 162;
+  const VORSCHAU = VORSCHAU_B / FLAECHE_B;   // Maßstab der Vorschau gegenüber der Fläche
+  const KACHEL = 96;              // Breite eines Elements bei Größe 1
 
   let offen = $state(false);
   let ueber = $state(false);      // eine Kachel wird von außen darübergezogen
-  let live = $state({});          // Lage während des Ziehens: { x, y, s }
-  let zieht = $state(null);       // { schluessel, f, modus: 'bewegen' | 'skalieren', px, py, ox, oy, os }
-  const KACHEL = 96;              // Breite eines Elements bei Größe 1
-  const VORSCHAU = 0.4;           // Maßstab der Vorschau gegenüber der Fläche
+  let breite = $state(FLAECHE_B); // gemessene Breite der Fläche am Bildschirm
+  let live = $state({});          // Lage während des Ziehens: { x, y, s } in logischen Pixeln
+  let zieht = $state(null);       // { schluessel, f, modus, px, py, ox, oy, os }
 
   const schluessel = (f) => f.art + '-' + f.e.id;
   const sWert = (v) => (typeof v === 'number' && v >= 0.5 && v <= 2 ? v : 1);
@@ -25,16 +33,14 @@
     return { x: 16 + (i % 4) * (KACHEL + 16), y: 16 + Math.floor(i / 4) * (KACHEL + 16), s: 1 };
   };
 
-  // Rahmen um alle Icons (Lage in Pixeln der Fläche): Grundlage der Vorschau
+  // Rahmen um alle Icons (in logischen Pixeln): wird in der Vorschau gezeigt, falls nötig
   const rahmen = $derived.by(() => {
     if (mitglieder.length === 0) return null;
-    const liste = mitglieder.map((f, i) => ({ f, p: lage(f, i) }));
-    const x0 = Math.min(...liste.map(({ p }) => p.x));
-    const y0 = Math.min(...liste.map(({ p }) => p.y));
-    const x1 = Math.max(...liste.map(({ p }) => p.x + KACHEL * p.s));
-    const y1 = Math.max(...liste.map(({ p }) => p.y + KACHEL * p.s));
-    return { liste, x0, y0, w: x1 - x0, h: y1 - y0 };
+    return { liste: mitglieder.map((f, i) => ({ f, p: lage(f, i) })) };
   });
+
+  // Bildschirmpixel → logische Pixel
+  const umrechnen = () => FLAECHE_B / breite;
 
   function zeigerStart(e, f, modus, i) {
     const { x, y, s } = lage(f, i);
@@ -43,10 +49,11 @@
   }
   function zeigerBewegen(e) {
     if (!zieht) return;
-    const dx = e.clientX - zieht.px;
-    const dy = e.clientY - zieht.py;
+    const k = umrechnen();
+    const dx = (e.clientX - zieht.px) * k;
+    const dy = (e.clientY - zieht.py) * k;
     if (zieht.modus === 'bewegen') {
-      live = { ...live, [zieht.schluessel]: { x: Math.max(0, zieht.ox + dx), y: Math.max(0, zieht.oy + dy), s: zieht.os } };
+      live = { ...live, [zieht.schluessel]: { x: Math.min(FLAECHE_B - 16, Math.max(0, zieht.ox + dx)), y: Math.min(FLAECHE_H - 16, Math.max(0, zieht.oy + dy)), s: zieht.os } };
     } else {
       const s = Math.min(2, Math.max(0.5, zieht.os + (dx + dy) / 200));
       live = { ...live, [zieht.schluessel]: { x: zieht.ox, y: zieht.oy, s: Math.round(s * 20) / 20 } };
@@ -64,6 +71,12 @@
       live = rest;
     }
   }
+
+  // Hängt das Fenster an den Seitenanfang, damit es über der Kopfleiste liegt
+  function insBodyHaengen(node) {
+    document.body.appendChild(node);
+    return { destroy() { node.remove(); } };
+  }
 </script>
 
 <button type="button" class="kachel" class:ueber aria-haspopup="dialog" onclick={() => (offen = true)}
@@ -71,15 +84,13 @@
   ondragleave={() => (ueber = false)}
   ondrop={(e) => { e.preventDefault(); ueber = false; ondrop?.(e); }}>
   <span class="kachel-titel">{pick({ de: 'Gespann', en: 'Convoy' }, lang)}</span>
-  <span class="kachel-vorschau">
+  <span class="vorschau" style="width: {VORSCHAU_B}px; height: {VORSCHAU_H}px;">
     {#if rahmen}
-      <span class="vorschau" style="width: {rahmen.w * VORSCHAU + 8}px; height: {rahmen.h * VORSCHAU + 8}px;">
-        {#each rahmen.liste as { f, p } (schluessel(f))}
-          <span class="mini" style="left: {(p.x - rahmen.x0) * VORSCHAU + 4}px; top: {(p.y - rahmen.y0) * VORSCHAU + 4}px; --s: {p.s * VORSCHAU};">
-            <Fahrzeugbild art={f.art} bauart={f.e.bauart} aufbau={f.e.aufbau} alt="" groesse="64px" />
-          </span>
-        {/each}
-      </span>
+      {#each rahmen.liste as { f, p } (schluessel(f))}
+        <span class="mini" style="left: {p.x * VORSCHAU}px; top: {p.y * VORSCHAU}px; --s: {p.s * VORSCHAU};">
+          <Fahrzeugbild art={f.art} bauart={f.e.bauart} aufbau={f.e.aufbau} alt="" groesse="64px" />
+        </span>
+      {/each}
     {:else}
       <span class="leer">{pick({ de: 'noch leer', en: 'empty' }, lang)}</span>
     {/if}
@@ -87,39 +98,43 @@
 </button>
 
 {#if offen}
-  <Fenster {lang} breit titel={pick({ de: 'Gespann', en: 'Convoy' }, lang)} onclose={() => (offen = false)}>
-    <div class="gespann">
-      <div class="flaeche" class:ablegen={zieht !== null || ueber} role="region" aria-label={pick({ de: 'Fläche für das Gespann', en: 'Area for the convoy' }, lang)}
-        ondragover={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; ueber = true; }}
-        ondragleave={() => (ueber = false)}
-        ondrop={(e) => { e.preventDefault(); ueber = false; ondrop?.(e); }}
-        ondragstart={(e) => e.preventDefault()}
-        onpointermove={zeigerBewegen} onpointerup={zeigerEnde} onpointercancel={zeigerEnde}>
-        {#each mitglieder as f, i (schluessel(f))}
-          {@const p = lage(f, i)}
-          <div class="element" class:zieht={zieht?.schluessel === schluessel(f)} style="left: {p.x}px; top: {p.y}px; --s: {p.s};"
-            onpointerdown={(e) => zeigerStart(e, f, 'bewegen', i)} role="group" aria-label={f.e.name}>
-            <div class="icon">
-              <Fahrzeugbild art={f.art} bauart={f.e.bauart} aufbau={f.e.aufbau} motor={f.art === 'fahrraeder' && (f.e.motoren ?? []).length > 0} akku={(f.e.akkus ?? []).length > 0} alt={f.e.name} groesse="calc(64px * var(--s))" />
+  <div use:insBodyHaengen>
+    <Fenster {lang} breit titel={pick({ de: 'Gespann', en: 'Convoy' }, lang)} onclose={() => (offen = false)}>
+      <div class="gespann">
+        <div class="flaeche" class:ablegen={zieht !== null || ueber} role="region" aria-label={pick({ de: 'Fläche für das Gespann', en: 'Area for the convoy' }, lang)}
+          bind:clientWidth={breite}
+          ondragover={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; ueber = true; }}
+          ondragleave={() => (ueber = false)}
+          ondrop={(e) => { e.preventDefault(); ueber = false; ondrop?.(e); }}
+          ondragstart={(e) => e.preventDefault()}
+          onpointermove={zeigerBewegen} onpointerup={zeigerEnde} onpointercancel={zeigerEnde}>
+          {#each mitglieder as f, i (schluessel(f))}
+            {@const p = lage(f, i)}
+            <div class="element" class:zieht={zieht?.schluessel === schluessel(f)}
+              style="left: {(p.x / FLAECHE_B) * 100}%; top: {(p.y / FLAECHE_H) * 100}%; --s: {p.s};"
+              onpointerdown={(e) => zeigerStart(e, f, 'bewegen', i)} role="group" aria-label={f.e.name}>
+              <div class="icon">
+                <Fahrzeugbild art={f.art} bauart={f.e.bauart} aufbau={f.e.aufbau} motor={f.art === 'fahrraeder' && (f.e.motoren ?? []).length > 0} akku={(f.e.akkus ?? []).length > 0} alt={f.e.name} groesse="calc(64px * var(--s))" />
+              </div>
+              <div class="beschriftung">{f.e.name}</div>
+              <button type="button" class="entfernen" aria-label={pick({ de: 'Aus dem Gespann nehmen', en: 'Remove from convoy' }, lang)}
+                onpointerdown={(e) => e.stopPropagation()} onclick={() => onentfernen?.(f)}>✕</button>
+              <span class="griff" aria-hidden="true" onpointerdown={(e) => { e.stopPropagation(); zeigerStart(e, f, 'skalieren', i); }}></span>
             </div>
-            <div class="beschriftung">{f.e.name}</div>
-            <button type="button" class="entfernen" aria-label={pick({ de: 'Aus dem Gespann nehmen', en: 'Remove from convoy' }, lang)}
-              onpointerdown={(e) => e.stopPropagation()} onclick={() => onentfernen?.(f)}>✕</button>
-            <span class="griff" aria-hidden="true" onpointerdown={(e) => { e.stopPropagation(); zeigerStart(e, f, 'skalieren', i); }}></span>
-          </div>
-        {:else}
-          <p class="hinweis">{pick({ de: 'Kachel hierher ziehen, um sie ins Gespann zu legen.', en: 'Drag a card here to add it to the convoy.' }, lang)}</p>
-        {/each}
+          {:else}
+            <p class="hinweis">{pick({ de: 'Kachel hierher ziehen, um sie ins Gespann zu legen.', en: 'Drag a card here to add it to the convoy.' }, lang)}</p>
+          {/each}
+        </div>
       </div>
-    </div>
-  </Fenster>
+    </Fenster>
+  </div>
 {/if}
 
 <style>
   /* Feste Kachel: Überschrift oben, Vorschau darunter */
   .kachel {
-    width: 14rem;
-    height: 11rem;
+    width: 16rem;
+    height: 14rem;
     display: flex;
     flex-direction: column;
     align-items: stretch;
@@ -137,19 +152,28 @@
   .kachel:hover { border-color: var(--accent, #3b82f6); }
   .kachel.ueber { border: 2px solid #22c55e; box-shadow: 0 0 0 2px rgba(34, 197, 94, .35); }
   .kachel-titel { font-weight: 600; font-size: .9375rem; }
-  .kachel-vorschau { flex: 1; display: flex; align-items: center; justify-content: center; min-height: 0; overflow: hidden; }
-  /* Vorschau: nur ein Rahmen in der Größe der Anordnung, darin verkleinerte Icons */
-  .vorschau { position: relative; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg); overflow: hidden; display: block; max-width: 100%; max-height: 100%; }
-  .leer { font-size: .8125rem; color: var(--fg-muted); }
+
+  /* Vorschau: feste Größe, im Seitenverhältnis der Fläche (4:3) */
+  .vorschau {
+    position: relative;
+    flex: none;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background-color: var(--bg);
+    background-image: linear-gradient(var(--border) 1px, transparent 1px), linear-gradient(90deg, var(--border) 1px, transparent 1px);
+    background-size: 12px 12px;
+    overflow: hidden;
+  }
+  .leer { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: .8125rem; color: var(--fg-muted); }
   .mini { position: absolute; transform-origin: top left; transform: scale(var(--s)); display: block; }
   .mini :global(img), .mini :global(svg), .element :global(img), .element :global(svg) { pointer-events: none; -webkit-user-drag: none; user-select: none; }
 
-  /* Im Fenster: die Fläche mit Raster */
+  /* Im Fenster: die Fläche im gleichen Seitenverhältnis (4:3) */
   .gespann { width: 100%; }
   .flaeche {
     position: relative;
-    height: 30rem;
-    max-width: 100%;
+    width: 100%;
+    aspect-ratio: 4 / 3;
     overflow: hidden;
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
