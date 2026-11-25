@@ -60,8 +60,6 @@
   const vonIndex = $derived(ziehEintrag ? vorneZuHinten.findIndex((x) => schluessel(x.f) === ziehEintrag) : -1);
   // Höhe des leeren Feldes: so hoch wie der gezogene Eintrag
   let platzHoehe = $state(40);
-  // Hinweise unten rechts: erst nach einem Klick auf das i
-  let infoOffen = $state(false);
 
   // Bildschirmpixel → logische Pixel
   const umrechnen = () => FLAECHE_B / breite;
@@ -189,8 +187,9 @@
   ondragleave={() => (ueber = false)}
   ondrop={(e) => { e.preventDefault(); ueber = false; ondrop?.(e); }}>
   {#each sortiert as { f, p } (schluessel(f))}
-    <span class="mini" style="left: {p.x * VORSCHAU}px; top: {p.y * VORSCHAU}px; --s: {p.s * VORSCHAU};">
-      <Fahrzeugbild art={f.art} bauart={f.e.bauart} aufbau={f.e.aufbau} alt="" groesse="64px" farbe={farbe(f)} />
+    <!-- Gleiche Box wie in der Fläche (Breite, Innenabstand, Icon mittig), nur verkleinert -->
+    <span class="mini" style="left: {p.x * VORSCHAU}px; top: {p.y * VORSCHAU}px; width: {Math.max(96, 64 * p.s)}px; transform: scale({VORSCHAU});">
+      <Fahrzeugbild art={f.art} bauart={f.e.bauart} aufbau={f.e.aufbau} alt="" groesse="{64 * p.s}px" farbe={farbe(f)} />
     </span>
   {/each}
 </button>
@@ -257,18 +256,12 @@
             {/if}
           </ul>
 
-          <!-- Hinweise: unten rechts, erst nach einem Klick auf das i -->
-          <div class="info-zeile">
-            {#if infoOffen}
-              <ul class="erklaerung">
-                {#each ERKLAERUNG as satz}
-                  <li>{pick(satz, lang)}</li>
-                {/each}
-              </ul>
-            {/if}
-            <button type="button" class="info-knopf" aria-expanded={infoOffen} aria-label={pick({ de: 'Hinweise anzeigen', en: 'Show hints' }, lang)}
-              onclick={() => (infoOffen = !infoOffen)}>i</button>
-          </div>
+          <!-- Hinweise unten rechts -->
+          <ul class="erklaerung">
+            {#each ERKLAERUNG as satz}
+              <li>{pick(satz, lang)}</li>
+            {/each}
+          </ul>
         </aside>
       </div>
     </Fenster>
@@ -292,7 +285,7 @@
   }
   .vorschau.ueber { box-shadow: 0 0 0 2px #22c55e; }
   .vorschau:focus-visible { outline: 2px solid var(--accent, #3b82f6); outline-offset: 2px; }
-  .mini { position: absolute; transform-origin: top left; transform: scale(var(--s)); display: block; }
+  .mini { position: absolute; transform-origin: top left; box-sizing: content-box; padding: 4px; display: flex; justify-content: center; }
   .mini :global(img), .mini :global(svg), .mini :global(.symbolmaske), .element :global(img), .element :global(svg), .element :global(.symbolmaske), .eintrag :global(img), .eintrag :global(svg), .eintrag :global(.symbolmaske) { pointer-events: none; -webkit-user-drag: none; user-select: none; }
 
   /* Im Fenster: Fläche links, Liste rechts (auf dem Handy darunter) */
@@ -341,7 +334,8 @@
   /* Seite rechts: Liste der Mitglieder */
   .seite { flex: 0 0 13rem; align-self: stretch; display: flex; flex-direction: column; gap: .4rem; }
   /* Erklärung unten rechts, als Aufzählung */
-  .erklaerung { list-style: disc; align-self: stretch; margin: 0; padding: .6rem .5rem .6rem 1.1rem; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-card); font-size: .75rem; color: var(--fg-muted); display: flex; flex-direction: column; gap: .3rem; }
+  /* Hinweise unten rechts, ohne Rahmen */
+  .erklaerung { list-style: disc; margin: auto 0 0; padding: 0 0 0 1.1rem; font-size: .75rem; color: var(--fg-muted); display: flex; flex-direction: column; gap: .3rem; }
   .seite h3 { font-size: .9375rem; margin: 0; }
   .reihenfolge-hinweis { font-size: .75rem; color: var(--fg-muted); margin: 0; }
   .liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .35rem; }
@@ -352,10 +346,6 @@
      die Einträge darunter rutschen nach unten */
   .zeile.gezogen { display: none; }
   .platz { list-style: none; box-sizing: border-box; border: 2px dashed var(--accent, #3b82f6); border-radius: var(--radius-sm); background: transparent; }
-  /* Hinweise unten rechts */
-  .info-zeile { margin-top: auto; display: flex; flex-direction: column; align-items: flex-end; gap: .4rem; }
-  .info-knopf { width: 1.7rem; height: 1.7rem; border-radius: 999px; border: 1px solid var(--border); background: var(--bg-card); color: var(--fg); font: inherit; font-weight: 600; font-style: italic; cursor: pointer; }
-  .info-knopf:hover { border-color: var(--accent, #3b82f6); }
   .eintrag { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: .5rem; padding: .3rem .4rem; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-card); color: inherit; font: inherit; font-size: .875rem; text-align: left; cursor: pointer; }
   .eintrag:hover { border-color: var(--accent, #3b82f6); }
   .eintrag.markiert { border-color: var(--accent, #3b82f6); background: rgba(59, 130, 246, .2); font-weight: 600; }
