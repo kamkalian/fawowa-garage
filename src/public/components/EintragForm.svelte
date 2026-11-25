@@ -5,6 +5,7 @@
   import Fenster from './Fenster.svelte';
   import AntriebEditor from './AntriebEditor.svelte';
   import { ICONS, BILD_SYMBOLE } from '../../shared/icons.js';
+  import { FARBPAARE } from '../../shared/farben.js';
 
   // Bauart und Art des Anhängers werden als Symbole zur Auswahl gezeigt, nicht als Liste
   const SYMBOLFELDER = ['bauart', 'aufbau'];
@@ -12,12 +13,6 @@
   // Formular für Fahrrad und Anhänger; die Felder kommen aus lib/felder.js.
   // onsave(werte, antriebe) legt an oder ändert und wirft bei Fehlern einen ApiFehler.
   // aktionen (nur beim Bearbeiten): { fotoVorhanden, onfoto, onfotoloeschen, onloeschen }; das Foto steht oben, Entfernen unten.
-  // Farbpaare für Icons: je Farbton eine helle und eine dunkle Variante. Gewählt wird eine davon (ein Hex-Wert).
-  const FARBPAARE = [
-    ['#fca5a5', '#b91c1c'], ['#fdba74', '#c2410c'], ['#fde047', '#a16207'], ['#86efac', '#15803d'],
-    ['#67e8f9', '#0e7490'], ['#93c5fd', '#1d4ed8'], ['#d8b4fe', '#7e22ce'], ['#f9a8d4', '#be185d'],
-    ['#d6d3d1', '#44403c']
-  ];
   // farbenVerwendet: alle Farben, die in der Garage schon benutzt werden (zum schnellen Wiederwählen)
   let { lang, art, eintrag = null, onsave, onclose, aktionen = null, farbenVerwendet = [] } = $props();
 
@@ -96,7 +91,7 @@
         <legend>{pick(GRUPPEN[g.key], lang)}</legend>
         <div class="raster">
           {#snippet feld(f)}
-            <div class="feld" class:voll={f.typ === 'langtext' || f.key === 'name' || SYMBOLFELDER.includes(f.key)}>
+            <div class="feld" class:voll={f.typ === 'langtext' || f.key === 'name' || f.typ === 'farbe' || SYMBOLFELDER.includes(f.key)}>
               <label for="f-{f.key}">{pick(f.label, lang) + (f.einheit ? ` (${f.einheit})` : '') + (f.pflicht ? ' *' : '')}</label>
               {#if f.typ === 'text'}
                 <input id="f-{f.key}" class="input" type="text" maxlength={f.max} aria-invalid={!!fehler[f.key]} aria-describedby="h-{f.key}" bind:value={werte[f.key]} />
@@ -122,16 +117,12 @@
                 </div>
               {:else if f.typ === 'farbe'}
                 <div class="farbwahl">
-                  <div class="paare" role="group" aria-label={pick(f.label, lang)}>
-                    {#each FARBPAARE as paar (paar[0])}
-                      <span class="paar">
-                        {#each paar as c, i (c)}
-                          <button type="button" class="farbpunkt" class:aktiv={werte[f.key] === c} style="background: {c};"
-                            title={pick(i === 0 ? { de: 'hell', en: 'light' } : { de: 'dunkel', en: 'dark' }, lang)}
-                            aria-label={pick(i === 0 ? { de: 'Hell', en: 'Light' } : { de: 'Dunkel', en: 'Dark' }, lang)} aria-pressed={werte[f.key] === c}
-                            onclick={() => (werte[f.key] = werte[f.key] === c ? '' : c)}></button>
-                        {/each}
-                      </span>
+                  <div class="paare" role="radiogroup" aria-label={pick(f.label, lang)}>
+                    {#each FARBPAARE as p (p.dunkel)}
+                      {@const aktiv = werte[f.key] === p.dunkel || werte[f.key] === p.hell}
+                      <button type="button" role="radio" aria-checked={aktiv} title={pick(p, lang)} aria-label={pick(p, lang)}
+                        class="paar" class:aktiv style="background: linear-gradient(90deg, {p.hell} 50%, {p.dunkel} 50%);"
+                        onclick={() => (werte[f.key] = aktiv ? '' : p.dunkel)}></button>
                     {/each}
                   </div>
                   {#if farbenVerwendet.length}
@@ -153,16 +144,7 @@
             </div>
           {/snippet}
           {#each g.felder as f (f.key)}
-            {#if f.typ === 'farbe'}
-              <!-- wird neben der Bauart oder dem Anhänger-Aufbau gezeigt -->
-            {:else if SYMBOLFELDER.includes(f.key) && g.felder.some(x => x.typ === 'farbe')}
-              <div class="zeile voll">
-                {@render feld(f)}
-                {@render feld(g.felder.find(x => x.typ === 'farbe'))}
-              </div>
-            {:else}
-              {@render feld(f)}
-            {/if}
+            {@render feld(f)}
           {/each}
         </div>
       </fieldset>
@@ -203,7 +185,8 @@
   .rechts { display: inline-flex; gap: .5rem; margin-left: auto; }
   /* Symbole zur Auswahl von Bauart und Art des Anhängers */
   /* Symbole nebeneinander, bis die Zeile voll ist; dann umbrechen */
-  .symbole { display: flex; flex-wrap: wrap; gap: .5rem; }
+  /* Bauart-Optionen nebeneinander, bis der Platz nicht mehr reicht, dann in der nächsten Zeile */
+  .symbole { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: .5rem; }
   .symbol-knopf { flex: 0 0 96px; }
   .symbol-knopf { --deck: var(--bg-card);
     display: flex; flex-direction: column; align-items: center; gap: .25rem; padding: .5rem .25rem;
@@ -218,22 +201,16 @@
   .foto { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; padding-bottom: 1rem; margin-bottom: .25rem; border-bottom: 1px solid var(--border); }
   .foto-titel { font-size: .875rem; font-weight: 600; margin-right: .5rem; }
   /* Bauart und Farbe in einer Zeile: die Farbe rechts daneben */
-  /* Links die Bauart (nimmt den größten Teil), rechts die Farbpaare */
-  .zeile { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .75rem; align-items: start; min-width: 0; }
-  .zeile > .feld { min-width: 0; }
-  /* Bauart-Optionen nebeneinander, bis der Platz nicht mehr reicht, dann in der nächsten Zeile */
-  .zeile .symbole { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: .5rem; }
-  .zeile .symbol-knopf { flex: none; }
+  /* Farbpaare: nebeneinander unter der Bauart; immer nur eines gewählt (heller und dunkler Anteil je zur Hälfte) */
   .farbwahl { min-height: 2.5rem; }
-  /* Farbpaare rechts, untereinander */
-  .paare { display: flex; flex-direction: column; align-items: flex-start; gap: .35rem; }
-  .paar { display: inline-flex; border: 1px solid var(--border); border-radius: 999px; overflow: hidden; }
-  .farbpunkt { width: 1.35rem; height: 1.35rem; padding: 0; border: 0; cursor: pointer; }
-  .farbpunkt.aktiv { box-shadow: inset 0 0 0 2px var(--fg); }
-  .farbpunkt:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+  .paare { display: flex; flex-wrap: wrap; gap: .5rem; }
+  .paar { width: 2.5rem; height: 2.5rem; border-radius: 999px; border: 1px solid var(--border); padding: 0; cursor: pointer; }
+  .paar:hover { border-color: var(--fg-muted); }
+  .paar.aktiv { box-shadow: 0 0 0 2px var(--bg-card), 0 0 0 4px var(--primary); }
+  .paar:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
   /* Bereits verwendete Farben: Punkte zum Anklicken */
-  .zuletzt { display: flex; flex-wrap: wrap; gap: .3rem; margin-top: .4rem; }
-  .farbpunkt.verwendet { width: 1.1rem; height: 1.1rem; border-radius: 999px; border: 1px solid var(--border); }
-  .farbpunkt.verwendet.aktiv { box-shadow: 0 0 0 2px var(--primary); }
-  @media (max-width: 520px) { .raster { grid-template-columns: 1fr; } .zeile { grid-template-columns: 1fr; } }
+  .zuletzt { display: flex; flex-wrap: wrap; gap: .3rem; margin-top: .5rem; }
+  .farbpunkt { width: 1.1rem; height: 1.1rem; border-radius: 999px; border: 1px solid var(--border); padding: 0; cursor: pointer; }
+  .farbpunkt.aktiv { box-shadow: 0 0 0 2px var(--primary); }
+  @media (max-width: 520px) { .raster { grid-template-columns: 1fr; } }
 </style>
