@@ -8,6 +8,7 @@
   import EintragForm from './EintragForm.svelte';
   import EintragKarte from './EintragKarte.svelte';
   import Inventar from './Inventar.svelte';
+  import Gespann from './Gespann.svelte';
   import GarageRaum from './GarageRaum.svelte';
   import { portal } from '../lib/portal.js';
   import Fenster from './Fenster.svelte';
@@ -315,9 +316,10 @@
     <input bind:this={fotoInput} type="file" accept="image/*" hidden onchange={fotoGewaehlt} />
     {#if inventarGepaeck}
       <Inventar {lang} {token} gepaeck={inventarGepaeck} {melde} {onungueltig}
-        onaktualisiert={(taschen) => { daten.gepaecke = daten.gepaecke.map((x) => (x.id === inventarGepaeck.id ? { ...x, taschen } : x)); }}
+        onaktualisiert={(inhalt) => { daten.gepaecke = daten.gepaecke.map((x) => (x.id === inventarGepaeck.id ? { ...x, inhalt } : x)); }}
         onschliessen={() => (inventarId = null)} />
     {/if}
+    <Gespann {lang} />
     <div class="liste" role="list">
       {#each fahrzeuge as f (schluessel(f))}
         <div class="kachel" role="listitem" draggable="true" class:gezogen={ziehend?.art === f.art && ziehend?.id === f.e.id} class:ziel={ziel === schluessel(f)}

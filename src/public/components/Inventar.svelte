@@ -2,90 +2,74 @@
   import { pick } from '../lib/i18n.js';
   import * as api from '../lib/api.js';
   import Fenster from './Fenster.svelte';
-  import { TASCHE_FELDER } from '../../../lib/felder.js';
 
-  // Inventar eines Gepäcks: Taschen als Kacheln, Gegenstände per Drag and Drop zwischen ihnen, Suche mit Aufleuchten
+  // Inventar eines Gepäckstücks: ein Raster aus Plätzen. Belegt ein Gegenstand den letzten Platz, kommt rechts ein freier Platz dazu,
+  // und wenn die Zeile voll ist, eine neue Zeile darunter. Immer gibt es genau einen freien Platz mehr als belegte Plätze.
   let { lang, token, gepaeck, onaktualisiert, onschliessen, melde, onungueltig } = $props();
 
-  const TYPEN = TASCHE_FELDER.find((f) => f.key === 'typ').optionen;
-  let taschen = $state((gepaeck.taschen ?? []).map((t) => ({ ...t, gegenstaende: t.gegenstaende.map((g) => ({ ...g })) })));
+  let gegenstaende = $state((gepaeck.inhalt ?? []).map((g) => ({ ...g })));
   let suche = $state('');
-  let neueTasche = $state({ name: '', typ: 'tasche' });
-  let neuerGegenstand = $state({});
-  let zielId = $state(null);
+  let ziehend = $state(null);   // Id des gerade gezogenen Gegenstands
+  let ziel = $state(null);      // Platz, über dem gerade gezogen wird
+  let neuerName = $state({});   // Eingabe je freiem Platz
 
+  const belegt = $derived(new Map(gegenstaende.map((g) => [g.platz, g])));
+  const hoechster = $derived(gegenstaende.reduce((m, g) => Math.max(m, g.platz + 1), 0));
+  const plaetze = $derived(Math.max(gegenstaende.length, hoechster) + 1);
+  const spalten = $derived(Math.ceil(Math.sqrt(plaetze)));
   const suchtext = $derived(suche.trim().toLowerCase());
-  const passt = (name) => suchtext !== '' && name.toLowerCase().includes(suchtext);
-  const leuchtet = (t) => suchtext !== '' && t.gegenstaende.some((g) => passt(g.name));
-  const treffer = $derived(suchtext === '' ? [] : taschen.flatMap((t) => t.gegenstaende.filter((g) => passt(g.name)).map((g) => ({ g, t }))));
-  const gepacktAnzahl = $derived(taschen.reduce((n, t) => n + t.gegenstaende.filter((g) => g.gepackt).length, 0));
+  const passt = (g) => suchtext !== '' && g.name.toLowerCase().includes(suchtext);
+  const trefferPlaetze = $derived(new Set(gegenstaende.filter(passt).map((g) => g.platz)));
+  const gepackt = $derived(gegenstaende.filter((g) => g.gepackt).length);
 
-  const sag = (e) => melde(e?.status === 401 ? '' : pick({ de: 'Das hat nicht geklappt.', en: 'That did not work.' }, lang));
-  function aendern(f) {
-    try { return f(); } catch (e) { if (e.status === 401) onungueltig(); else sag(e); return null; }
+  const fehler = () => {
+    melde(pick({ de: 'Das hat nicht geklappt.', en: 'That did not work.' }, lang));
+  };
+  async function aendern(f) {
+    try {
+      return await f();
+    } catch (e) {
+      if (e.status === 401) onungueltig();
+      else fehler();
+      return null;
+    }
   }
-  const gesendet = (liste) => { taschen = liste; onaktualisiert?.(liste); };
+  const gespeichert = (liste) => { gegenstaende = liste; onaktualisiert?.(liste); };
 
-  async function tascheNeu(e) {
-    e?.preventDefault();
-    const name = neueTasche.name.trim();
+  async function anlegen(platz) {
+    const name = (neuerName[platz] ?? '').trim();
     if (!name) return;
-    const t = await aendern(() => api.taschenAnlegen(token, gepaeck.id, { name, typ: neueTasche.typ }));
-    if (!t) return;
-    gesendet([...taschen, { ...t, gegenstaende: t.gegenstaende ?? [] }]);
-    neueTasche = { name: '', typ: 'tasche' };
-  }
-
-  async function tascheSpeichern(t, feld, wert) {
-    const neu = { ...t, [feld]: wert };
-    const ok = await aendern(() => api.taschenAendern(token, t.id, { name: neu.name, typ: neu.typ }));
-    if (!ok) return;
-    gesendet(taschen.map((x) => (x.id === t.id ? { ...x, name: neu.name, typ: neu.typ } : x)));
-  }
-
-  async function tascheLoeschen(t) {
-    if (!confirm(pick({ de: `„${t.name}“ mit allen Gegenständen löschen?`, en: `Delete “${t.name}” with all items?` }, lang))) return;
-    const ok = await aendern(() => api.taschenLoeschen(token, t.id));
-    if (ok) gesendet(taschen.filter((x) => x.id !== t.id));
-  }
-
-  async function gegenstandNeu(t) {
-    const name = (neuerGegenstand[t.id] ?? '').trim();
-    if (!name) return;
-    const g = await aendern(() => api.gegenstandAnlegen(token, t.id, name));
+    const g = await aendern(() => api.gegenstandAnlegen(token, gepaeck.id, name, platz));
     if (!g) return;
-    neuerGegenstand = { ...neuerGegenstand, [t.id]: '' };
-    gesendet(taschen.map((x) => (x.id === t.id ? { ...x, gegenstaende: [...x.gegenstaende, g] } : x)));
+    neuerName = { ...neuerName, [platz]: '' };
+    gespeichert([...gegenstaende, g]);
   }
 
-  async function gepacktUmschalten(t, g) {
-    const neu = !g.gepackt;
-    const ok = await aendern(() => api.gegenstandAendern(token, g.id, { gepackt: neu }));
-    if (!ok) return;
-    gesendet(taschen.map((x) => (x.id !== t.id ? x : { ...x, gegenstaende: x.gegenstaende.map((y) => (y.id === g.id ? { ...y, gepackt: neu } : y)) })));
-  }
-
-  async function gegenstandLoeschen(t, g) {
-    const ok = await aendern(() => api.gegenstandLoeschen(token, g.id));
-    if (ok) gesendet(taschen.map((x) => (x.id !== t.id ? x : { ...x, gegenstaende: x.gegenstaende.filter((y) => y.id !== g.id) })));
-  }
-
-  async function verschieben(gId, ziel) {
-    zielId = null;
-    const quelle = taschen.find((t) => t.gegenstaende.some((g) => g.id === gId));
-    if (!quelle || quelle.id === ziel) return;
-    const ok = await aendern(() => api.gegenstandAendern(token, gId, { taschenId: ziel }));
-    if (!ok) return;
-    const g = quelle.gegenstaende.find((y) => y.id === gId);
-    gesendet(taschen.map((t) => {
-      if (t.id === quelle.id) return { ...t, gegenstaende: t.gegenstaende.filter((y) => y.id !== gId) };
-      if (t.id === ziel) return { ...t, gegenstaende: [...t.gegenstaende, g] };
-      return t;
+  async function verschieben(id, zielPlatz) {
+    ziel = null;
+    const g = gegenstaende.find((x) => x.id === id);
+    if (!g || g.platz === zielPlatz) return;
+    const res = await aendern(() => api.gegenstandAendern(token, id, { platz: zielPlatz }));
+    if (!res) return;
+    gespeichert(gegenstaende.map((x) => {
+      if (x.id === id) return { ...x, platz: res.gegenstand.platz };
+      if (res.tausch && x.id === res.tausch.id) return { ...x, platz: res.tausch.platz };
+      return x;
     }));
   }
 
-  function zuTasche(id) {
-    document.getElementById('tasche-' + id)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  async function umschalten(g) {
+    const res = await aendern(() => api.gegenstandAendern(token, g.id, { gepackt: !g.gepackt }));
+    if (res) gespeichert(gegenstaende.map((x) => (x.id === g.id ? { ...x, gepackt: !g.gepackt } : x)));
+  }
+
+  async function loeschen(g) {
+    const ok = await aendern(() => api.gegenstandLoeschen(token, g.id));
+    if (ok !== null) gespeichert(gegenstaende.filter((x) => x.id !== g.id));
+  }
+
+  function zuPlatz(platz) {
+    document.getElementById('platz-' + platz)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 </script>
 
@@ -94,61 +78,41 @@
     <div class="werkzeug">
       <input type="search" class="input" bind:value={suche} aria-label={pick({ de: 'Gegenstand suchen', en: 'Search for an item' }, lang)}
         placeholder={pick({ de: 'Gegenstand suchen …', en: 'Search for an item …' }, lang)} />
-      <span class="zaehler">{gepacktAnzahl} / {taschen.reduce((n, t) => n + t.gegenstaende.length, 0)} {pick({ de: 'gepackt', en: 'packed' }, lang)}</span>
+      <span class="zaehler">{gepackt} / {gegenstaende.length} {pick({ de: 'gepackt', en: 'packed' }, lang)}</span>
     </div>
 
     {#if suchtext !== ''}
       <div class="treffer-liste" role="status">
-        {#if treffer.length === 0}
-          <p class="notiz">{pick({ de: 'Nichts gefunden.', en: 'Nothing found.' }, lang)}</p>
+        {#each gegenstaende.filter(passt) as g (g.id)}
+          <button type="button" class="treffer-knopf" onclick={() => zuPlatz(g.platz)}>{g.name}</button>
         {:else}
-          {#each treffer as x (x.g.id)}
-            <button type="button" class="treffer-knopf" onclick={() => zuTasche(x.t.id)}>{x.g.name} <span class="notiz">· {x.t.name}</span></button>
-          {/each}
-        {/if}
+          <p class="notiz">{pick({ de: 'Nichts gefunden.', en: 'Nothing found.' }, lang)}</p>
+        {/each}
       </div>
     {/if}
 
-    <form class="neue-tasche" onsubmit={tascheNeu}>
-      <input class="input" type="text" maxlength="80" bind:value={neueTasche.name} placeholder={pick({ de: 'Neue Tasche, z. B. „Vorne links“', en: 'New bag, e.g. “front left”' }, lang)} />
-      <select class="input" bind:value={neueTasche.typ} aria-label={pick({ de: 'Art der Tasche', en: 'Type of bag' }, lang)}>
-        {#each TYPEN as o (o.wert)}<option value={o.wert}>{pick(o, lang)}</option>{/each}
-      </select>
-      <button type="submit" class="btn btn-outline btn-sm">{pick({ de: '+ Tasche', en: '+ Bag' }, lang)}</button>
-    </form>
-
-    <div class="raster">
-      {#each taschen as t (t.id)}
-        <section id={'tasche-' + t.id} class="tasche" class:leuchtet={leuchtet(t)} class:ziel={zielId === t.id}
-          ondragover={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; zielId = t.id; }}
-          ondragleave={() => { if (zielId === t.id) zielId = null; }}
-          ondrop={(e) => { e.preventDefault(); verschieben(Number(e.dataTransfer.getData('text/plain')), t.id); }}>
-          <header class="tasche-kopf">
-            <input class="input name" type="text" maxlength="80" value={t.name} aria-label={pick({ de: 'Name der Tasche', en: 'Name of the bag' }, lang)}
-              onchange={(e) => tascheSpeichern(t, 'name', e.currentTarget.value.trim() || t.name)} />
-            <select class="input" value={t.typ ?? 'sonstiges'} aria-label={pick({ de: 'Art der Tasche', en: 'Type of bag' }, lang)}
-              onchange={(e) => tascheSpeichern(t, 'typ', e.currentTarget.value)}>
-              {#each TYPEN as o (o.wert)}<option value={o.wert}>{pick(o, lang)}</option>{/each}
-            </select>
-            <button type="button" class="btn btn-ghost btn-sm" onclick={() => tascheLoeschen(t)} aria-label={pick({ de: 'Tasche löschen', en: 'Delete bag' }, lang)}>✕</button>
-          </header>
-          <ul class="gegenstaende">
-            {#each t.gegenstaende as g (g.id)}
-              <li class="gegenstand" class:treffer={passt(g.name)} class:gepackt={g.gepackt} draggable="true"
-                ondragstart={(e) => { e.dataTransfer.setData('text/plain', String(g.id)); e.dataTransfer.effectAllowed = 'move'; }}>
-                <button type="button" class="haken" aria-pressed={g.gepackt} aria-label={pick({ de: 'gepackt', en: 'packed' }, lang)} onclick={() => gepacktUmschalten(t, g)}>{g.gepackt ? '☑' : '☐'}</button>
-                <span class="name-gegenstand">{g.name}</span>
-                <button type="button" class="weg" onclick={() => gegenstandLoeschen(t, g)} aria-label={pick({ de: 'Gegenstand löschen', en: 'Delete item' }, lang)}>✕</button>
-              </li>
-            {/each}
-          </ul>
-          <form class="gegenstand-neu" onsubmit={(e) => { e.preventDefault(); gegenstandNeu(t); }}>
-            <input class="input" type="text" maxlength="80" value={neuerGegenstand[t.id] ?? ''} oninput={(e) => (neuerGegenstand = { ...neuerGegenstand, [t.id]: e.currentTarget.value })}
-              placeholder={pick({ de: 'Gegenstand hinzufügen …', en: 'Add item …' }, lang)} />
-          </form>
-        </section>
-      {:else}
-        <p class="notiz">{pick({ de: 'Noch keine Tasche. Lege oben die erste an.', en: 'No bag yet. Add the first one above.' }, lang)}</p>
+    <div class="raster" style="grid-template-columns: repeat({spalten}, minmax(7.5rem, 1fr));">
+      {#each Array.from({ length: plaetze }, (_, i) => i) as platz (platz)}
+        {@const g = belegt.get(platz)}
+        <div id={'platz-' + platz} class="platz" class:frei={!g} class:leuchtet={trefferPlaetze.has(platz)} class:ziel={ziel === platz}
+          ondragover={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; ziel = platz; }}
+          ondragleave={() => { if (ziel === platz) ziel = null; }}
+          ondrop={(e) => { e.preventDefault(); verschieben(Number(e.dataTransfer.getData('text/plain')), platz); }}>
+          {#if g}
+            <div class="gegenstand" class:gepackt={g.gepackt} class:ziehend={ziehend === g.id} draggable="true"
+              ondragstart={(e) => { ziehend = g.id; e.dataTransfer.setData('text/plain', String(g.id)); e.dataTransfer.effectAllowed = 'move'; }}
+              ondragend={() => { ziehend = null; ziel = null; }}>
+              <button type="button" class="haken" aria-pressed={g.gepackt} aria-label={pick({ de: 'gepackt', en: 'packed' }, lang)} onclick={() => umschalten(g)}>{g.gepackt ? '☑' : '☐'}</button>
+              <span class="name">{g.name}</span>
+              <button type="button" class="weg" aria-label={pick({ de: 'Gegenstand löschen', en: 'Delete item' }, lang)} onclick={() => loeschen(g)}>✕</button>
+            </div>
+          {:else}
+            <form class="neu" onsubmit={(e) => { e.preventDefault(); anlegen(platz); }}>
+              <input class="input" type="text" maxlength="80" value={neuerName[platz] ?? ''} aria-label={pick({ de: 'Gegenstand auf diesen Platz legen', en: 'Put an item on this place' }, lang)}
+                placeholder="+" oninput={(e) => (neuerName = { ...neuerName, [platz]: e.currentTarget.value })} />
+            </form>
+          {/if}
+        </div>
       {/each}
     </div>
   </div>
@@ -161,17 +125,17 @@
   .zaehler { font-size: .8125rem; color: var(--fg-muted); white-space: nowrap; }
   .treffer-liste { display: flex; flex-wrap: wrap; gap: .3rem; }
   .treffer-knopf { border: 1px solid var(--border); border-radius: 999px; background: var(--bg); color: inherit; padding: .2rem .6rem; font: inherit; font-size: .8125rem; cursor: pointer; }
-  .neue-tasche { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: .5rem; }
-  .raster { display: grid; grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr)); gap: .75rem; }
-  .tasche { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: .6rem; display: flex; flex-direction: column; gap: .5rem; background: var(--bg-card); min-width: 0; transition: box-shadow .2s, border-color .2s; }
-  .tasche.leuchtet { border-color: var(--accent, #3b82f6); box-shadow: 0 0 0 2px var(--accent, #3b82f6), 0 0 18px var(--accent, #3b82f6); }
-  .tasche.ziel { border-style: dashed; border-color: var(--accent, #3b82f6); }
-  .tasche-kopf { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: .35rem; align-items: center; }
-  .gegenstaende { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .3rem; min-height: 2.5rem; }
-  .gegenstand { display: flex; align-items: center; gap: .35rem; border: 1px solid var(--border); border-radius: 6px; padding: .25rem .4rem; cursor: grab; background: var(--bg); min-width: 0; }
-  .gegenstand.treffer { border-color: var(--accent, #3b82f6); font-weight: 600; }
-  .gegenstand.gepackt .name-gegenstand { text-decoration: line-through; color: var(--fg-muted); }
-  .name-gegenstand { flex: 1; min-width: 0; overflow-wrap: anywhere; font-size: .875rem; }
+  .raster { display: grid; gap: .5rem; }
+  .platz { border: 1px dashed var(--border); border-radius: var(--radius-sm); min-height: 3.25rem; padding: .3rem; display: flex; align-items: stretch; min-width: 0; transition: box-shadow .2s, border-color .2s; }
+  .platz:not(.frei) { border-style: solid; background: var(--bg); }
+  .platz.leuchtet { border-color: var(--accent, #3b82f6); box-shadow: 0 0 0 2px var(--accent, #3b82f6), 0 0 16px var(--accent, #3b82f6); }
+  .platz.ziel { border-color: var(--accent, #3b82f6); border-style: solid; }
+  .gegenstand { flex: 1; display: flex; align-items: center; gap: .3rem; cursor: grab; min-width: 0; }
+  .gegenstand.ziehend { opacity: .5; }
+  .gegenstand.gepackt .name { text-decoration: line-through; color: var(--fg-muted); }
+  .name { flex: 1; min-width: 0; overflow-wrap: anywhere; font-size: .875rem; }
   .haken, .weg { background: none; border: 0; color: inherit; cursor: pointer; padding: 0 .15rem; font: inherit; }
+  .neu { flex: 1; display: flex; }
+  .neu input { width: 100%; font-size: .875rem; }
   .notiz { font-size: .8125rem; color: var(--fg-muted); margin: 0; }
 </style>

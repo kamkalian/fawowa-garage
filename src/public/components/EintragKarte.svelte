@@ -2,6 +2,7 @@
   import Fahrzeugbild from '../../shared/Fahrzeugbild.svelte';
   import { t, pick, zahlText } from '../lib/i18n.js';
   import Icon from '../../shared/Icon.svelte';
+  import { ARTEN } from '../../../lib/felder.js';
 
   // Stellplatz-Kachel (quadratisch, leicht transparent): Titel oben links, Gespann-Marke oben rechts; in der Mitte Foto oder Icon,
   // quadratisch und mittig; unten Knöpfe (Löschen, Gespann, Bearbeiten) und bei ungeprüften Einträgen das Ausrufezeichen.
@@ -14,10 +15,11 @@
   const ungeprueft = $derived(eintrag.status !== 'geprueft');
   const gepaeck = $derived(art === 'gepaecke' && eintrag.gewicht_kg != null);
 
-  // Gepäck: Übersicht über Taschen und Gegenstände
-  const taschen = $derived(eintrag.taschen ?? []);
-  const gegenstaende = $derived(taschen.reduce((n, x) => n + x.gegenstaende.length, 0));
-  const gepacktAnzahl = $derived(taschen.reduce((n, x) => n + x.gegenstaende.filter((g) => g.gepackt).length, 0));
+  // Gepäck: Anzahl der Gegenstände und wie viele schon gepackt sind
+  const inhalt = $derived(eintrag.inhalt ?? []);
+  const gepacktAnzahl = $derived(inhalt.filter((g) => g.gepackt).length);
+  const artOptionen = ARTEN.gepaecke.felder.find((f) => f.key === 'typ')?.optionen ?? [];
+  const artText = $derived.by(() => { const o = artOptionen.find((x) => x.wert === eintrag.typ); return o ? pick(o, lang) : ''; });
 </script>
 
 <article class:card={!flach}>
@@ -29,8 +31,8 @@
 
     {#if art === 'gepaecke'}
       <div class="gepaeck-info">
-        <p class="pack-kopf">{taschen.length} {pick({ de: taschen.length === 1 ? 'Tasche' : 'Taschen', en: taschen.length === 1 ? 'bag' : 'bags' }, lang)} · {gegenstaende} {pick({ de: 'Gegenstände', en: 'items' }, lang)}</p>
-        <p class="pack-kopf">{gepacktAnzahl} / {gegenstaende} {pick({ de: 'gepackt', en: 'packed' }, lang)}</p>
+        <div class="icon-platz" aria-hidden="true">{artText}</div>
+        <p class="pack-kopf">{inhalt.length} {pick({ de: 'Gegenstände', en: 'items' }, lang)} · {gepacktAnzahl} {pick({ de: 'gepackt', en: 'packed' }, lang)}</p>
         {#if onoeffnen}
           <button type="button" class="btn btn-primary btn-sm inventar-knopf" onclick={onoeffnen}>{pick({ de: 'Inventar öffnen', en: 'Open inventory' }, lang)}</button>
         {/if}
@@ -78,6 +80,7 @@
   .warn:hover .tipp { display: block; }
   .gepaeck-info { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: .4rem; align-items: flex-start; justify-content: center; }
   .inventar-knopf { margin-top: .4rem; }
+  .icon-platz { width: 5rem; height: 5rem; border: 1px dashed var(--border); border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; font-size: .75rem; color: var(--fg-muted); text-align: center; padding: .25rem; }
   .packliste-rahmen { flex: 1 1 auto; min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: .3rem; }
   .pack-kopf { font-size: .75rem; color: var(--fg-muted); margin: 0; }
   .packliste { list-style: none; margin: 0; padding: 0; display: grid; gap: .2rem; font-size: .85rem; }

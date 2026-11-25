@@ -247,69 +247,44 @@ export class FakeSpeicher {
     return this.alles(garageId);
   }
 
-  // Taschen und Gegenstände eines Gepäcks wie in der Datenbank, nur im Speicher
-  async tascheAnlegen(garageId, gepaeckId, { name, typ }) {
-    const z = this.daten.gepaecke?.find(x => x.id === gepaeckId && x.garage_id === garageId);
+  // Gegenstände eines Gepäckstücks wie in der Datenbank, nur im Speicher
+  _gepaeck(garageId, id) {
+    return (this.daten.gepaecke ?? []).find(z => z.id === id && z.garage_id === garageId);
+  }
+  async gegenstandAnlegen(garageId, gepaeckId, name, platz) {
+    const z = this._gepaeck(garageId, gepaeckId);
     if (!z) return undefined;
-    z.taschen ??= [];
-    const tasche = { id: this.naechsteId++, name, typ, gegenstaende: [] };
-    z.taschen.push(tasche);
-    return tasche;
-  }
-  _tasche(garageId, id) {
-    for (const z of this.daten.gepaecke ?? []) {
-      if (z.garage_id !== garageId) continue;
-      const t = (z.taschen ?? []).find(x => x.id === id);
-      if (t) return { gepaeck: z, tasche: t };
-    }
-    return undefined;
-  }
-  async tascheAendern(garageId, id, { name, typ }) {
-    const f = this._tasche(garageId, id);
-    if (!f) return undefined;
-    Object.assign(f.tasche, { name, typ });
-    return { id, name, typ };
-  }
-  async tascheLoeschen(garageId, id) {
-    const f = this._tasche(garageId, id);
-    if (!f) return false;
-    f.gepaeck.taschen = f.gepaeck.taschen.filter(x => x.id !== id);
-    return true;
-  }
-  async gegenstandAnlegen(garageId, tascheId, name) {
-    const f = this._tasche(garageId, tascheId);
-    if (!f) return undefined;
-    const g = { id: this.naechsteId++, name, gepackt: false };
-    f.tasche.gegenstaende.push(g);
+    z.inhalt ??= [];
+    const nummer = platz ?? (z.inhalt.reduce((m, g) => Math.max(m, g.platz + 1), 0));
+    const g = { id: this.naechsteId++, name, gepackt: false, platz: nummer };
+    z.inhalt.push(g);
     return g;
   }
   _gegenstand(garageId, id) {
     for (const z of this.daten.gepaecke ?? []) {
       if (z.garage_id !== garageId) continue;
-      for (const t of z.taschen ?? []) {
-        const g = t.gegenstaende.find(x => x.id === id);
-        if (g) return { gepaeck: z, tasche: t, gegenstand: g };
-      }
+      const g = (z.inhalt ?? []).find(x => x.id === id);
+      if (g) return { z, g };
     }
     return undefined;
   }
-  async gegenstandAendern(garageId, id, { name, gepackt, taschenId }) {
+  async gegenstandAendern(garageId, id, { name, gepackt, platz }) {
     const f = this._gegenstand(garageId, id);
     if (!f) return undefined;
-    if (name !== undefined) f.gegenstand.name = name;
-    if (gepackt !== undefined) f.gegenstand.gepackt = gepackt;
-    if (taschenId !== undefined) {
-      const ziel = this._tasche(garageId, taschenId);
-      if (!ziel || ziel.gepaeck !== f.gepaeck) throw new Error('Tasche gehört nicht zum Gepäck');
-      f.tasche.gegenstaende = f.tasche.gegenstaende.filter(x => x.id !== id);
-      ziel.tasche.gegenstaende.push(f.gegenstand);
+    let tausch = null;
+    if (platz !== undefined && platz !== f.g.platz) {
+      const andere = f.z.inhalt.find(x => x.platz === platz && x.id !== id);
+      if (andere) { andere.platz = f.g.platz; tausch = { id: andere.id, platz: andere.platz }; }
     }
-    return { id, name: f.gegenstand.name, gepackt: f.gegenstand.gepackt };
+    if (name !== undefined) f.g.name = name;
+    if (gepackt !== undefined) f.g.gepackt = gepackt;
+    if (platz !== undefined) f.g.platz = platz;
+    return { gegenstand: { id, name: f.g.name, gepackt: f.g.gepackt, platz: f.g.platz }, tausch };
   }
   async gegenstandLoeschen(garageId, id) {
     const f = this._gegenstand(garageId, id);
     if (!f) return false;
-    f.tasche.gegenstaende = f.tasche.gegenstaende.filter(x => x.id !== id);
+    f.z.inhalt = f.z.inhalt.filter(x => x.id !== id);
     return true;
   }
 
