@@ -70,6 +70,16 @@
   ].filter(Boolean).join(' + '));
 
   /** Ein Stellplatz kommt ins Gespann oder fliegt wieder heraus (beliebig viele Zugfahrzeuge und Anhänger) */
+  // Mitglieder des Gespanns für den Gespann-Bereich
+  const gespannMitglieder = $derived(fahrzeuge.filter((f) => imInGespann(f.art, f.e)));
+  // Eine Kachel auf die Gespann-Fläche gezogen: ins Gespann legen, wenn sie noch nicht drin ist
+  function gespannDrop(e) {
+    const zieh = ziehend;
+    ziehEnde();
+    const f = zieh ? fahrzeuge.find((x) => x.art === zieh.art && x.e.id === zieh.id) : null;
+    if (f && !imInGespann(f.art, f.e)) umschalten(f);
+  }
+
   async function umschalten(f) {
     const im = !imInGespann(f.art, f.e);
     try {
@@ -319,7 +329,7 @@
         onaktualisiert={(inhalt) => { daten.gepaecke = daten.gepaecke.map((x) => (x.id === inventarGepaeck.id ? { ...x, inhalt } : x)); }}
         onschliessen={() => (inventarId = null)} />
     {/if}
-    <Gespann {lang} />
+    <Gespann {lang} mitglieder={gespannMitglieder} ondrop={gespannDrop} onentfernen={(f) => umschalten(f)} />
     <div class="liste" role="list">
       {#each fahrzeuge as f (schluessel(f))}
         <div class="kachel" role="listitem" draggable="true" class:gezogen={ziehend?.art === f.art && ziehend?.id === f.e.id} class:ziel={ziel === schluessel(f)}
