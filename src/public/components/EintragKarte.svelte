@@ -40,7 +40,7 @@
     {:else}
     <div class="bild">
       <!-- Fläche für Foto oder Icon: quadratisch, so groß wie der Platz zwischen Titel und Knöpfen erlaubt -->
-      <Fahrzeugbild art={art} bauart={eintrag.bauart} aufbau={eintrag.aufbau} motor={art === 'fahrraeder' && motoren.length > 0} akku={akkus.length > 0} foto={foto} alt={eintrag.name} groesse="calc(100cqw - 5.75rem)" />
+      <Fahrzeugbild art={art} bauart={eintrag.bauart} aufbau={eintrag.aufbau} motor={art === 'fahrraeder' && motoren.length > 0} akku={akkus.length > 0} foto={foto} alt={eintrag.name} groesse="calc(100cqw - 5.75rem)" farbe={eintrag.farbe ?? null} />
     </div>
     {/if}
 

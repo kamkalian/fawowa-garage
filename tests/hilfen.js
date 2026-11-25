@@ -61,7 +61,6 @@ export class FakeSpeicher {
     const m = this._mitgliederVon(garageId);
     r.mitglieder = { fahrraeder: [...m.fahrraeder], anhaenger: [...m.anhaenger], gepaecke: [...m.gepaecke] };
     if (m.positionen?.size) r.mitglieder.positionen = Object.fromEntries(m.positionen);
-    if (this.farben?.has(garageId)) r.farben = this.farben.get(garageId);
     return r;
   }
 
@@ -296,12 +295,6 @@ export class FakeSpeicher {
     zeile.motoren = motoren.map(m => ({ id: this.naechsteId++, ...m }));
     zeile.akkus = akkus.map(a => ({ id: this.naechsteId++, ...a }));
     return { motoren: zeile.motoren, akkus: zeile.akkus };
-  }
-
-  async farbenSetzen(garageId, werte) {
-    this.farben ??= new Map();
-    this.farben.set(garageId, werte);
-    return werte;
   }
 
   async mitgliedPositionSetzen(garageId, art, id, x, y, s) {

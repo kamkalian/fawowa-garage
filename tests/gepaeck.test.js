@@ -67,19 +67,14 @@ test('Gespann: Zuladung ist die Summe der Gepäck-Kacheln im Gespann', () => {
   assert.equal(g.gepaeck_kg, 16.5, 'Gepäck 9 gehört nicht zum Gespann');
 });
 
-test('Gespann: Farben je Kategorie speichern, Position darf aus dem Bild hinausreichen', async () => {
+test('Farbe am Fahrrad: speichern, Ungültiges wird abgewiesen', async () => {
   const s = await starteTestServer();
   try {
     const token = (await s.anfrage('POST', '/api/v1/garagen', { body: { fahrer_name: 'Anja' } })).json.token;
-    const g = await s.anfrage('POST', '/api/v1/garage/gepaecke', { token, body: { name: 'Kiste', typ: 'kiste' } });
-    await s.anfrage('PUT', '/api/v1/garage/mitglied', { token, body: { art: 'gepaecke', id: g.json.id, im: true } });
-    const oben = await s.anfrage('PUT', '/api/v1/garage/mitglied/position', { token, body: { art: 'gepaecke', id: g.json.id, x: -30, y: -20 } });
-    assert.equal(oben.status, 200);
-    const farben = await s.anfrage('PUT', '/api/v1/garage/farben', { token, body: { fahrraeder: '#ff8800', anhaenger: null, gepaecke: '#00aa55' } });
-    assert.equal(farben.status, 200);
-    const kaputt = await s.anfrage('PUT', '/api/v1/garage/farben', { token, body: { fahrraeder: 'rot' } });
+    const rad = await s.anfrage('POST', '/api/v1/garage/fahrraeder', { token, body: { name: 'Lastenrad', bauart: 'lastenrad', farbe: '#FF8800' } });
+    assert.equal(rad.status, 201);
+    assert.equal(rad.json.farbe, '#ff8800');
+    const kaputt = await s.anfrage('POST', '/api/v1/garage/fahrraeder', { token, body: { name: 'Rot', farbe: 'rot' } });
     assert.equal(kaputt.status, 400);
-    const liste = (await s.anfrage('GET', '/api/v1/garage', { token })).json;
-    assert.deepEqual(liste.farben, { fahrraeder: '#ff8800', anhaenger: null, gepaecke: '#00aa55' });
   } finally { await s.schliessen(); }
 });

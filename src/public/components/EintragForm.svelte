@@ -12,7 +12,8 @@
   // Formular für Fahrrad und Anhänger; die Felder kommen aus lib/felder.js.
   // onsave(werte, antriebe) legt an oder ändert und wirft bei Fehlern einen ApiFehler.
   // aktionen (nur beim Bearbeiten): { fotoVorhanden, onfoto, onfotoloeschen, onloeschen }; das Foto steht oben, Entfernen unten.
-  let { lang, art, eintrag = null, onsave, onclose, aktionen = null } = $props();
+  // farbenVerwendet: alle Farben, die in der Garage schon benutzt werden (zum schnellen Wiederwählen)
+  let { lang, art, eintrag = null, onsave, onclose, aktionen = null, farbenVerwendet = [] } = $props();
 
   // Das Formular wird für genau einen Eintrag geöffnet und danach geschlossen: Art und Anfangswerte werden nur einmal gelesen
   // svelte-ignore state_referenced_locally
@@ -88,7 +89,7 @@
       <fieldset>
         <legend>{pick(GRUPPEN[g.key], lang)}</legend>
         <div class="raster">
-          {#each g.felder as f (f.key)}
+          {#snippet feld(f)}
             <div class="feld" class:voll={f.typ === 'langtext' || f.key === 'name' || SYMBOLFELDER.includes(f.key)}>
               <label for="f-{f.key}">{pick(f.label, lang) + (f.einheit ? ` (${f.einheit})` : '') + (f.pflicht ? ' *' : '')}</label>
               {#if f.typ === 'text'}
@@ -113,6 +114,25 @@
                     </button>
                   {/each}
                 </div>
+              {:else if f.typ === 'farbe'}
+                <div class="farbwahl">
+                  <div class="farbzeile">
+                    <input id="f-{f.key}" type="color" value={werte[f.key] || '#2563eb'} aria-describedby="h-{f.key}"
+                      oninput={(e) => (werte[f.key] = e.currentTarget.value)} />
+                    <span class="farbname">{werte[f.key] || pick({ de: 'keine Farbe', en: 'no colour' }, lang)}</span>
+                    {#if werte[f.key]}
+                      <button type="button" class="zurueck" onclick={() => (werte[f.key] = '')}>{pick({ de: 'Standard', en: 'Default' }, lang)}</button>
+                    {/if}
+                  </div>
+                  {#if farbenVerwendet.length}
+                    <div class="zuletzt" role="group" aria-label={pick({ de: 'Bereits verwendete Farben', en: 'Colours already used' }, lang)}>
+                      {#each farbenVerwendet as c (c)}
+                        <button type="button" class="farbpunkt" class:aktiv={werte[f.key] === c} style="background: {c};" title={c} aria-label={c}
+                          onclick={() => (werte[f.key] = c)}></button>
+                      {/each}
+                    </div>
+                  {/if}
+                </div>
               {:else if f.typ === 'auswahl'}
                 <select id="f-{f.key}" class="input" aria-invalid={!!fehler[f.key]} aria-describedby="h-{f.key}" bind:value={werte[f.key]}>
                   <option value="">–</option>
@@ -121,6 +141,18 @@
               {/if}
               <p id="h-{f.key}" class="notiz" class:fehler={!!fehler[f.key]}>{fehler[f.key] ? fehlerText(f) : f.hinweis ? pick(f.hinweis, lang) : ''}</p>
             </div>
+          {/snippet}
+          {#each g.felder as f (f.key)}
+            {#if f.typ === 'farbe'}
+              <!-- wird neben der Bauart oder dem Anhänger-Aufbau gezeigt -->
+            {:else if SYMBOLFELDER.includes(f.key) && g.felder.some(x => x.typ === 'farbe')}
+              <div class="zeile voll">
+                {@render feld(f)}
+                {@render feld(g.felder.find(x => x.typ === 'farbe'))}
+              </div>
+            {:else}
+              {@render feld(f)}
+            {/if}
           {/each}
         </div>
       </fieldset>
@@ -175,5 +207,17 @@
   .symbol-knopf:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
   .foto { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; padding-bottom: 1rem; margin-bottom: .25rem; border-bottom: 1px solid var(--border); }
   .foto-titel { font-size: .875rem; font-weight: 600; margin-right: .5rem; }
-  @media (max-width: 520px) { .raster { grid-template-columns: 1fr; } }
+  /* Bauart und Farbe in einer Zeile: die Farbe rechts daneben */
+  .zeile { display: flex; gap: .75rem; align-items: flex-start; min-width: 0; }
+  .zeile > .feld:first-child { flex: 1 1 auto; min-width: 0; }
+  .zeile > .feld:last-child { flex: 0 0 13rem; }
+  .farbzeile { display: flex; align-items: center; gap: .5rem; min-height: 2.5rem; }
+  .farbzeile input[type='color'] { width: 3rem; height: 2.5rem; padding: 0; border: 1px solid var(--border); border-radius: var(--radius-sm); background: none; cursor: pointer; }
+  .farbname { font-size: .875rem; color: var(--fg-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .zurueck { background: none; border: 0; color: var(--fg-muted); text-decoration: underline; cursor: pointer; font: inherit; font-size: .8125rem; padding: 0; }
+  /* Bereits verwendete Farben: zum Anklicken */
+  .zuletzt { display: flex; flex-wrap: wrap; gap: .35rem; margin-top: .4rem; }
+  .farbpunkt { width: 1.5rem; height: 1.5rem; border-radius: 999px; border: 2px solid var(--border); padding: 0; cursor: pointer; }
+  .farbpunkt.aktiv { outline: 2px solid var(--primary); outline-offset: 2px; }
+  @media (max-width: 520px) { .raster { grid-template-columns: 1fr; } .zeile { flex-direction: column; } .zeile > .feld:last-child { flex: none; width: 100%; } }
 </style>

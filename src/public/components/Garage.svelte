@@ -61,6 +61,8 @@
   const schluessel = (f) => `${f.art}-${f.e.id}`;
   const alleVoll = $derived(ARTEN_LISTE.every(a => daten[a].length >= ARTEN[a].max));
 
+  // Alle bereits verwendeten Farben (zur Auswahl beim Fahrrad, Anhänger und Gepäck)
+  const verwendeteFarben = $derived([...new Set([...daten.fahrraeder, ...daten.anhaenger, ...daten.gepaecke].map((e) => e.farbe).filter(Boolean))]);
   const imInGespann = (art, e) => (daten.mitglieder?.[art] ?? []).includes(e.id);
   // Der Reichweitenplaner braucht mindestens ein Zugfahrzeug im Gespann
   const hatZugfahrzeug = $derived((daten.mitglieder?.fahrraeder ?? []).length > 0);
@@ -73,17 +75,6 @@
   // Mitglieder des Gespanns für den Gespann-Bereich
   const gespannMitglieder = $derived(fahrzeuge.filter((f) => imInGespann(f.art, f.e)));
   // Position eines Gespann-Mitglieds auf der Fläche speichern und im Stand merken
-  // Farben der Gespann-Kategorien: sofort anzeigen, dann speichern
-  async function farbenSpeichern(werte) {
-    daten.farben = werte;
-    try {
-      await api.farbenSetzen(token, werte);
-    } catch (e) {
-      if (e.status === 401) onungueltig();
-      else melde(fehlerMeldung(e), 'error');
-    }
-  }
-
   async function gespannPosition(art, id, x, y, skal) {
     // Sofort im Stand merken, damit das Element nicht zur alten Position zurückspringt; danach speichern
     daten.mitglieder = { ...daten.mitglieder, positionen: { ...(daten.mitglieder?.positionen ?? {}), [art + '-' + id]: { x, y, s: skal } } };
@@ -308,7 +299,7 @@
   <p class="fehler" role="alert">{t(lang, 'loadError')}</p>
 {:else}
   <section class="link" aria-label={t(lang, 'linkTitle')}>
-    <Gespann {lang} mitglieder={gespannMitglieder} positionen={daten.mitglieder?.positionen ?? {}} farben={daten.farben ?? {}} ondrop={gespannDrop} onentfernen={(f) => umschalten(f)} onposition={gespannPosition} onfarben={farbenSpeichern} />
+    <Gespann {lang} mitglieder={gespannMitglieder} positionen={daten.mitglieder?.positionen ?? {}} ondrop={gespannDrop} onentfernen={(f) => umschalten(f)} onposition={gespannPosition} />
     <div class="linkkopf">
       <label for="garage-link">{t(lang, 'linkTitle')}</label>
       <span class="info">
@@ -411,7 +402,7 @@
 {/if}
 
 {#if form}
-  <EintragForm {lang} art={form.art} eintrag={form.eintrag} onsave={speichere} onclose={() => (form = null)} aktionen={form.eintrag ? formAktionen() : null} />
+  <EintragForm {lang} art={form.art} eintrag={form.eintrag} farbenVerwendet={verwendeteFarben} onsave={speichere} onclose={() => (form = null)} aktionen={form.eintrag ? formAktionen() : null} />
 {/if}
 
 {#if loeschen}
