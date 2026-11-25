@@ -61,8 +61,6 @@
   const schluessel = (f) => `${f.art}-${f.e.id}`;
   const alleVoll = $derived(ARTEN_LISTE.every(a => daten[a].length >= ARTEN[a].max));
 
-  // Alle bereits verwendeten Farben (zur Auswahl beim Fahrrad, Anhänger und Gepäck)
-  const verwendeteFarben = $derived([...new Set([...daten.fahrraeder, ...daten.anhaenger, ...daten.gepaecke].map((e) => e.farbe).filter(Boolean))]);
   const imInGespann = (art, e) => (daten.mitglieder?.[art] ?? []).includes(e.id);
   // Der Reichweitenplaner braucht mindestens ein Zugfahrzeug im Gespann
   const hatZugfahrzeug = $derived((daten.mitglieder?.fahrraeder ?? []).length > 0);
@@ -402,7 +400,7 @@
 {/if}
 
 {#if form}
-  <EintragForm {lang} art={form.art} eintrag={form.eintrag} farbenVerwendet={verwendeteFarben} onsave={speichere} onclose={() => (form = null)} aktionen={form.eintrag ? formAktionen() : null} />
+  <EintragForm {lang} art={form.art} eintrag={form.eintrag} onsave={speichere} onclose={() => (form = null)} aktionen={form.eintrag ? formAktionen() : null} />
 {/if}
 
 {#if loeschen}
