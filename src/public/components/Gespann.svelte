@@ -154,7 +154,7 @@
             {@const s = schluessel(f)}
             {@const sel = markiert === s}
             {@const p = liste[indexVon(s)].p}
-            <div class="element" class:markiert={sel} class:zieht={zieht?.schluessel === s}
+            <div class="element" class:markiert={sel} class:gedimmt={markiert !== null && !sel} class:zieht={zieht?.schluessel === s}
               style="left: {((live[s]?.x ?? p.x) / FLAECHE_B) * 100}%; top: {((live[s]?.y ?? p.y) / FLAECHE_H) * 100}%; --s: {p.s}; z-index: {p.e};"
               onpointerdown={(e) => { if (sel) zeigerStart(e, f, 'bewegen'); }} role="group" aria-label={f.e.name}>
               <div class="icon">
@@ -264,7 +264,9 @@
   /* Ausgewählt: gestrichelter Rahmen; das ganze Element ist ziehbar */
   .element.markiert { outline: 2px dashed var(--accent, #3b82f6); outline-offset: 3px; cursor: grab; pointer-events: auto; }
   /* Nicht ausgewählte Elemente nehmen keine Zeigereingaben an: so lässt sich ein Element, das hinter anderen liegt, trotzdem anfassen */
-  .element { pointer-events: none; }
+  .element { pointer-events: none; transition: opacity .15s; }
+  /* Solange ein Element ausgewählt ist, werden die anderen halb transparent */
+  .element.gedimmt { opacity: .5; }
   .element.zieht { cursor: grabbing; }
   .icon { position: relative; display: flex; align-items: center; justify-content: center; }
   .beschriftung { font-size: .7rem; color: var(--fg-muted); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center; }
