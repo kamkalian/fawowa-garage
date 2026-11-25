@@ -198,7 +198,7 @@
   <div use:insBodyHaengen>
     <Fenster {lang} breit titel={pick({ de: 'Gespann', en: 'Convoy' }, lang)} onclose={() => (offen = false)}>
       <div class="gespann">
-        <div class="flaeche" class:ablegen={ueber} role="region" aria-label={pick({ de: 'Fläche für das Gespann', en: 'Area for the convoy' }, lang)}
+        <div class="flaeche" class:ablegen={ueber} style="--k: {breite / FLAECHE_B};" role="region" aria-label={pick({ de: 'Fläche für das Gespann', en: 'Area for the convoy' }, lang)}
           bind:clientWidth={breite}
           ondragover={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; ueber = true; }}
           ondragleave={() => (ueber = false)}
@@ -213,7 +213,7 @@
               style="left: {((live[s]?.x ?? p.x) / FLAECHE_B) * 100}%; top: {((live[s]?.y ?? p.y) / FLAECHE_H) * 100}%; --s: {p.s}; z-index: {p.e};"
               onpointerdown={(e) => { if (sel) zeigerStart(e, f, 'bewegen'); }} role="group" aria-label={f.e.name}>
               <div class="icon">
-                <Fahrzeugbild art={f.art} bauart={f.e.bauart} aufbau={f.e.aufbau} motor={f.art === 'fahrraeder' && (f.e.motoren ?? []).length > 0} akku={(f.e.akkus ?? []).length > 0} alt={f.e.name} groesse="calc(64px * var(--s))" farbe={farbe(f)} />
+                <Fahrzeugbild art={f.art} bauart={f.e.bauart} aufbau={f.e.aufbau} motor={f.art === 'fahrraeder' && (f.e.motoren ?? []).length > 0} akku={(f.e.akkus ?? []).length > 0} alt={f.e.name} groesse="calc(64px * var(--s) * var(--k, 1))" farbe={farbe(f)} />
               </div>
               <div class="beschriftung">{f.e.name}</div>
               {#if sel}
@@ -308,12 +308,13 @@
   .element {
     position: absolute;
     /* Breite wächst mit dem Icon, mindestens 96 px; der Name bleibt immer gleich groß */
-    width: max(96px, calc(64px * var(--s)));
+    /* Alles im Element skaliert mit der Fläche (--k), damit Vorschau und Fläche gleich aussehen */
+    width: calc(max(96px, 64px * var(--s)) * var(--k, 1));
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: .25rem;
-    padding: 4px;
+    padding: calc(4px * var(--k, 1));
     border-radius: var(--radius-sm);
     user-select: none;
     cursor: default;
