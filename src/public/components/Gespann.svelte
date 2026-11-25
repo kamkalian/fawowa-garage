@@ -1,10 +1,10 @@
 <script>
   import { pick } from '../lib/i18n.js';
   import Fahrzeugbild from '../../shared/Fahrzeugbild.svelte';
+  import Fenster from './Fenster.svelte';
 
-  // Gespann-Bereich: zunächst ausgeblendet; der Knopf zeigt eine Vorschau der Anordnung.
-  // Aufgeklappt: Mitglieder als Icons auf einer Fläche mit Raster. Sie lassen sich verschieben und über den Griff unten rechts
-  // skalieren. Gezogen wird die Fläche grün umrandet. Kacheln lassen sich hineinziehen.
+  // Gespann: eine feste Kachel mit der Überschrift „Gespann“ und einer Vorschau der Anordnung.
+  // Ein Klick auf die Kachel öffnet die Fläche im modalen Fenster. Dort lassen sich die Icons verschieben und skalieren.
   let { lang, mitglieder = [], positionen = {}, ondrop, onentfernen, onposition } = $props();
 
   let offen = $state(false);
@@ -66,68 +66,90 @@
   }
 </script>
 
-<div class="gespann-kopf">
-  <button type="button" class="knopf" aria-expanded={offen} onclick={() => (offen = !offen)}>
-    {offen ? pick({ de: 'Gespann ausblenden', en: 'Hide convoy' }, lang) : pick({ de: 'Gespann anzeigen', en: 'Show convoy' }, lang)}
-  </button>
-  {#if rahmen}
-    <div class="vorschau" role="img" aria-label={pick({ de: 'Vorschau des Gespanns', en: 'Preview of the convoy' }, lang)}
-      style="width: {rahmen.w * VORSCHAU + 8}px; height: {rahmen.h * VORSCHAU + 8}px;">
-      {#each rahmen.liste as { f, p } (schluessel(f))}
-        <div class="mini" style="left: {(p.x - rahmen.x0) * VORSCHAU + 4}px; top: {(p.y - rahmen.y0) * VORSCHAU + 4}px; --s: {p.s * VORSCHAU};">
-          <Fahrzeugbild art={f.art} bauart={f.e.bauart} aufbau={f.e.aufbau} alt="" groesse="64px" />
-        </div>
-      {/each}
-    </div>
-  {:else}
-    <div class="vorschau leer" role="img" aria-label={pick({ de: 'Vorschau des Gespanns', en: 'Preview of the convoy' }, lang)}>
-      <span>{pick({ de: 'noch leer', en: 'empty' }, lang)}</span>
-    </div>
-  {/if}
-</div>
+<button type="button" class="kachel" class:ueber aria-haspopup="dialog" onclick={() => (offen = true)}
+  ondragover={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; ueber = true; }}
+  ondragleave={() => (ueber = false)}
+  ondrop={(e) => { e.preventDefault(); ueber = false; ondrop?.(e); }}>
+  <span class="kachel-titel">{pick({ de: 'Gespann', en: 'Convoy' }, lang)}</span>
+  <span class="kachel-vorschau">
+    {#if rahmen}
+      <span class="vorschau" style="width: {rahmen.w * VORSCHAU + 8}px; height: {rahmen.h * VORSCHAU + 8}px;">
+        {#each rahmen.liste as { f, p } (schluessel(f))}
+          <span class="mini" style="left: {(p.x - rahmen.x0) * VORSCHAU + 4}px; top: {(p.y - rahmen.y0) * VORSCHAU + 4}px; --s: {p.s * VORSCHAU};">
+            <Fahrzeugbild art={f.art} bauart={f.e.bauart} aufbau={f.e.aufbau} alt="" groesse="64px" />
+          </span>
+        {/each}
+      </span>
+    {:else}
+      <span class="leer">{pick({ de: 'noch leer', en: 'empty' }, lang)}</span>
+    {/if}
+  </span>
+</button>
 
 {#if offen}
-  <section class="gespann" aria-label={pick({ de: 'Gespann', en: 'Convoy' }, lang)}>
-    <h2>{pick({ de: 'Gespann', en: 'Convoy' }, lang)}</h2>
-    <div class="flaeche" class:ueber class:ablegen={zieht !== null || ueber} role="region" aria-label={pick({ de: 'Fläche für das Gespann', en: 'Area for the convoy' }, lang)}
-      ondragover={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; ueber = true; }}
-      ondragleave={() => (ueber = false)}
-      ondrop={(e) => { e.preventDefault(); ueber = false; ondrop?.(e); }}
-      ondragstart={(e) => e.preventDefault()}
-      onpointermove={zeigerBewegen} onpointerup={zeigerEnde} onpointercancel={zeigerEnde}>
-      {#each mitglieder as f, i (schluessel(f))}
-        {@const p = lage(f, i)}
-        <div class="element" class:zieht={zieht?.schluessel === schluessel(f)} style="left: {p.x}px; top: {p.y}px; --s: {p.s};"
-          onpointerdown={(e) => zeigerStart(e, f, 'bewegen', i)} role="group" aria-label={f.e.name}>
-          <div class="icon">
-            <Fahrzeugbild art={f.art} bauart={f.e.bauart} aufbau={f.e.aufbau} motor={f.art === 'fahrraeder' && (f.e.motoren ?? []).length > 0} akku={(f.e.akkus ?? []).length > 0} alt={f.e.name} groesse="calc(64px * var(--s))" />
+  <Fenster {lang} breit titel={pick({ de: 'Gespann', en: 'Convoy' }, lang)} onclose={() => (offen = false)}>
+    <div class="gespann">
+      <div class="flaeche" class:ablegen={zieht !== null || ueber} role="region" aria-label={pick({ de: 'Fläche für das Gespann', en: 'Area for the convoy' }, lang)}
+        ondragover={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; ueber = true; }}
+        ondragleave={() => (ueber = false)}
+        ondrop={(e) => { e.preventDefault(); ueber = false; ondrop?.(e); }}
+        ondragstart={(e) => e.preventDefault()}
+        onpointermove={zeigerBewegen} onpointerup={zeigerEnde} onpointercancel={zeigerEnde}>
+        {#each mitglieder as f, i (schluessel(f))}
+          {@const p = lage(f, i)}
+          <div class="element" class:zieht={zieht?.schluessel === schluessel(f)} style="left: {p.x}px; top: {p.y}px; --s: {p.s};"
+            onpointerdown={(e) => zeigerStart(e, f, 'bewegen', i)} role="group" aria-label={f.e.name}>
+            <div class="icon">
+              <Fahrzeugbild art={f.art} bauart={f.e.bauart} aufbau={f.e.aufbau} motor={f.art === 'fahrraeder' && (f.e.motoren ?? []).length > 0} akku={(f.e.akkus ?? []).length > 0} alt={f.e.name} groesse="calc(64px * var(--s))" />
+            </div>
+            <div class="beschriftung">{f.e.name}</div>
+            <button type="button" class="entfernen" aria-label={pick({ de: 'Aus dem Gespann nehmen', en: 'Remove from convoy' }, lang)}
+              onpointerdown={(e) => e.stopPropagation()} onclick={() => onentfernen?.(f)}>✕</button>
+            <span class="griff" aria-hidden="true" onpointerdown={(e) => { e.stopPropagation(); zeigerStart(e, f, 'skalieren', i); }}></span>
           </div>
-          <div class="beschriftung">{f.e.name}</div>
-          <button type="button" class="entfernen" aria-label={pick({ de: 'Aus dem Gespann nehmen', en: 'Remove from convoy' }, lang)}
-            onpointerdown={(e) => e.stopPropagation()} onclick={() => onentfernen?.(f)}>✕</button>
-          <span class="griff" aria-hidden="true" onpointerdown={(e) => { e.stopPropagation(); zeigerStart(e, f, 'skalieren', i); }}></span>
-        </div>
-      {:else}
-        <p class="hinweis">{pick({ de: 'Kachel hierher ziehen, um sie ins Gespann zu legen.', en: 'Drag a card here to add it to the convoy.' }, lang)}</p>
-      {/each}
+        {:else}
+          <p class="hinweis">{pick({ de: 'Kachel hierher ziehen, um sie ins Gespann zu legen.', en: 'Drag a card here to add it to the convoy.' }, lang)}</p>
+        {/each}
+      </div>
     </div>
-  </section>
+  </Fenster>
 {/if}
 
 <style>
-  .gespann-kopf { display: flex; align-items: center; gap: .75rem; margin: .75rem 0 0; flex-wrap: wrap; }
-  .knopf { background: transparent; border: 1px solid var(--border); border-radius: var(--radius-sm); color: inherit; padding: .4rem .7rem; font: inherit; font-size: .875rem; cursor: pointer; }
-  /* Vorschau: die Anordnung verkleinert, neben dem Knopf */
+  /* Feste Kachel: Überschrift oben, Vorschau darunter */
+  .kachel {
+    width: 14rem;
+    height: 11rem;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: .5rem;
+    padding: .75rem;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--bg-card);
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  .kachel:hover { border-color: var(--accent, #3b82f6); }
+  .kachel.ueber { border: 2px solid #22c55e; box-shadow: 0 0 0 2px rgba(34, 197, 94, .35); }
+  .kachel-titel { font-weight: 600; font-size: .9375rem; }
+  .kachel-vorschau { flex: 1; display: flex; align-items: center; justify-content: center; min-height: 0; overflow: hidden; }
   /* Vorschau: nur ein Rahmen in der Größe der Anordnung, darin verkleinerte Icons */
-  .vorschau { position: relative; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-card); overflow: hidden; max-width: 100%; }
-  .vorschau.leer { width: 7rem; height: 2.5rem; display: flex; align-items: center; justify-content: center; font-size: .75rem; color: var(--fg-muted); }
-  .mini { position: absolute; transform-origin: top left; transform: scale(var(--s)); }
-  .mini :global(img), .element :global(img), .element :global(svg) { pointer-events: none; -webkit-user-drag: none; user-select: none; }
-  h2 { font-size: 1rem; margin: 0 0 .5rem; }
-  .gespann { margin: .75rem 0 1rem; }
+  .vorschau { position: relative; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg); overflow: hidden; display: block; max-width: 100%; max-height: 100%; }
+  .leer { font-size: .8125rem; color: var(--fg-muted); }
+  .mini { position: absolute; transform-origin: top left; transform: scale(var(--s)); display: block; }
+  .mini :global(img), .mini :global(svg), .element :global(img), .element :global(svg) { pointer-events: none; -webkit-user-drag: none; user-select: none; }
+
+  /* Im Fenster: die Fläche mit Raster */
+  .gespann { width: 100%; }
   .flaeche {
     position: relative;
     height: 30rem;
+    max-width: 100%;
     overflow: hidden;
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
