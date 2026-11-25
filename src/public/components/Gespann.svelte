@@ -1,5 +1,6 @@
 <script>
   import { pick } from '../lib/i18n.js';
+  import Fahrzeugbild from '../../shared/Fahrzeugbild.svelte';
 
   // Gespann-Bereich: zunächst ausgeblendet. Aufgeklappt zeigt er die Mitglieder als Grafik auf einer Fläche mit Raster.
   // Jedes Element lässt sich frei verschieben; die Position wird gespeichert. Kacheln lassen sich hineinziehen.
@@ -69,7 +70,7 @@
         {@const p = lage(f, i)}
         <div class="element" class:zieht={zieht?.schluessel === schluessel(f)} style="left: {p.x}px; top: {p.y}px;"
           onpointerdown={(e) => zieheStart(e, f)} role="group" aria-label={f.e.name}>
-          <div class="bild" aria-hidden="true">{pick(ART[f.art], lang).slice(0, 2)}</div>
+          <Fahrzeugbild art={f.art} bauart={f.e.bauart} aufbau={f.e.aufbau} motor={f.art === 'fahrraeder' && (f.e.motoren ?? []).length > 0} akku={(f.e.akkus ?? []).length > 0} alt={f.e.name} groesse="64px" />
           <div class="beschriftung">{f.e.name}</div>
           <button type="button" class="entfernen" aria-label={pick({ de: 'Aus dem Gespann nehmen', en: 'Remove from convoy' }, lang)}
             onpointerdown={(e) => e.stopPropagation()} onclick={() => onentfernen?.(f)}>✕</button>
