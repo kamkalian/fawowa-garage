@@ -186,7 +186,6 @@
                 ondragstart={(e) => { ziehEintrag = schluessel(f); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', schluessel(f)); }}
                 ondragend={() => { ziehEintrag = null; ziel = null; }}
                 ondragover={(e) => { if (!ziehEintrag) return; e.preventDefault(); e.dataTransfer.dropEffect = 'move'; ziel = k; }}
-                ondragleave={() => { if (ziel === k) ziel = null; }}
                 ondrop={(e) => { e.preventDefault(); if (ziehEintrag) reihenfolgeNeu(ziehEintrag, k); ziehEintrag = null; ziel = null; }}>
                 <button type="button" class="eintrag" class:markiert={markiert === schluessel(f)} aria-pressed={markiert === schluessel(f)}
                   onclick={() => listeKlick(schluessel(f))}>
@@ -284,11 +283,11 @@
   .reihenfolge-hinweis { font-size: .75rem; color: var(--fg-muted); margin: 0; }
   .liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .35rem; max-height: 22rem; overflow-y: auto; }
   .zeile { position: relative; display: flex; align-items: center; gap: .25rem; cursor: grab; border-radius: var(--radius-sm); transition: margin .15s; }
-  /* Freier Platz zeigt, wohin der Eintrag beim Loslassen kommt: oberhalb des Ziels beim Hochziehen, unterhalb beim Runterziehen */
-  .zeile.ziel-oben { margin-top: 2.6rem; }
-  .zeile.ziel-oben::before { content: ''; position: absolute; left: 0; right: 0; top: -2.4rem; height: 2.2rem; border: 2px dashed var(--accent, #3b82f6); border-radius: var(--radius-sm); }
-  .zeile.ziel-unten { margin-bottom: 2.6rem; }
-  .zeile.ziel-unten::after { content: ''; position: absolute; left: 0; right: 0; top: calc(100% + .25rem); height: 2.2rem; border: 2px dashed var(--accent, #3b82f6); border-radius: var(--radius-sm); }
+  /* Ziellinie: zeigt an, wohin der Eintrag beim Loslassen kommt (oberhalb des Ziels beim Hochziehen, unterhalb beim Runterziehen).
+     Eine Linie statt eines Platzes, damit sich die Liste beim Ziehen nicht verschiebt. */
+  .zeile.ziel-oben::before, .zeile.ziel-unten::after { content: ''; position: absolute; left: 0; right: 0; height: 3px; border-radius: 2px; background: var(--accent, #3b82f6); pointer-events: none; }
+  .zeile.ziel-oben::before { top: -.2rem; }
+  .zeile.ziel-unten::after { bottom: -.2rem; }
   .eintrag { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: .5rem; padding: .3rem .4rem; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-card); color: inherit; font: inherit; font-size: .875rem; text-align: left; cursor: pointer; }
   .eintrag:hover { border-color: var(--accent, #3b82f6); }
   .eintrag.markiert { border-color: var(--accent, #3b82f6); background: rgba(59, 130, 246, .2); font-weight: 600; }
