@@ -27,7 +27,9 @@
   let zieht = $state(null);       // { schluessel, f, modus, px, py, ox, oy, os, oe }
   let markiert = $state(null);    // Schlüssel des ausgewählten Elements (nur über die Liste)
   let ziehEintrag = $state(null); // Listeneintrag, der gerade per Drag and Drop bewegt wird
-  let ziel = $state(null);        // Listenplatz, über dem gerade gezogen wird
+  let slot = $state(null);        // Einfügestelle in der Liste beim Ziehen (vor diesem Platz; so viele wie Einträge = ganz unten)
+  let listeEl = $state(null);     // die Liste (für die Ziellinie und das Ziehen)
+  const zeilenEl = [];            // die Zeilen der Liste, in Reihenfolge
 
   const schluessel = (f) => f.art + '-' + f.e.id;
   const sWert = (v) => (typeof v === 'number' && v >= S_MIN && v <= S_MAX ? v : 1);
@@ -120,6 +122,59 @@
     reihenfolgeSetzen(arr);
   }
 
+  // Liste per Zeigen ordnen: erst ab einer kleinen Bewegung gilt es als Ziehen, sonst ist es ein Klick (Auswahl)
+  let listeZieht = null;          // { s, startY, aktiv }
+  let nachZiehen = false;         // nach einem Ziehen soll der folgende Klick nicht auswählen
+  function listeDown(e, s) {
+    if (e.target.closest?.('.weg')) return;
+    nachZiehen = false;
+    listeZieht = { s, startY: e.clientY, aktiv: false };
+  }
+  function listeMove(e) {
+    if (!listeZieht) return;
+    if (!listeZieht.aktiv) {
+      if (Math.abs(e.clientY - listeZieht.startY) < 5) return;
+      listeZieht.aktiv = true;
+      ziehEintrag = listeZieht.s;
+      listeEl?.setPointerCapture?.(e.pointerId);
+    }
+    // Einfügestelle: vor der ersten Zeile, deren Mitte unter dem Zeiger liegt; sonst ganz unten
+    const n = vorneZuHinten.length;
+    let s = n;
+    for (let k = 0; k < n; k++) {
+      const zeile = zeilenEl[k];
+      if (!zeile) continue;
+      const r = zeile.getBoundingClientRect();
+      if (e.clientY < r.top + r.height / 2) { s = k; break; }
+    }
+    slot = s;
+  }
+  function listeUp() {
+    if (!listeZieht) return;
+    if (listeZieht.aktiv && slot !== null) {
+      // Der gezogene Eintrag steht noch in der Liste: liegt die Stelle dahinter, rückt sie um eins nach vorn
+      reihenfolgeNeu(listeZieht.s, slot > vonIndex ? slot - 1 : slot);
+      nachZiehen = true;
+    }
+    listeZieht = null;
+    ziehEintrag = null;
+    slot = null;
+  }
+  function listeAbbruch() {
+    listeZieht = null;
+    ziehEintrag = null;
+    slot = null;
+  }
+  // Höhe der Ziellinie für eine Einfügestelle (Pixel in der Liste)
+  function linieY(k) {
+    const n = vorneZuHinten.length;
+    if (k >= n) {
+      const letzte = zeilenEl[n - 1];
+      return letzte ? letzte.offsetTop + letzte.offsetHeight + 2 : 0;
+    }
+    return zeilenEl[k] ? zeilenEl[k].offsetTop - 3 : 0;
+  }
+
   // Hängt das Fenster an den Seitenkörper, damit es über der Kopfleiste liegt
   function insBodyHaengen(node) {
     document.body.appendChild(node);
@@ -180,15 +235,12 @@
         <aside class="seite">
           <h3>{pick({ de: 'Im Gespann', en: 'In the convoy' }, lang)}</h3>
           <p class="reihenfolge-hinweis">{pick({ de: 'Oben ist vorne. Zum Ordnen ziehen.', en: 'Top is in front. Drag to reorder.' }, lang)}</p>
-          <ul class="liste">
+          <ul class="liste" bind:this={listeEl} onpointermove={listeMove} onpointerup={listeUp} onpointercancel={listeAbbruch}>
             {#each vorneZuHinten as { f }, k (schluessel(f))}
-              <li class="zeile" class:ziel-oben={ziel === k && vonIndex > k} class:ziel-unten={ziel === k && vonIndex >= 0 && vonIndex < k} draggable="true"
-                ondragstart={(e) => { ziehEintrag = schluessel(f); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', schluessel(f)); }}
-                ondragend={() => { ziehEintrag = null; ziel = null; }}
-                ondragover={(e) => { if (!ziehEintrag) return; e.preventDefault(); e.dataTransfer.dropEffect = 'move'; ziel = k; }}
-                ondrop={(e) => { e.preventDefault(); if (ziehEintrag) reihenfolgeNeu(ziehEintrag, k); ziehEintrag = null; ziel = null; }}>
+              <li class="zeile" class:gezogen={ziehEintrag === schluessel(f)} bind:this={zeilenEl[k]}
+                onpointerdown={(e) => listeDown(e, schluessel(f))}>
                 <button type="button" class="eintrag" class:markiert={markiert === schluessel(f)} aria-pressed={markiert === schluessel(f)}
-                  onclick={() => listeKlick(schluessel(f))}>
+                  onclick={() => { if (nachZiehen) { nachZiehen = false; return; } listeKlick(schluessel(f)); }}>
                   <span class="symbol"><Fahrzeugbild art={f.art} bauart={f.e.bauart} aufbau={f.e.aufbau} alt="" groesse="28px" farbe={farbe(f)} /></span>
                   <span class="name">{f.e.name}</span>
                 </button>
@@ -198,6 +250,9 @@
             {:else}
               <li class="leer">{pick({ de: 'Noch niemand im Gespann.', en: 'Nobody in the convoy yet.' }, lang)}</li>
             {/each}
+            {#if ziehEintrag && slot !== null}
+              <div class="ziellinie" style="top: {linieY(slot)}px;" aria-hidden="true"></div>
+            {/if}
           </ul>
 
           <!-- Erklärung unten rechts -->
@@ -285,9 +340,10 @@
   .zeile { position: relative; display: flex; align-items: center; gap: .25rem; cursor: grab; border-radius: var(--radius-sm); transition: margin .15s; }
   /* Ziellinie: zeigt an, wohin der Eintrag beim Loslassen kommt (oberhalb des Ziels beim Hochziehen, unterhalb beim Runterziehen).
      Eine Linie statt eines Platzes, damit sich die Liste beim Ziehen nicht verschiebt. */
-  .zeile.ziel-oben::before, .zeile.ziel-unten::after { content: ''; position: absolute; left: 0; right: 0; height: 3px; border-radius: 2px; background: var(--accent, #3b82f6); pointer-events: none; }
-  .zeile.ziel-oben::before { top: -.2rem; }
-  .zeile.ziel-unten::after { bottom: -.2rem; }
+  /* Ziellinie zwischen den Einträgen; die Liste selbst bleibt beim Ziehen stehen */
+  .liste { position: relative; }
+  .ziellinie { position: absolute; left: 0; right: 0; height: 3px; border-radius: 2px; background: var(--accent, #3b82f6); pointer-events: none; }
+  .zeile.gezogen { opacity: .4; }
   .eintrag { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: .5rem; padding: .3rem .4rem; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-card); color: inherit; font: inherit; font-size: .875rem; text-align: left; cursor: pointer; }
   .eintrag:hover { border-color: var(--accent, #3b82f6); }
   .eintrag.markiert { border-color: var(--accent, #3b82f6); background: rgba(59, 130, 246, .2); font-weight: 600; }
