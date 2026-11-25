@@ -181,7 +181,8 @@
   .raster { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .5rem .75rem; }
   .feld.voll { grid-column: 1 / -1; }
   .notiz { min-height: 1.1rem; margin-top: .125rem; }
-  .aktionen { display: flex; gap: .5rem; justify-content: space-between; align-items: center; flex-wrap: wrap; margin-top: 1rem; }
+  /* Speichern und Abbrechen bleiben beim Scrollen unten am Fenster sichtbar */
+  .aktionen { position: sticky; bottom: -1.5rem; z-index: 2; display: flex; gap: .5rem; justify-content: space-between; align-items: center; flex-wrap: wrap; margin: 1rem -1.5rem -1.5rem; padding: .75rem 1.5rem; background: var(--bg-card); border-top: 1px solid var(--border); }
   .rechts { display: inline-flex; gap: .5rem; margin-left: auto; }
   /* Symbole zur Auswahl von Bauart und Art des Anhängers */
   /* Symbole nebeneinander, bis die Zeile voll ist; dann umbrechen */
