@@ -12,7 +12,7 @@
   let live = $state({});          // Lage während des Ziehens: { x, y, s }
   let zieht = $state(null);       // { schluessel, f, modus: 'bewegen' | 'skalieren', px, py, ox, oy, os }
   const KACHEL = 96;              // Breite eines Elements bei Größe 1
-  const VORSCHAU = 0.2;           // Maßstab der Vorschau gegenüber der Fläche
+  const VORSCHAU = 0.4;           // Maßstab der Vorschau gegenüber der Fläche
 
   const schluessel = (f) => f.art + '-' + f.e.id;
   const sWert = (v) => (typeof v === 'number' && v >= 0.5 && v <= 2 ? v : 1);
@@ -24,6 +24,17 @@
     if (positionen[s]) return { x: positionen[s].x, y: positionen[s].y, s: sWert(positionen[s].s) };
     return { x: 16 + (i % 4) * (KACHEL + 16), y: 16 + Math.floor(i / 4) * (KACHEL + 16), s: 1 };
   };
+
+  // Rahmen um alle Icons (Lage in Pixeln der Fläche): Grundlage der Vorschau
+  const rahmen = $derived.by(() => {
+    if (mitglieder.length === 0) return null;
+    const liste = mitglieder.map((f, i) => ({ f, p: lage(f, i) }));
+    const x0 = Math.min(...liste.map(({ p }) => p.x));
+    const y0 = Math.min(...liste.map(({ p }) => p.y));
+    const x1 = Math.max(...liste.map(({ p }) => p.x + KACHEL * p.s));
+    const y1 = Math.max(...liste.map(({ p }) => p.y + KACHEL * p.s));
+    return { liste, x0, y0, w: x1 - x0, h: y1 - y0 };
+  });
 
   function zeigerStart(e, f, modus, i) {
     const { x, y, s } = lage(f, i);
@@ -59,16 +70,20 @@
   <button type="button" class="knopf" aria-expanded={offen} onclick={() => (offen = !offen)}>
     {offen ? pick({ de: 'Gespann ausblenden', en: 'Hide convoy' }, lang) : pick({ de: 'Gespann anzeigen', en: 'Show convoy' }, lang)}
   </button>
-  <div class="vorschau" aria-label={pick({ de: 'Vorschau des Gespanns', en: 'Preview of the convoy' }, lang)} role="img">
-    {#each mitglieder as f, i (schluessel(f))}
-      {@const p = lage(f, i)}
-      <div class="mini" style="left: {p.x * VORSCHAU}px; top: {p.y * VORSCHAU}px; --s: {p.s * VORSCHAU};">
-        <Fahrzeugbild art={f.art} bauart={f.e.bauart} aufbau={f.e.aufbau} alt="" groesse="64px" />
-      </div>
-    {:else}
-      <span class="leer">{pick({ de: 'noch leer', en: 'empty' }, lang)}</span>
-    {/each}
-  </div>
+  {#if rahmen}
+    <div class="vorschau" role="img" aria-label={pick({ de: 'Vorschau des Gespanns', en: 'Preview of the convoy' }, lang)}
+      style="width: {rahmen.w * VORSCHAU + 8}px; height: {rahmen.h * VORSCHAU + 8}px;">
+      {#each rahmen.liste as { f, p } (schluessel(f))}
+        <div class="mini" style="left: {(p.x - rahmen.x0) * VORSCHAU + 4}px; top: {(p.y - rahmen.y0) * VORSCHAU + 4}px; --s: {p.s * VORSCHAU};">
+          <Fahrzeugbild art={f.art} bauart={f.e.bauart} aufbau={f.e.aufbau} alt="" groesse="64px" />
+        </div>
+      {/each}
+    </div>
+  {:else}
+    <div class="vorschau leer" role="img" aria-label={pick({ de: 'Vorschau des Gespanns', en: 'Preview of the convoy' }, lang)}>
+      <span>{pick({ de: 'noch leer', en: 'empty' }, lang)}</span>
+    </div>
+  {/if}
 </div>
 
 {#if offen}
@@ -78,6 +93,7 @@
       ondragover={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; ueber = true; }}
       ondragleave={() => (ueber = false)}
       ondrop={(e) => { e.preventDefault(); ueber = false; ondrop?.(e); }}
+      ondragstart={(e) => e.preventDefault()}
       onpointermove={zeigerBewegen} onpointerup={zeigerEnde} onpointercancel={zeigerEnde}>
       {#each mitglieder as f, i (schluessel(f))}
         {@const p = lage(f, i)}
@@ -102,9 +118,11 @@
   .gespann-kopf { display: flex; align-items: center; gap: .75rem; margin: .75rem 0 0; flex-wrap: wrap; }
   .knopf { background: transparent; border: 1px solid var(--border); border-radius: var(--radius-sm); color: inherit; padding: .4rem .7rem; font: inherit; font-size: .875rem; cursor: pointer; }
   /* Vorschau: die Anordnung verkleinert, neben dem Knopf */
-  .vorschau { position: relative; width: 180px; height: 96px; border: 1px solid var(--border); border-radius: var(--radius-sm); background-color: var(--bg-card); background-image: linear-gradient(var(--border) 1px, transparent 1px), linear-gradient(90deg, var(--border) 1px, transparent 1px); background-size: 12px 12px; overflow: hidden; }
+  /* Vorschau: nur ein Rahmen in der Größe der Anordnung, darin verkleinerte Icons */
+  .vorschau { position: relative; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-card); overflow: hidden; max-width: 100%; }
+  .vorschau.leer { width: 7rem; height: 2.5rem; display: flex; align-items: center; justify-content: center; font-size: .75rem; color: var(--fg-muted); }
   .mini { position: absolute; transform-origin: top left; transform: scale(var(--s)); }
-  .leer { position: absolute; left: 8px; top: 8px; font-size: .75rem; color: var(--fg-muted); }
+  .mini :global(img), .element :global(img), .element :global(svg) { pointer-events: none; -webkit-user-drag: none; user-select: none; }
   h2 { font-size: 1rem; margin: 0 0 .5rem; }
   .gespann { margin: .75rem 0 1rem; }
   .flaeche {
