@@ -218,12 +218,15 @@
   .foto { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; padding-bottom: 1rem; margin-bottom: .25rem; border-bottom: 1px solid var(--border); }
   .foto-titel { font-size: .875rem; font-weight: 600; margin-right: .5rem; }
   /* Bauart und Farbe in einer Zeile: die Farbe rechts daneben */
-  .zeile { display: flex; gap: .75rem; align-items: flex-start; min-width: 0; }
-  .zeile > .feld:first-child { flex: 1 1 auto; min-width: 0; }
-  /* Die Farbpaare nehmen rechts nur wenig Platz; die Bauart bekommt den größten Teil */
-  .zeile > .feld:last-child { flex: 0 0 auto; }
+  /* Links die Bauart (nimmt den größten Teil), rechts die Farbpaare */
+  .zeile { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .75rem; align-items: start; min-width: 0; }
+  .zeile > .feld { min-width: 0; }
+  /* Bauart-Optionen nebeneinander, bis der Platz nicht mehr reicht, dann in der nächsten Zeile */
+  .zeile .symbole { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: .5rem; }
+  .zeile .symbol-knopf { flex: none; }
   .farbwahl { min-height: 2.5rem; }
-  .paare { display: grid; grid-template-columns: repeat(3, auto); gap: .35rem; }
+  /* Farbpaare rechts, untereinander */
+  .paare { display: flex; flex-direction: column; align-items: flex-start; gap: .35rem; }
   .paar { display: inline-flex; border: 1px solid var(--border); border-radius: 999px; overflow: hidden; }
   .farbpunkt { width: 1.35rem; height: 1.35rem; padding: 0; border: 0; cursor: pointer; }
   .farbpunkt.aktiv { box-shadow: inset 0 0 0 2px var(--fg); }
