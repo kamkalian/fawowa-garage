@@ -12,6 +12,12 @@
   // Formular für Fahrrad und Anhänger; die Felder kommen aus lib/felder.js.
   // onsave(werte, antriebe) legt an oder ändert und wirft bei Fehlern einen ApiFehler.
   // aktionen (nur beim Bearbeiten): { fotoVorhanden, onfoto, onfotoloeschen, onloeschen }; das Foto steht oben, Entfernen unten.
+  // Farbpaare für Icons: je Farbton eine helle und eine dunkle Variante. Gewählt wird eine davon (ein Hex-Wert).
+  const FARBPAARE = [
+    ['#fca5a5', '#b91c1c'], ['#fdba74', '#c2410c'], ['#fde047', '#a16207'], ['#86efac', '#15803d'],
+    ['#67e8f9', '#0e7490'], ['#93c5fd', '#1d4ed8'], ['#d8b4fe', '#7e22ce'], ['#f9a8d4', '#be185d'],
+    ['#d6d3d1', '#44403c']
+  ];
   // farbenVerwendet: alle Farben, die in der Garage schon benutzt werden (zum schnellen Wiederwählen)
   let { lang, art, eintrag = null, onsave, onclose, aktionen = null, farbenVerwendet = [] } = $props();
 
@@ -116,19 +122,23 @@
                 </div>
               {:else if f.typ === 'farbe'}
                 <div class="farbwahl">
-                  <div class="farbzeile">
-                    <input id="f-{f.key}" type="color" value={werte[f.key] || '#2563eb'} aria-describedby="h-{f.key}"
-                      oninput={(e) => (werte[f.key] = e.currentTarget.value)} />
-                    <span class="farbname">{werte[f.key] || pick({ de: 'keine Farbe', en: 'no colour' }, lang)}</span>
-                    {#if werte[f.key]}
-                      <button type="button" class="zurueck" onclick={() => (werte[f.key] = '')}>{pick({ de: 'Standard', en: 'Default' }, lang)}</button>
-                    {/if}
+                  <div class="paare" role="group" aria-label={pick(f.label, lang)}>
+                    {#each FARBPAARE as paar (paar[0])}
+                      <span class="paar">
+                        {#each paar as c, i (c)}
+                          <button type="button" class="farbpunkt" class:aktiv={werte[f.key] === c} style="background: {c};"
+                            title={pick(i === 0 ? { de: 'hell', en: 'light' } : { de: 'dunkel', en: 'dark' }, lang)}
+                            aria-label={pick(i === 0 ? { de: 'Hell', en: 'Light' } : { de: 'Dunkel', en: 'Dark' }, lang)} aria-pressed={werte[f.key] === c}
+                            onclick={() => (werte[f.key] = werte[f.key] === c ? '' : c)}></button>
+                        {/each}
+                      </span>
+                    {/each}
                   </div>
                   {#if farbenVerwendet.length}
                     <div class="zuletzt" role="group" aria-label={pick({ de: 'Bereits verwendete Farben', en: 'Colours already used' }, lang)}>
                       {#each farbenVerwendet as c (c)}
-                        <button type="button" class="farbpunkt" class:aktiv={werte[f.key] === c} style="background: {c};" title={c} aria-label={c}
-                          onclick={() => (werte[f.key] = c)}></button>
+                        <button type="button" class="farbpunkt verwendet" class:aktiv={werte[f.key] === c} style="background: {c};" title={c} aria-label={c} aria-pressed={werte[f.key] === c}
+                          onclick={() => (werte[f.key] = werte[f.key] === c ? '' : c)}></button>
                       {/each}
                     </div>
                   {/if}
@@ -210,14 +220,17 @@
   /* Bauart und Farbe in einer Zeile: die Farbe rechts daneben */
   .zeile { display: flex; gap: .75rem; align-items: flex-start; min-width: 0; }
   .zeile > .feld:first-child { flex: 1 1 auto; min-width: 0; }
-  .zeile > .feld:last-child { flex: 0 0 13rem; }
-  .farbzeile { display: flex; align-items: center; gap: .5rem; min-height: 2.5rem; }
-  .farbzeile input[type='color'] { width: 3rem; height: 2.5rem; padding: 0; border: 1px solid var(--border); border-radius: var(--radius-sm); background: none; cursor: pointer; }
-  .farbname { font-size: .875rem; color: var(--fg-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .zurueck { background: none; border: 0; color: var(--fg-muted); text-decoration: underline; cursor: pointer; font: inherit; font-size: .8125rem; padding: 0; }
-  /* Bereits verwendete Farben: zum Anklicken */
-  .zuletzt { display: flex; flex-wrap: wrap; gap: .35rem; margin-top: .4rem; }
-  .farbpunkt { width: 1.5rem; height: 1.5rem; border-radius: 999px; border: 2px solid var(--border); padding: 0; cursor: pointer; }
-  .farbpunkt.aktiv { outline: 2px solid var(--primary); outline-offset: 2px; }
-  @media (max-width: 520px) { .raster { grid-template-columns: 1fr; } .zeile { flex-direction: column; } .zeile > .feld:last-child { flex: none; width: 100%; } }
+  /* Die Farbpaare nehmen rechts nur wenig Platz; die Bauart bekommt den größten Teil */
+  .zeile > .feld:last-child { flex: 0 0 auto; }
+  .farbwahl { min-height: 2.5rem; }
+  .paare { display: grid; grid-template-columns: repeat(3, auto); gap: .35rem; }
+  .paar { display: inline-flex; border: 1px solid var(--border); border-radius: 999px; overflow: hidden; }
+  .farbpunkt { width: 1.35rem; height: 1.35rem; padding: 0; border: 0; cursor: pointer; }
+  .farbpunkt.aktiv { box-shadow: inset 0 0 0 2px var(--fg); }
+  .farbpunkt:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+  /* Bereits verwendete Farben: Punkte zum Anklicken */
+  .zuletzt { display: flex; flex-wrap: wrap; gap: .3rem; margin-top: .4rem; }
+  .farbpunkt.verwendet { width: 1.1rem; height: 1.1rem; border-radius: 999px; border: 1px solid var(--border); }
+  .farbpunkt.verwendet.aktiv { box-shadow: 0 0 0 2px var(--primary); }
+  @media (max-width: 520px) { .raster { grid-template-columns: 1fr; } .zeile { flex-direction: column; } .zeile > .feld:last-child { width: 100%; } }
 </style>
