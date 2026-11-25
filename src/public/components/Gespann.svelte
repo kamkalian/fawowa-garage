@@ -15,7 +15,7 @@
   const VORSCHAU = VORSCHAU_B / FLAECHE_B;   // Maßstab der Vorschau gegenüber der Fläche
   const KACHEL = 96;              // Breite eines Elements bei Größe 1
   const S_MIN = 0.5;
-  const S_MAX = 3;
+  const S_MAX = 5;
 
   let offen = $state(false);
   let ueber = $state(false);      // eine Kachel wird von außen darübergezogen

@@ -297,6 +297,7 @@
   <p class="fehler" role="alert">{t(lang, 'loadError')}</p>
 {:else}
   <section class="link" aria-label={t(lang, 'linkTitle')}>
+    <Gespann {lang} mitglieder={gespannMitglieder} positionen={daten.mitglieder?.positionen ?? {}} ondrop={gespannDrop} onentfernen={(f) => umschalten(f)} onposition={gespannPosition} />
     <div class="linkkopf">
       <label for="garage-link">{t(lang, 'linkTitle')}</label>
       <span class="info">
@@ -320,7 +321,6 @@
         {daten.email ? t(lang, 'emailDone') : daten.email_offen ? t(lang, 'emailOpen') : t(lang, 'emailAdd')}
       </button>
     {/if}
-    <Gespann {lang} mitglieder={gespannMitglieder} positionen={daten.mitglieder?.positionen ?? {}} ondrop={gespannDrop} onentfernen={(f) => umschalten(f)} onposition={gespannPosition} />
   </section>
 
   {#if planerAktiv}
