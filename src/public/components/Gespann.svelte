@@ -54,6 +54,8 @@
   const sortiert = $derived(liste.slice().sort((a, b) => a.p.e - b.p.e));
   // Für die Liste: oben vorne, unten hinten
   const vorneZuHinten = $derived(sortiert.slice().reverse());
+  // Platz des gerade gezogenen Eintrags in der Liste (-1, wenn nichts gezogen wird)
+  const vonIndex = $derived(ziehEintrag ? vorneZuHinten.findIndex((x) => schluessel(x.f) === ziehEintrag) : -1);
 
   // Bildschirmpixel → logische Pixel
   const umrechnen = () => FLAECHE_B / breite;
@@ -180,7 +182,7 @@
           <p class="reihenfolge-hinweis">{pick({ de: 'Oben ist vorne. Zum Ordnen ziehen.', en: 'Top is in front. Drag to reorder.' }, lang)}</p>
           <ul class="liste">
             {#each vorneZuHinten as { f }, k (schluessel(f))}
-              <li class="zeile" class:ziel={ziel === k && ziehEintrag !== null && ziehEintrag !== schluessel(f)} draggable="true"
+              <li class="zeile" class:ziel-oben={ziel === k && vonIndex > k} class:ziel-unten={ziel === k && vonIndex >= 0 && vonIndex < k} draggable="true"
                 ondragstart={(e) => { ziehEintrag = schluessel(f); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', schluessel(f)); }}
                 ondragend={() => { ziehEintrag = null; ziel = null; }}
                 ondragover={(e) => { if (!ziehEintrag) return; e.preventDefault(); e.dataTransfer.dropEffect = 'move'; ziel = k; }}
@@ -281,8 +283,12 @@
   .seite h3 { font-size: .9375rem; margin: 0; }
   .reihenfolge-hinweis { font-size: .75rem; color: var(--fg-muted); margin: 0; }
   .liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .35rem; max-height: 22rem; overflow-y: auto; }
-  .zeile { display: flex; align-items: center; gap: .25rem; cursor: grab; border-radius: var(--radius-sm); }
-  .zeile.ziel { box-shadow: 0 -2px 0 0 var(--accent, #3b82f6); }
+  .zeile { position: relative; display: flex; align-items: center; gap: .25rem; cursor: grab; border-radius: var(--radius-sm); transition: margin .15s; }
+  /* Freier Platz zeigt, wohin der Eintrag beim Loslassen kommt: oberhalb des Ziels beim Hochziehen, unterhalb beim Runterziehen */
+  .zeile.ziel-oben { margin-top: 2.6rem; }
+  .zeile.ziel-oben::before { content: ''; position: absolute; left: 0; right: 0; top: -2.4rem; height: 2.2rem; border: 2px dashed var(--accent, #3b82f6); border-radius: var(--radius-sm); }
+  .zeile.ziel-unten { margin-bottom: 2.6rem; }
+  .zeile.ziel-unten::after { content: ''; position: absolute; left: 0; right: 0; top: calc(100% + .25rem); height: 2.2rem; border: 2px dashed var(--accent, #3b82f6); border-radius: var(--radius-sm); }
   .eintrag { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: .5rem; padding: .3rem .4rem; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-card); color: inherit; font: inherit; font-size: .875rem; text-align: left; cursor: pointer; }
   .eintrag:hover { border-color: var(--accent, #3b82f6); }
   .eintrag.markiert { border-color: var(--accent, #3b82f6); background: rgba(59, 130, 246, .2); font-weight: 600; }
