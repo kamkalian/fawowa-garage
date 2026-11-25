@@ -58,6 +58,10 @@
   const vorneZuHinten = $derived(sortiert.slice().reverse());
   // Platz des gerade gezogenen Eintrags in der Liste (-1, wenn nichts gezogen wird)
   const vonIndex = $derived(ziehEintrag ? vorneZuHinten.findIndex((x) => schluessel(x.f) === ziehEintrag) : -1);
+  // Die Zeile, auf deren Platz der Eintrag landen würde (umrandet); nichts, wenn er dort schon steht
+  const zielZeile = $derived(ziehEintrag && slot !== null && slot !== vonIndex && slot !== vonIndex + 1 ? Math.min(slot, vorneZuHinten.length - 1) : null);
+  // Hinweise unten rechts: erst nach einem Klick auf das i
+  let infoOffen = $state(false);
 
   // Bildschirmpixel → logische Pixel
   const umrechnen = () => FLAECHE_B / breite;
@@ -165,15 +169,6 @@
     ziehEintrag = null;
     slot = null;
   }
-  // Höhe der Ziellinie für eine Einfügestelle (Pixel in der Liste)
-  function linieY(k) {
-    const n = vorneZuHinten.length;
-    if (k >= n) {
-      const letzte = zeilenEl[n - 1];
-      return letzte ? letzte.offsetTop + letzte.offsetHeight + 2 : 0;
-    }
-    return zeilenEl[k] ? zeilenEl[k].offsetTop - 3 : 0;
-  }
 
   // Hängt das Fenster an den Seitenkörper, damit es über der Kopfleiste liegt
   function insBodyHaengen(node) {
@@ -237,7 +232,7 @@
           <p class="reihenfolge-hinweis">{pick({ de: 'Oben ist vorne. Zum Ordnen ziehen.', en: 'Top is in front. Drag to reorder.' }, lang)}</p>
           <ul class="liste" bind:this={listeEl} onpointermove={listeMove} onpointerup={listeUp} onpointercancel={listeAbbruch}>
             {#each vorneZuHinten as { f }, k (schluessel(f))}
-              <li class="zeile" class:gezogen={ziehEintrag === schluessel(f)} bind:this={zeilenEl[k]}
+              <li class="zeile" class:gezogen={ziehEintrag === schluessel(f)} class:ziel={zielZeile === k} bind:this={zeilenEl[k]}
                 onpointerdown={(e) => listeDown(e, schluessel(f))}>
                 <button type="button" class="eintrag" class:markiert={markiert === schluessel(f)} aria-pressed={markiert === schluessel(f)}
                   onclick={() => { if (nachZiehen) { nachZiehen = false; return; } listeKlick(schluessel(f)); }}>
@@ -250,17 +245,20 @@
             {:else}
               <li class="leer">{pick({ de: 'Noch niemand im Gespann.', en: 'Nobody in the convoy yet.' }, lang)}</li>
             {/each}
-            {#if ziehEintrag && slot !== null}
-              <div class="ziellinie" style="top: {linieY(slot)}px;" aria-hidden="true"></div>
-            {/if}
           </ul>
 
-          <!-- Erklärung unten rechts -->
-          <ul class="erklaerung">
-            {#each ERKLAERUNG as satz}
-              <li>{pick(satz, lang)}</li>
-            {/each}
-          </ul>
+          <!-- Hinweise: unten rechts, erst nach einem Klick auf das i -->
+          <div class="info-zeile">
+            {#if infoOffen}
+              <ul class="erklaerung">
+                {#each ERKLAERUNG as satz}
+                  <li>{pick(satz, lang)}</li>
+                {/each}
+              </ul>
+            {/if}
+            <button type="button" class="info-knopf" aria-expanded={infoOffen} aria-label={pick({ de: 'Hinweise anzeigen', en: 'Show hints' }, lang)}
+              onclick={() => (infoOffen = !infoOffen)}>i</button>
+          </div>
         </aside>
       </div>
     </Fenster>
@@ -333,17 +331,20 @@
   /* Seite rechts: Liste der Mitglieder */
   .seite { flex: 0 0 13rem; align-self: stretch; display: flex; flex-direction: column; gap: .4rem; }
   /* Erklärung unten rechts, als Aufzählung */
-  .erklaerung { list-style: disc; margin: auto 0 0; padding: .6rem 0 0 1.1rem; border-top: 1px solid var(--border); font-size: .75rem; color: var(--fg-muted); display: flex; flex-direction: column; gap: .3rem; }
+  .erklaerung { list-style: disc; align-self: stretch; margin: 0; padding: .6rem .5rem .6rem 1.1rem; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-card); font-size: .75rem; color: var(--fg-muted); display: flex; flex-direction: column; gap: .3rem; }
   .seite h3 { font-size: .9375rem; margin: 0; }
   .reihenfolge-hinweis { font-size: .75rem; color: var(--fg-muted); margin: 0; }
-  .liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .35rem; max-height: 22rem; overflow-y: auto; }
+  .liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .35rem; }
   .zeile { position: relative; display: flex; align-items: center; gap: .25rem; cursor: grab; border-radius: var(--radius-sm); transition: margin .15s; }
   /* Ziellinie: zeigt an, wohin der Eintrag beim Loslassen kommt (oberhalb des Ziels beim Hochziehen, unterhalb beim Runterziehen).
      Eine Linie statt eines Platzes, damit sich die Liste beim Ziehen nicht verschiebt. */
-  /* Ziellinie zwischen den Einträgen; die Liste selbst bleibt beim Ziehen stehen */
-  .liste { position: relative; }
-  .ziellinie { position: absolute; left: 0; right: 0; height: 3px; border-radius: 2px; background: var(--accent, #3b82f6); pointer-events: none; }
+  /* Beim Ziehen: der gezogene Eintrag wird blass, der Zielplatz umrandet (ohne die Liste zu verschieben) */
   .zeile.gezogen { opacity: .4; }
+  .zeile.ziel { outline: 2px dashed var(--accent, #3b82f6); outline-offset: 2px; }
+  /* Hinweise unten rechts */
+  .info-zeile { margin-top: auto; display: flex; flex-direction: column; align-items: flex-end; gap: .4rem; }
+  .info-knopf { width: 1.7rem; height: 1.7rem; border-radius: 999px; border: 1px solid var(--border); background: var(--bg-card); color: var(--fg); font: inherit; font-weight: 600; font-style: italic; cursor: pointer; }
+  .info-knopf:hover { border-color: var(--accent, #3b82f6); }
   .eintrag { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: .5rem; padding: .3rem .4rem; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-card); color: inherit; font: inherit; font-size: .875rem; text-align: left; cursor: pointer; }
   .eintrag:hover { border-color: var(--accent, #3b82f6); }
   .eintrag.markiert { border-color: var(--accent, #3b82f6); background: rgba(59, 130, 246, .2); font-weight: 600; }
@@ -356,6 +357,5 @@
   @media (max-width: 720px) {
     .gespann { flex-direction: column; }
     .seite { flex: none; width: 100%; }
-    .liste { max-height: none; }
   }
 </style>
