@@ -4,9 +4,10 @@
   import Fenster from './Fenster.svelte';
 
   // Gespann: eine kleine Vorschau der Anordnung (ohne Rahmen, ohne Überschrift). Ein Klick darauf öffnet die Fläche im modalen Fenster.
-  // Dort lassen sich die Icons verschieben und skalieren; der Name bleibt dabei gleich groß.
+  // Dort lassen sich die Icons verschieben und skalieren; der Name bleibt dabei gleich groß. Icons dürfen auch aus dem Bild hinausgeschoben werden.
+  // Je Kategorie (Fahrräder, Anhänger, Gepäck) kann eine Farbe gewählt werden; die Icons werden in dieser Farbe gezeigt.
   // Positionen sind in einem festen Koordinatensystem (FLAECHE_B × FLAECHE_H). Fläche und Vorschau zeigen es im gleichen Seitenverhältnis (4:3).
-  let { lang, mitglieder = [], positionen = {}, ondrop, onentfernen, onposition } = $props();
+  let { lang, mitglieder = [], positionen = {}, farben = {}, ondrop, onentfernen, onposition, onfarben } = $props();
 
   const FLAECHE_B = 640;          // logische Breite der Fläche in Pixeln
   const FLAECHE_H = 480;          // logische Höhe (Seitenverhältnis 4:3)
@@ -16,6 +17,11 @@
   const KACHEL = 96;              // Breite eines Elements bei Größe 1
   const S_MIN = 0.5;
   const S_MAX = 5;
+  const FARB_ARTEN = [
+    { art: 'fahrraeder', de: 'Fahrräder', en: 'Bikes' },
+    { art: 'anhaenger', de: 'Anhänger', en: 'Trailers' },
+    { art: 'gepaecke', de: 'Gepäck', en: 'Luggage' }
+  ];
 
   let offen = $state(false);
   let ueber = $state(false);      // eine Kachel wird von außen darübergezogen
@@ -25,6 +31,7 @@
 
   const schluessel = (f) => f.art + '-' + f.e.id;
   const sWert = (v) => (typeof v === 'number' && v >= S_MIN && v <= S_MAX ? v : 1);
+  const farbe = (f) => farben?.[f.art] ?? null;
 
   // Lage eines Mitglieds: während des Ziehens, sonst gespeichert, sonst im Raster (vier pro Zeile)
   const lage = (f, i) => {
@@ -50,7 +57,8 @@
     const dx = (e.clientX - zieht.px) * k;
     const dy = (e.clientY - zieht.py) * k;
     if (zieht.modus === 'bewegen') {
-      live = { ...live, [zieht.schluessel]: { x: Math.min(FLAECHE_B - 16, Math.max(0, zieht.ox + dx)), y: Math.min(FLAECHE_H - 16, Math.max(0, zieht.oy + dy)), s: zieht.os } };
+      // Auch nach oben und links aus dem Bild hinaus (bis zu einer Bildbreite), damit man es nicht ganz verliert
+      live = { ...live, [zieht.schluessel]: { x: Math.min(FLAECHE_B - 16, Math.max(-FLAECHE_B, zieht.ox + dx)), y: Math.min(FLAECHE_H - 16, Math.max(-FLAECHE_H, zieht.oy + dy)), s: zieht.os } };
     } else {
       const s = Math.min(S_MAX, Math.max(S_MIN, zieht.os + (dx + dy) / 200));
       live = { ...live, [zieht.schluessel]: { x: zieht.ox, y: zieht.oy, s: Math.round(s * 20) / 20 } };
@@ -85,7 +93,7 @@
   ondrop={(e) => { e.preventDefault(); ueber = false; ondrop?.(e); }}>
   {#each liste as { f, p } (schluessel(f))}
     <span class="mini" style="left: {p.x * VORSCHAU}px; top: {p.y * VORSCHAU}px; --s: {p.s * VORSCHAU};">
-      <Fahrzeugbild art={f.art} bauart={f.e.bauart} aufbau={f.e.aufbau} alt="" groesse="64px" />
+      <Fahrzeugbild art={f.art} bauart={f.e.bauart} aufbau={f.e.aufbau} alt="" groesse="64px" farbe={farbe(f)} />
     </span>
   {/each}
 </button>
@@ -94,6 +102,17 @@
   <div use:insBodyHaengen>
     <Fenster {lang} breit titel={pick({ de: 'Gespann', en: 'Convoy' }, lang)} onclose={() => (offen = false)}>
       <div class="gespann">
+        <div class="farben">
+          {#each FARB_ARTEN as k (k.art)}
+            <label class="farbwahl">
+              <span>{pick({ de: k.de, en: k.en }, lang)}</span>
+              <input type="color" value={farben?.[k.art] ?? '#2563eb'} onchange={(e) => onfarben?.({ ...farben, [k.art]: e.currentTarget.value })} />
+            </label>
+            {#if farben?.[k.art]}
+              <button type="button" class="zurueck" onclick={() => onfarben?.({ ...farben, [k.art]: null })}>{pick({ de: 'Standard', en: 'Default' }, lang)}</button>
+            {/if}
+          {/each}
+        </div>
         <div class="flaeche" class:ablegen={zieht !== null || ueber} role="region" aria-label={pick({ de: 'Fläche für das Gespann', en: 'Area for the convoy' }, lang)}
           bind:clientWidth={breite}
           ondragover={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; ueber = true; }}
@@ -106,7 +125,7 @@
               style="left: {(p.x / FLAECHE_B) * 100}%; top: {(p.y / FLAECHE_H) * 100}%; --s: {p.s};"
               onpointerdown={(e) => zeigerStart(e, f, 'bewegen', i)} role="group" aria-label={f.e.name}>
               <div class="icon">
-                <Fahrzeugbild art={f.art} bauart={f.e.bauart} aufbau={f.e.aufbau} motor={f.art === 'fahrraeder' && (f.e.motoren ?? []).length > 0} akku={(f.e.akkus ?? []).length > 0} alt={f.e.name} groesse="calc(64px * var(--s))" />
+                <Fahrzeugbild art={f.art} bauart={f.e.bauart} aufbau={f.e.aufbau} motor={f.art === 'fahrraeder' && (f.e.motoren ?? []).length > 0} akku={(f.e.akkus ?? []).length > 0} alt={f.e.name} groesse="calc(64px * var(--s))" farbe={farbe(f)} />
               </div>
               <div class="beschriftung">{f.e.name}</div>
               <button type="button" class="entfernen" aria-label={pick({ de: 'Aus dem Gespann nehmen', en: 'Remove from convoy' }, lang)}
@@ -140,7 +159,13 @@
   .vorschau.ueber { box-shadow: 0 0 0 2px #22c55e; }
   .vorschau:focus-visible { outline: 2px solid var(--accent, #3b82f6); outline-offset: 2px; }
   .mini { position: absolute; transform-origin: top left; transform: scale(var(--s)); display: block; }
-  .mini :global(img), .mini :global(svg), .element :global(img), .element :global(svg) { pointer-events: none; -webkit-user-drag: none; user-select: none; }
+  .mini :global(img), .mini :global(svg), .mini :global(.symbolmaske), .element :global(img), .element :global(svg), .element :global(.symbolmaske) { pointer-events: none; -webkit-user-drag: none; user-select: none; }
+
+  /* Farbwahl über der Fläche */
+  .farben { display: flex; flex-wrap: wrap; gap: .5rem 1rem; align-items: center; margin-bottom: .75rem; font-size: .875rem; }
+  .farbwahl { display: inline-flex; align-items: center; gap: .4rem; }
+  .farbwahl input[type='color'] { width: 2.25rem; height: 1.75rem; padding: 0; border: 1px solid var(--border); border-radius: var(--radius-sm); background: none; cursor: pointer; }
+  .zurueck { background: none; border: 0; color: var(--fg-muted); text-decoration: underline; cursor: pointer; font: inherit; font-size: .8125rem; padding: 0; }
 
   /* Im Fenster: die Fläche im gleichen Seitenverhältnis (4:3) */
   .gespann { width: 100%; }

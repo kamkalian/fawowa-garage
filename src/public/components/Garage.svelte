@@ -73,6 +73,17 @@
   // Mitglieder des Gespanns für den Gespann-Bereich
   const gespannMitglieder = $derived(fahrzeuge.filter((f) => imInGespann(f.art, f.e)));
   // Position eines Gespann-Mitglieds auf der Fläche speichern und im Stand merken
+  // Farben der Gespann-Kategorien: sofort anzeigen, dann speichern
+  async function farbenSpeichern(werte) {
+    daten.farben = werte;
+    try {
+      await api.farbenSetzen(token, werte);
+    } catch (e) {
+      if (e.status === 401) onungueltig();
+      else melde(fehlerMeldung(e), 'error');
+    }
+  }
+
   async function gespannPosition(art, id, x, y, skal) {
     // Sofort im Stand merken, damit das Element nicht zur alten Position zurückspringt; danach speichern
     daten.mitglieder = { ...daten.mitglieder, positionen: { ...(daten.mitglieder?.positionen ?? {}), [art + '-' + id]: { x, y, s: skal } } };
@@ -297,7 +308,7 @@
   <p class="fehler" role="alert">{t(lang, 'loadError')}</p>
 {:else}
   <section class="link" aria-label={t(lang, 'linkTitle')}>
-    <Gespann {lang} mitglieder={gespannMitglieder} positionen={daten.mitglieder?.positionen ?? {}} ondrop={gespannDrop} onentfernen={(f) => umschalten(f)} onposition={gespannPosition} />
+    <Gespann {lang} mitglieder={gespannMitglieder} positionen={daten.mitglieder?.positionen ?? {}} farben={daten.farben ?? {}} ondrop={gespannDrop} onentfernen={(f) => umschalten(f)} onposition={gespannPosition} onfarben={farbenSpeichern} />
     <div class="linkkopf">
       <label for="garage-link">{t(lang, 'linkTitle')}</label>
       <span class="info">

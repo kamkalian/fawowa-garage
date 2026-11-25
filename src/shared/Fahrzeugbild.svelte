@@ -5,16 +5,19 @@
   // groesse: Kantenlänge des Bildes (Standard 6 rem); in kleinen Kacheln kleiner
   import { ICONS, BILD_SYMBOLE } from './icons.js';
 
-  let { art, bauart = null, aufbau = null, motor = false, akku = false, foto = null, alt = '', groesse = '6rem' } = $props();
+  let { art, bauart = null, aufbau = null, motor = false, akku = false, foto = null, alt = '', groesse = '6rem', farbe = null } = $props();
 
   const schluessel = $derived(art === 'fahrraeder' ? (bauart ?? 'fahrrad') : art === 'gepaecke' ? 'gepaeck' : (aufbau ?? 'sonstiges'));
   const svg = $derived(ICONS[schluessel] ?? ICONS.sonstiges);
   const bild = $derived(BILD_SYMBOLE[schluessel] ?? null);
 </script>
 
-<div class="bild" class:ohne-hintergrund={!foto} style="--groesse: {groesse}">
+<div class="bild" class:ohne-hintergrund={!foto} style="--groesse: {groesse}; color: {farbe ?? 'var(--primary)'};">
   {#if foto}
     <img src={foto} alt={alt} loading="lazy" />
+  {:else if bild && farbe}
+    <!-- Symbol in Farbe: die Form dient als Maske, so wird das Bild genau in der gewählten Farbe gezeigt -->
+    <span class="symbolmaske" role="img" aria-label={alt} style="--bild: url({bild}); background-color: {farbe};"></span>
   {:else if bild}
     <img class="symbolbild" src={bild} alt={alt} />
   {:else}
@@ -35,6 +38,7 @@
   .bild.ohne-hintergrund { background: transparent; }
   /* Fertige Symbol-Datei: ganz zu sehen, nicht beschnitten */
   .bild img.symbolbild { width: 100%; height: 100%; object-fit: contain; padding: 6%; box-sizing: border-box; }
+  .bild .symbolmaske { display: block; width: 100%; height: 100%; -webkit-mask-image: var(--bild); mask-image: var(--bild); -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; -webkit-mask-position: center; mask-position: center; -webkit-mask-size: 88%; mask-size: 88%; }
   /* Blitz ohne Hintergrund: kräftiges Gelb mit dunkler Kontur, damit er auf hell und dunkel gut sichtbar ist */
   .blitz { position: absolute; bottom: .15rem; right: .15rem; width: 1.4rem; height: 1.4rem; pointer-events: none; }
   .blitz svg { width: 100%; height: 100%; fill: #facc15; stroke: #713f12; stroke-width: 2; stroke-linejoin: round; opacity: 1; }
