@@ -3,18 +3,19 @@
   import Fahrzeugbild from '../../shared/Fahrzeugbild.svelte';
   import Fenster from './Fenster.svelte';
 
-  // Gespann: eine feste Kachel mit der Überschrift „Gespann“ und einer Vorschau der Anordnung.
-  // Ein Klick auf die Kachel öffnet die Fläche im modalen Fenster. Dort lassen sich die Icons verschieben und skalieren.
-  // Positionen sind in einem festen Koordinatensystem (FLAECHE_B × FLAECHE_H). Die Fläche und die Vorschau zeigen es im
-  // gleichen Seitenverhältnis, nur in unterschiedlicher Größe.
+  // Gespann: eine kleine Vorschau der Anordnung (ohne Rahmen, ohne Überschrift). Ein Klick darauf öffnet die Fläche im modalen Fenster.
+  // Dort lassen sich die Icons verschieben und skalieren; der Name bleibt dabei gleich groß.
+  // Positionen sind in einem festen Koordinatensystem (FLAECHE_B × FLAECHE_H). Fläche und Vorschau zeigen es im gleichen Seitenverhältnis (4:3).
   let { lang, mitglieder = [], positionen = {}, ondrop, onentfernen, onposition } = $props();
 
   const FLAECHE_B = 640;          // logische Breite der Fläche in Pixeln
   const FLAECHE_H = 480;          // logische Höhe (Seitenverhältnis 4:3)
-  const VORSCHAU_B = 216;         // feste Größe der Vorschau
-  const VORSCHAU_H = 162;
+  const VORSCHAU_B = 132;         // feste Größe der Vorschau
+  const VORSCHAU_H = 99;
   const VORSCHAU = VORSCHAU_B / FLAECHE_B;   // Maßstab der Vorschau gegenüber der Fläche
   const KACHEL = 96;              // Breite eines Elements bei Größe 1
+  const S_MIN = 0.5;
+  const S_MAX = 3;
 
   let offen = $state(false);
   let ueber = $state(false);      // eine Kachel wird von außen darübergezogen
@@ -23,7 +24,7 @@
   let zieht = $state(null);       // { schluessel, f, modus, px, py, ox, oy, os }
 
   const schluessel = (f) => f.art + '-' + f.e.id;
-  const sWert = (v) => (typeof v === 'number' && v >= 0.5 && v <= 2 ? v : 1);
+  const sWert = (v) => (typeof v === 'number' && v >= S_MIN && v <= S_MAX ? v : 1);
 
   // Lage eines Mitglieds: während des Ziehens, sonst gespeichert, sonst im Raster (vier pro Zeile)
   const lage = (f, i) => {
@@ -33,11 +34,7 @@
     return { x: 16 + (i % 4) * (KACHEL + 16), y: 16 + Math.floor(i / 4) * (KACHEL + 16), s: 1 };
   };
 
-  // Rahmen um alle Icons (in logischen Pixeln): wird in der Vorschau gezeigt, falls nötig
-  const rahmen = $derived.by(() => {
-    if (mitglieder.length === 0) return null;
-    return { liste: mitglieder.map((f, i) => ({ f, p: lage(f, i) })) };
-  });
+  const liste = $derived(mitglieder.map((f, i) => ({ f, p: lage(f, i) })));
 
   // Bildschirmpixel → logische Pixel
   const umrechnen = () => FLAECHE_B / breite;
@@ -55,7 +52,7 @@
     if (zieht.modus === 'bewegen') {
       live = { ...live, [zieht.schluessel]: { x: Math.min(FLAECHE_B - 16, Math.max(0, zieht.ox + dx)), y: Math.min(FLAECHE_H - 16, Math.max(0, zieht.oy + dy)), s: zieht.os } };
     } else {
-      const s = Math.min(2, Math.max(0.5, zieht.os + (dx + dy) / 200));
+      const s = Math.min(S_MAX, Math.max(S_MIN, zieht.os + (dx + dy) / 200));
       live = { ...live, [zieht.schluessel]: { x: zieht.ox, y: zieht.oy, s: Math.round(s * 20) / 20 } };
     }
   }
@@ -72,29 +69,25 @@
     }
   }
 
-  // Hängt das Fenster an den Seitenanfang, damit es über der Kopfleiste liegt
+  // Hängt das Fenster an den Seitenkörper, damit es über der Kopfleiste liegt
   function insBodyHaengen(node) {
     document.body.appendChild(node);
     return { destroy() { node.remove(); } };
   }
 </script>
 
-<button type="button" class="kachel" class:ueber aria-haspopup="dialog" onclick={() => (offen = true)}
+<button type="button" class="vorschau" class:ueber aria-haspopup="dialog"
+  aria-label={pick({ de: 'Gespann öffnen', en: 'Open convoy' }, lang)}
+  style="width: {VORSCHAU_B}px; height: {VORSCHAU_H}px;"
+  onclick={() => (offen = true)}
   ondragover={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; ueber = true; }}
   ondragleave={() => (ueber = false)}
   ondrop={(e) => { e.preventDefault(); ueber = false; ondrop?.(e); }}>
-  <span class="kachel-titel">{pick({ de: 'Gespann', en: 'Convoy' }, lang)}</span>
-  <span class="vorschau" style="width: {VORSCHAU_B}px; height: {VORSCHAU_H}px;">
-    {#if rahmen}
-      {#each rahmen.liste as { f, p } (schluessel(f))}
-        <span class="mini" style="left: {p.x * VORSCHAU}px; top: {p.y * VORSCHAU}px; --s: {p.s * VORSCHAU};">
-          <Fahrzeugbild art={f.art} bauart={f.e.bauart} aufbau={f.e.aufbau} alt="" groesse="64px" />
-        </span>
-      {/each}
-    {:else}
-      <span class="leer">{pick({ de: 'noch leer', en: 'empty' }, lang)}</span>
-    {/if}
-  </span>
+  {#each liste as { f, p } (schluessel(f))}
+    <span class="mini" style="left: {p.x * VORSCHAU}px; top: {p.y * VORSCHAU}px; --s: {p.s * VORSCHAU};">
+      <Fahrzeugbild art={f.art} bauart={f.e.bauart} aufbau={f.e.aufbau} alt="" groesse="64px" />
+    </span>
+  {/each}
 </button>
 
 {#if offen}
@@ -108,8 +101,7 @@
           ondrop={(e) => { e.preventDefault(); ueber = false; ondrop?.(e); }}
           ondragstart={(e) => e.preventDefault()}
           onpointermove={zeigerBewegen} onpointerup={zeigerEnde} onpointercancel={zeigerEnde}>
-          {#each mitglieder as f, i (schluessel(f))}
-            {@const p = lage(f, i)}
+          {#each liste as { f, p }, i (schluessel(f))}
             <div class="element" class:zieht={zieht?.schluessel === schluessel(f)}
               style="left: {(p.x / FLAECHE_B) * 100}%; top: {(p.y / FLAECHE_H) * 100}%; --s: {p.s};"
               onpointerdown={(e) => zeigerStart(e, f, 'bewegen', i)} role="group" aria-label={f.e.name}>
@@ -131,40 +123,22 @@
 {/if}
 
 <style>
-  /* Feste Kachel: Überschrift oben, Vorschau darunter */
-  .kachel {
-    width: 16rem;
-    height: 14rem;
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
-    gap: .5rem;
-    padding: .75rem;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    background: var(--bg-card);
-    color: inherit;
-    font: inherit;
-    text-align: left;
-    cursor: pointer;
-    transition: border-color .15s, box-shadow .15s;
-  }
-  .kachel:hover { border-color: var(--accent, #3b82f6); }
-  .kachel.ueber { border: 2px solid #22c55e; box-shadow: 0 0 0 2px rgba(34, 197, 94, .35); }
-  .kachel-titel { font-weight: 600; font-size: .9375rem; }
-
-  /* Vorschau: feste Größe, im Seitenverhältnis der Fläche (4:3) */
+  /* Vorschau: klein, ohne Hintergrund und Rahmen; die Icons stehen an ihrer Stelle */
   .vorschau {
     position: relative;
     flex: none;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    background-color: var(--bg);
-    background-image: linear-gradient(var(--border) 1px, transparent 1px), linear-gradient(90deg, var(--border) 1px, transparent 1px);
-    background-size: 12px 12px;
+    padding: 0;
+    margin: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
     overflow: hidden;
+    border-radius: var(--radius-sm);
   }
-  .leer { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: .8125rem; color: var(--fg-muted); }
+  .vorschau.ueber { box-shadow: 0 0 0 2px #22c55e; }
+  .vorschau:focus-visible { outline: 2px solid var(--accent, #3b82f6); outline-offset: 2px; }
   .mini { position: absolute; transform-origin: top left; transform: scale(var(--s)); display: block; }
   .mini :global(img), .mini :global(svg), .element :global(img), .element :global(svg) { pointer-events: none; -webkit-user-drag: none; user-select: none; }
 
@@ -187,7 +161,8 @@
   .flaeche.ablegen { border: 2px solid #22c55e; box-shadow: 0 0 0 2px rgba(34, 197, 94, .35); }
   .element {
     position: absolute;
-    width: calc(96px * var(--s));
+    /* Breite wächst mit dem Icon, mindestens 96 px; der Name bleibt immer gleich groß */
+    width: max(96px, calc(64px * var(--s)));
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -197,7 +172,7 @@
   }
   .element.zieht { cursor: grabbing; }
   .icon { display: flex; align-items: center; justify-content: center; }
-  .beschriftung { font-size: calc(.7rem * var(--s)); color: var(--fg-muted); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center; }
+  .beschriftung { font-size: .7rem; color: var(--fg-muted); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center; }
   .entfernen { position: absolute; top: -6px; right: 0; opacity: 0; transition: opacity .15s; background: var(--bg); border: 1px solid var(--border); border-radius: 999px; width: 18px; height: 18px; color: var(--fg-muted); cursor: pointer; font: inherit; font-size: .6rem; line-height: 1; padding: 0; }
   .element:hover .entfernen { opacity: 1; }
   /* Griff zum Skalieren unten rechts */

@@ -320,6 +320,7 @@
         {daten.email ? t(lang, 'emailDone') : daten.email_offen ? t(lang, 'emailOpen') : t(lang, 'emailAdd')}
       </button>
     {/if}
+    <Gespann {lang} mitglieder={gespannMitglieder} positionen={daten.mitglieder?.positionen ?? {}} ondrop={gespannDrop} onentfernen={(f) => umschalten(f)} onposition={gespannPosition} />
   </section>
 
   {#if planerAktiv}
@@ -341,7 +342,6 @@
         onaktualisiert={(inhalt) => { daten.gepaecke = daten.gepaecke.map((x) => (x.id === inventarGepaeck.id ? { ...x, inhalt } : x)); }}
         onschliessen={() => (inventarId = null)} />
     {/if}
-    <Gespann {lang} mitglieder={gespannMitglieder} positionen={daten.mitglieder?.positionen ?? {}} ondrop={gespannDrop} onentfernen={(f) => umschalten(f)} onposition={gespannPosition} />
     <div class="liste" role="list">
       {#each fahrzeuge as f (schluessel(f))}
         <div class="kachel" role="listitem" draggable="true" class:gezogen={ziehend?.art === f.art && ziehend?.id === f.e.id} class:ziel={ziel === schluessel(f)}
