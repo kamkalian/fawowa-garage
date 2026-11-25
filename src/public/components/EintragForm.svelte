@@ -1,6 +1,7 @@
 <script>
   import { ARTEN, GRUPPEN, ANZAHL_RAEDER_AUS_AUFBAU, anzahlRaederAbleiten, ANZAHL_RAEDER_AUS_BAUART, anzahlRaederAusBauart } from '../../../lib/felder.js';
   import { t, pick } from '../lib/i18n.js';
+  import { onMount } from 'svelte';
   import { ApiFehler } from '../lib/api.js';
   import Fenster from './Fenster.svelte';
   import AntriebEditor from './AntriebEditor.svelte';
@@ -14,6 +15,16 @@
   // onsave(werte, antriebe) legt an oder ändert und wirft bei Fehlern einen ApiFehler.
   // aktionen (nur beim Bearbeiten): { fotoVorhanden, onfoto, onfotoloeschen, onloeschen }; das Foto steht oben, Entfernen unten.
   let { lang, art, eintrag = null, onsave, onclose, aktionen = null } = $props();
+
+  // Ist die Leiste unten (Abbrechen, Speichern) zu sehen? Dann zeigt sie das Speichern; sonst läuft das Symbol mit.
+  let aktionenEl = $state(null);
+  let unten = $state(true);
+  onMount(() => {
+    if (!aktionenEl || typeof IntersectionObserver === 'undefined') return;
+    const beobachter = new IntersectionObserver(([eintrag]) => (unten = eintrag.isIntersecting));
+    beobachter.observe(aktionenEl);
+    return () => beobachter.disconnect();
+  });
 
   // Das Formular wird für genau einen Eintrag geöffnet und danach geschlossen: Art und Anfangswerte werden nur einmal gelesen
   // svelte-ignore state_referenced_locally
@@ -151,23 +162,26 @@
     {#if eintrag}<p class="notiz">{t(lang, 'formResetNote')}</p>{/if}
     {#if allgemein}<p class="fehler" role="alert">{allgemein}</p>{/if}
 
-    <div class="aktionen">
+    <div class="aktionen" bind:this={aktionenEl}>
       {#if aktionen}
         <button type="button" class="btn btn-ghost" onclick={aktionen.onloeschen}>{t(lang, 'remove')}</button>
       {/if}
       <span class="rechts">
         <button type="button" class="btn btn-ghost" onclick={onclose}>{t(lang, 'cancel')}</button>
+        <button type="submit" class="btn btn-primary" disabled={laeuft}>{laeuft ? t(lang, 'saving') : t(lang, 'save')}</button>
       </span>
     </div>
 
-    <!-- Speichern als Symbol rechts neben dem Fenster: bleibt beim Scrollen sichtbar -->
-    <button type="submit" class="speichern-schwebend" disabled={laeuft} aria-label={laeuft ? t(lang, 'saving') : t(lang, 'save')} title={laeuft ? t(lang, 'saving') : t(lang, 'save')}>
-      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
-        <path d="M17 21v-8H7v8" />
-        <path d="M7 3v5h8" />
-      </svg>
-    </button>
+    <!-- Solange die Leiste mit Abbrechen und Speichern nicht zu sehen ist, läuft das Speichern-Symbol unten mit -->
+    {#if !unten}
+      <button type="submit" class="speichern-schwebend" disabled={laeuft} aria-label={laeuft ? t(lang, 'saving') : t(lang, 'save')} title={laeuft ? t(lang, 'saving') : t(lang, 'save')}>
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+          <path d="M17 21v-8H7v8" />
+          <path d="M7 3v5h8" />
+        </svg>
+      </button>
+    {/if}
   </form>
 </Fenster>
 
@@ -182,12 +196,10 @@
   .notiz { min-height: 1.1rem; margin-top: .125rem; }
   .aktionen { display: flex; gap: .5rem; justify-content: space-between; align-items: center; flex-wrap: wrap; margin-top: 1rem; }
   /* Speichern als Symbol: schwebt rechts neben dem Fenster und bleibt beim Scrollen sichtbar */
-  .speichern-schwebend { position: fixed; z-index: 150; right: 1rem; bottom: 1rem; width: 3rem; height: 3rem; display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; border: 0; background: var(--primary); color: var(--primary-fg, #fff); box-shadow: 0 4px 14px rgba(0, 0, 0, .3); cursor: pointer; }
+  .speichern-schwebend { position: fixed; z-index: 150; right: max(1rem, calc(50% - 420px)); bottom: 1.25rem; width: 3rem; height: 3rem; display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; border: 0; background: var(--primary); color: var(--primary-fg, #fff); box-shadow: 0 4px 14px rgba(0, 0, 0, .3); cursor: pointer; }
   .speichern-schwebend:hover { filter: brightness(1.08); }
   .speichern-schwebend:disabled { opacity: .6; cursor: wait; }
   .speichern-schwebend:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
-  /* Breite Fenster: das Symbol steht direkt rechts neben dem Fenster (720 px breit, mittig) */
-  @media (min-width: 820px) { .speichern-schwebend { right: auto; bottom: auto; top: 50%; left: calc(50% + 380px); transform: translateY(-50%); } }
   .rechts { display: inline-flex; gap: .5rem; margin-left: auto; }
   /* Symbole zur Auswahl von Bauart und Art des Anhängers */
   /* Symbole nebeneinander, bis die Zeile voll ist; dann umbrechen */
