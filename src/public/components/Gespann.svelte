@@ -262,7 +262,9 @@
     cursor: default;
   }
   /* Ausgewählt: gestrichelter Rahmen; das ganze Element ist ziehbar */
-  .element.markiert { outline: 2px dashed var(--accent, #3b82f6); outline-offset: 3px; cursor: grab; }
+  .element.markiert { outline: 2px dashed var(--accent, #3b82f6); outline-offset: 3px; cursor: grab; pointer-events: auto; }
+  /* Nicht ausgewählte Elemente nehmen keine Zeigereingaben an: so lässt sich ein Element, das hinter anderen liegt, trotzdem anfassen */
+  .element { pointer-events: none; }
   .element.zieht { cursor: grabbing; }
   .icon { position: relative; display: flex; align-items: center; justify-content: center; }
   .beschriftung { font-size: .7rem; color: var(--fg-muted); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center; }
