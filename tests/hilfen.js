@@ -60,6 +60,7 @@ export class FakeSpeicher {
     r.gespann = this.gespanne.has(garageId) ? { ...this.gespanne.get(garageId) } : null;
     const m = this._mitgliederVon(garageId);
     r.mitglieder = { fahrraeder: [...m.fahrraeder], anhaenger: [...m.anhaenger], gepaecke: [...m.gepaecke] };
+    if (m.positionen?.size) r.mitglieder.positionen = Object.fromEntries(m.positionen);
     return r;
   }
 
@@ -296,6 +297,13 @@ export class FakeSpeicher {
     return { motoren: zeile.motoren, akkus: zeile.akkus };
   }
 
+  async mitgliedPositionSetzen(garageId, art, id, x, y) {
+    const m = this._mitgliederVon(garageId);
+    if (!m[art]?.has(id)) return false;
+    m.positionen ??= new Map();
+    m.positionen.set(art + '-' + id, { x, y });
+    return true;
+  }
   _mitgliederVon(garageId) {
     if (!this.mitglieder.has(garageId)) this.mitglieder.set(garageId, { fahrraeder: new Set(), anhaenger: new Set(), gepaecke: new Set() });
     return this.mitglieder.get(garageId);

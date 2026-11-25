@@ -43,6 +43,23 @@ test('Gepäck: Gegenstände auf Plätze legen, tauschen, abhaken, löschen', asy
   } finally { await s.schliessen(); }
 });
 
+test('Gespann-Fläche: Position eines Gepäckstücks speichern und wieder laden', async () => {
+  const s = await starteTestServer();
+  try {
+    const token = (await s.anfrage('POST', '/api/v1/garagen', { body: { fahrer_name: 'Anja' } })).json.token;
+    const g = await s.anfrage('POST', '/api/v1/garage/gepaecke', { token, body: { name: 'Kiste', typ: 'kiste' } });
+    const nichtImGespann = await s.anfrage('PUT', '/api/v1/garage/mitglied/position', { token, body: { art: 'gepaecke', id: g.json.id, x: 40, y: 60 } });
+    assert.equal(nichtImGespann.status, 400);
+    await s.anfrage('PUT', '/api/v1/garage/mitglied', { token, body: { art: 'gepaecke', id: g.json.id, im: true } });
+    const ok = await s.anfrage('PUT', '/api/v1/garage/mitglied/position', { token, body: { art: 'gepaecke', id: g.json.id, x: 40, y: 60 } });
+    assert.equal(ok.status, 200);
+    const liste = (await s.anfrage('GET', '/api/v1/garage', { token })).json;
+    assert.deepEqual(liste.mitglieder.positionen['gepaecke-' + g.json.id], { x: 40, y: 60 });
+    const kaputt = await s.anfrage('PUT', '/api/v1/garage/mitglied/position', { token, body: { art: 'gepaecke', id: g.json.id, x: -5, y: 60 } });
+    assert.equal(kaputt.status, 400);
+  } finally { await s.schliessen(); }
+});
+
 test('Gespann: Zuladung ist die Summe der Gepäck-Kacheln im Gespann', () => {
   const rad = { id: 1, name: 'Rad', gewicht_kg: 20, motoren: [], akkus: [] };
   const gepaecke = [{ id: 7, gewicht_kg: 12.5 }, { id: 8, gewicht_kg: 4 }, { id: 9, gewicht_kg: 100 }];

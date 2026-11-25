@@ -72,6 +72,17 @@
   /** Ein Stellplatz kommt ins Gespann oder fliegt wieder heraus (beliebig viele Zugfahrzeuge und Anhänger) */
   // Mitglieder des Gespanns für den Gespann-Bereich
   const gespannMitglieder = $derived(fahrzeuge.filter((f) => imInGespann(f.art, f.e)));
+  // Position eines Gespann-Mitglieds auf der Fläche speichern und im Stand merken
+  async function gespannPosition(art, id, x, y) {
+    try {
+      await api.mitgliedPositionSetzen(token, art, id, x, y);
+      daten.mitglieder = { ...daten.mitglieder, positionen: { ...(daten.mitglieder?.positionen ?? {}), [art + '-' + id]: { x, y } } };
+    } catch (e) {
+      if (e.status === 401) onungueltig();
+      else melde(fehlerMeldung(e), 'error');
+    }
+  }
+
   // Eine Kachel auf die Gespann-Fläche gezogen: ins Gespann legen, wenn sie noch nicht drin ist
   function gespannDrop(e) {
     const zieh = ziehend;
@@ -329,7 +340,7 @@
         onaktualisiert={(inhalt) => { daten.gepaecke = daten.gepaecke.map((x) => (x.id === inventarGepaeck.id ? { ...x, inhalt } : x)); }}
         onschliessen={() => (inventarId = null)} />
     {/if}
-    <Gespann {lang} mitglieder={gespannMitglieder} ondrop={gespannDrop} onentfernen={(f) => umschalten(f)} />
+    <Gespann {lang} mitglieder={gespannMitglieder} positionen={daten.mitglieder?.positionen ?? {}} ondrop={gespannDrop} onentfernen={(f) => umschalten(f)} onposition={gespannPosition} />
     <div class="liste" role="list">
       {#each fahrzeuge as f (schluessel(f))}
         <div class="kachel" role="listitem" draggable="true" class:gezogen={ziehend?.art === f.art && ziehend?.id === f.e.id} class:ziel={ziel === schluessel(f)}

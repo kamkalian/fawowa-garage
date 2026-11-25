@@ -38,6 +38,7 @@ export const gespannSetzen = (token, werte) => anfrage('PUT', '/api/v1/garage/ge
 export const planerLesen = (token) => anfrage('GET', '/api/v1/garage/planer', { token });
 export const planerSetzen = (token, werte) => anfrage('PUT', '/api/v1/garage/planer', { token, body: werte });
 export const mitgliedSetzen = (token, art, id, im) => anfrage('PUT', '/api/v1/garage/mitglied', { token, body: { art, id, im } });
+export const mitgliedPositionSetzen = (token, art, id, x, y) => anfrage('PUT', '/api/v1/garage/mitglied/position', { token, body: { art, id, x, y } });
 export const antriebSetzen = (token, art, id, werte) => anfrage('PUT', `/api/v1/garage/antriebe/${art}/${id}`, { token, body: werte });
 export const gegenstandAnlegen = (token, gepaeckId, name, platz) => anfrage('POST', `/api/v1/garage/gepaecke/${gepaeckId}/gegenstaende`, { token, body: { name, platz } });
 export const gegenstandAendern = (token, id, werte) => anfrage('PUT', `/api/v1/garage/gegenstaende/${id}`, { token, body: werte });
