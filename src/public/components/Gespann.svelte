@@ -1,13 +1,14 @@
 <script>
   import { pick } from '../lib/i18n.js';
   import Fahrzeugbild from '../../shared/Fahrzeugbild.svelte';
+  import { paarZu } from '../../shared/farben.js';
   import Fenster from './Fenster.svelte';
 
   // Gespann: eine kleine Vorschau der Anordnung. Ein Klick darauf öffnet die Fläche im modalen Fenster.
   // Ausgewählt wird nur über die Liste rechts (ein Klick wählt, ein erneuter Klick hebt auf).
-  // Das ausgewählte Element lässt sich in der Fläche über das Verschiebe-Symbol in der Mitte bewegen und über das Symbol unten rechts skalieren.
-  // Die Reihenfolge in der Liste bestimmt die Reihenfolge der Elemente: oben ist vorne, unten hinten.
-  // Jeder Eintrag (Fahrrad, Anhänger, Gepäck) kann eine eigene Farbe haben; das Icon wird in dieser Farbe gezeigt.
+  // Nur das ausgewählte Element zeigt die Symbole: in der Mitte zum Verschieben (das ganze Element lässt sich ziehen), unten rechts zum Skalieren.
+  // Die Reihenfolge der Liste bestimmt die Reihenfolge der Elemente: oben ist vorne. Die Liste wird per Drag and Drop geordnet.
+  // Jeder Eintrag (Fahrrad, Anhänger, Gepäck) kann ein Farbpaar haben; das Icon wird darin gezeigt, das ausgewählte Element in der anderen Farbe des Paares hinterlegt.
   // Positionen sind in einem festen Koordinatensystem (FLAECHE_B × FLAECHE_H); Fläche und Vorschau haben das Seitenverhältnis 4:3.
   let { lang, mitglieder = [], positionen = {}, ondrop, onentfernen, onposition } = $props();
 
@@ -26,10 +27,17 @@
   let live = $state({});          // Lage während des Ziehens: { x, y, s, e } in logischen Pixeln
   let zieht = $state(null);       // { schluessel, f, modus, px, py, ox, oy, os, oe }
   let markiert = $state(null);    // Schlüssel des ausgewählten Elements (nur über die Liste)
+  let ziehEintrag = $state(null); // Listeneintrag, der gerade per Drag and Drop bewegt wird
+  let ziel = $state(null);        // Listenplatz, über dem gerade gezogen wird
 
   const schluessel = (f) => f.art + '-' + f.e.id;
   const sWert = (v) => (typeof v === 'number' && v >= S_MIN && v <= S_MAX ? v : 1);
   const farbe = (f) => f.e.farbe ?? null;
+  // Hinterlegung des ausgewählten Elements: die andere Farbe des Farbpaares (auf hellem Grund die helle, auf dunklem die dunkle)
+  const gegenStil = (f) => {
+    const p = paarZu(farbe(f));
+    return p ? `--gegen-hell: ${p.hell}; --gegen-dunkel: ${p.dunkel};` : '';
+  };
 
   // Lage eines Mitglieds: während des Ziehens, sonst gespeichert, sonst im Raster (vier pro Zeile); e = Ebene
   const lage = (f, i) => {
@@ -99,12 +107,13 @@
     });
   }
 
-  // Ein Eintrag der Liste eine Stelle nach vorne (-1) oder nach hinten (+1)
-  function verschieben(k, richtung) {
+  // Per Drag and Drop: der gezogene Eintrag kommt an den Platz des Ziels
+  function reihenfolgeNeu(s, zielPlatz) {
     const arr = vorneZuHinten.map((x) => schluessel(x.f));
-    const j = k + richtung;
-    if (j < 0 || j >= arr.length) return;
-    [arr[k], arr[j]] = [arr[j], arr[k]];
+    const von = arr.indexOf(s);
+    if (von < 0 || von === zielPlatz) return;
+    arr.splice(von, 1);
+    arr.splice(zielPlatz, 0, s);
     reihenfolgeSetzen(arr);
   }
 
@@ -140,29 +149,32 @@
           ondrop={(e) => { e.preventDefault(); ueber = false; ondrop?.(e); }}
           ondragstart={(e) => e.preventDefault()}
           onpointermove={zeigerBewegen} onpointerup={zeigerEnde} onpointercancel={zeigerEnde}>
-          {#each sortiert as { f }, i (schluessel(f))}
+          {#each sortiert as { f } (schluessel(f))}
             {@const s = schluessel(f)}
-            <div class="element" class:markiert={markiert === s} class:zieht={zieht?.schluessel === s}
-              style="left: {(live[s]?.x ?? positionen[s]?.x ?? liste[indexVon(s)].p.x) / FLAECHE_B * 100}%; top: {(live[s]?.y ?? positionen[s]?.y ?? liste[indexVon(s)].p.y) / FLAECHE_H * 100}%; --s: {liste[indexVon(s)].p.s}; z-index: {liste[indexVon(s)].p.e};"
-              role="group" aria-label={f.e.name}>
+            {@const sel = markiert === s}
+            {@const p = liste[indexVon(s)].p}
+            <div class="element" class:markiert={sel} class:zieht={zieht?.schluessel === s}
+              style="left: {((live[s]?.x ?? p.x) / FLAECHE_B) * 100}%; top: {((live[s]?.y ?? p.y) / FLAECHE_H) * 100}%; --s: {p.s}; z-index: {p.e}; {gegenStil(f)}"
+              onpointerdown={(e) => { if (sel) zeigerStart(e, f, 'bewegen'); }} role="group" aria-label={f.e.name}>
               <div class="icon">
                 <Fahrzeugbild art={f.art} bauart={f.e.bauart} aufbau={f.e.aufbau} motor={f.art === 'fahrraeder' && (f.e.motoren ?? []).length > 0} akku={(f.e.akkus ?? []).length > 0} alt={f.e.name} groesse="calc(64px * var(--s))" farbe={farbe(f)} />
-                <button type="button" class="ziehen" class:aus={markiert !== s} aria-label={pick({ de: 'Verschieben', en: 'Move' }, lang)}
-                  title={pick({ de: 'Verschieben', en: 'Move' }, lang)}
-                  onpointerdown={(e) => zeigerStart(e, f, 'bewegen')}>
-                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <path d="M12 2v20M2 12h20M12 2l-3 3M12 2l3 3M12 22l-3-3M12 22l3-3M2 12l3-3M2 12l3 3M22 12l-3-3M22 12l-3 3" />
-                  </svg>
-                </button>
+                {#if sel}
+                  <span class="verschieben-zeichen" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M12 2v20M2 12h20M12 2l-3 3M12 2l3 3M12 22l-3-3M12 22l3-3M2 12l3-3M2 12l3 3M22 12l-3-3M22 12l-3 3" />
+                    </svg>
+                  </span>
+                {/if}
               </div>
               <div class="beschriftung">{f.e.name}</div>
-              <button type="button" class="skalieren" class:aus={markiert !== s} aria-label={pick({ de: 'Skalieren', en: 'Scale' }, lang)}
-                title={pick({ de: 'Skalieren', en: 'Scale' }, lang)}
-                onpointerdown={(e) => zeigerStart(e, f, 'skalieren')}>
-                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <path d="M15 3h6v6M21 3l-7 7M9 21H3v-6M3 21l7-7" />
-                </svg>
-              </button>
+              {#if sel}
+                <span class="skalieren" aria-label={pick({ de: 'Skalieren', en: 'Scale' }, lang)} role="presentation"
+                  onpointerdown={(e) => { e.stopPropagation(); zeigerStart(e, f, 'skalieren'); }}>
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M15 3h6v6M21 3l-7 7M9 21H3v-6M3 21l7-7" />
+                  </svg>
+                </span>
+              {/if}
             </div>
           {:else}
             <p class="hinweis">{pick({ de: 'Kachel hierher ziehen, um sie ins Gespann zu legen.', en: 'Drag a card here to add it to the convoy.' }, lang)}</p>
@@ -171,21 +183,20 @@
 
         <aside class="seite">
           <h3>{pick({ de: 'Im Gespann', en: 'In the convoy' }, lang)}</h3>
-          <p class="reihenfolge-hinweis">{pick({ de: 'Oben ist vorne.', en: 'Top is in front.' }, lang)}</p>
+          <p class="reihenfolge-hinweis">{pick({ de: 'Oben ist vorne. Zum Ordnen ziehen.', en: 'Top is in front. Drag to reorder.' }, lang)}</p>
           <ul class="liste">
             {#each vorneZuHinten as { f }, k (schluessel(f))}
-              <li class="zeile">
+              <li class="zeile" class:ziel={ziel === k && ziehEintrag !== null && ziehEintrag !== schluessel(f)} draggable="true"
+                ondragstart={(e) => { ziehEintrag = schluessel(f); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', schluessel(f)); }}
+                ondragend={() => { ziehEintrag = null; ziel = null; }}
+                ondragover={(e) => { if (!ziehEintrag) return; e.preventDefault(); e.dataTransfer.dropEffect = 'move'; ziel = k; }}
+                ondragleave={() => { if (ziel === k) ziel = null; }}
+                ondrop={(e) => { e.preventDefault(); if (ziehEintrag) reihenfolgeNeu(ziehEintrag, k); ziehEintrag = null; ziel = null; }}>
                 <button type="button" class="eintrag" class:markiert={markiert === schluessel(f)} aria-pressed={markiert === schluessel(f)}
                   onclick={() => listeKlick(schluessel(f))}>
                   <span class="symbol"><Fahrzeugbild art={f.art} bauart={f.e.bauart} aufbau={f.e.aufbau} alt="" groesse="28px" farbe={farbe(f)} /></span>
                   <span class="name">{f.e.name}</span>
                 </button>
-                <span class="reihe">
-                  <button type="button" class="pfeil" aria-label={pick({ de: 'Nach vorne', en: 'Forward' }, lang)} disabled={k === 0}
-                    onclick={() => verschieben(k, -1)}>↑</button>
-                  <button type="button" class="pfeil" aria-label={pick({ de: 'Nach hinten', en: 'Back' }, lang)} disabled={k === vorneZuHinten.length - 1}
-                    onclick={() => verschieben(k, 1)}>↓</button>
-                </span>
                 <button type="button" class="weg" aria-label={pick({ de: 'Aus dem Gespann nehmen', en: 'Remove from convoy' }, lang)}
                   onclick={() => onentfernen?.(f)}>✕</button>
               </li>
@@ -247,18 +258,23 @@
     padding: 4px;
     border-radius: var(--radius-sm);
     user-select: none;
+    cursor: default;
   }
-  /* Ausgewählt: halbtransparenter Hintergrund */
-  .element.markiert { background: rgba(59, 130, 246, .2); }
+  /* Ausgewählt: ganzes Element ziehbar; hinterlegt in der anderen Farbe des Farbpaares */
+  .element.markiert {
+    --gegen: var(--gegen-hell, #3b82f6);
+    background: color-mix(in srgb, var(--gegen) 50%, transparent);
+    cursor: grab;
+  }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .element.markiert { --gegen: var(--gegen-dunkel, #3b82f6); } }
+  :root[data-theme="dark"] .element.markiert { --gegen: var(--gegen-dunkel, #3b82f6); }
+  .element.zieht { cursor: grabbing; }
   .icon { position: relative; display: flex; align-items: center; justify-content: center; }
   .beschriftung { font-size: .7rem; color: var(--fg-muted); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center; }
-  /* Verschieben-Symbol in der Mitte des Icons */
-  .ziehen { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; padding: 0; border-radius: 999px; border: 1px solid var(--border); background: rgba(255, 255, 255, .6); color: #111; cursor: grab; touch-action: none; }
-  .ziehen:active { cursor: grabbing; }
-  /* Skalieren-Symbol unten rechts */
-  .skalieren { position: absolute; right: 0; bottom: 0; width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; padding: 0; border-radius: 4px; border: 1px solid var(--border); background: rgba(255, 255, 255, .6); color: #111; cursor: nwse-resize; touch-action: none; }
-  /* Ohne Auswahl sind die Symbole blass und tun nichts */
-  .ziehen.aus, .skalieren.aus { opacity: .45; cursor: default; }
+  /* Verschieben-Zeichen in der Mitte: groß, leicht transparent, kein Knopf */
+  .verschieben-zeichen { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); color: var(--fg); opacity: .7; pointer-events: none; filter: drop-shadow(0 0 2px var(--bg-card)); }
+  /* Skalieren-Zeichen unten rechts */
+  .skalieren { position: absolute; right: 0; bottom: 0; width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; border-radius: 4px; background: var(--bg-card); color: var(--fg); opacity: .85; cursor: nwse-resize; touch-action: none; }
   .hinweis { position: absolute; left: 16px; bottom: 12px; font-size: .875rem; color: var(--fg-muted); margin: 0; }
 
   /* Seite rechts: Liste der Mitglieder */
@@ -266,15 +282,13 @@
   .seite h3 { font-size: .9375rem; margin: 0; }
   .reihenfolge-hinweis { font-size: .75rem; color: var(--fg-muted); margin: 0; }
   .liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .35rem; max-height: 22rem; overflow-y: auto; }
-  .zeile { display: flex; align-items: center; gap: .25rem; }
+  .zeile { display: flex; align-items: center; gap: .25rem; cursor: grab; border-radius: var(--radius-sm); }
+  .zeile.ziel { box-shadow: 0 -2px 0 0 var(--accent, #3b82f6); }
   .eintrag { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: .5rem; padding: .3rem .4rem; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--bg-card); color: inherit; font: inherit; font-size: .875rem; text-align: left; cursor: pointer; }
   .eintrag:hover { border-color: var(--accent, #3b82f6); }
   .eintrag.markiert { border-color: var(--accent, #3b82f6); background: rgba(59, 130, 246, .2); font-weight: 600; }
   .eintrag .symbol { flex: none; display: inline-flex; }
   .eintrag .name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .reihe { display: flex; flex-direction: column; }
-  .pfeil { width: 1.4rem; height: 1.1rem; padding: 0; border: 0; background: none; color: var(--fg-muted); cursor: pointer; font: inherit; font-size: .75rem; line-height: 1; }
-  .pfeil:disabled { opacity: .3; cursor: default; }
   .weg { flex: none; width: 1.6rem; height: 1.6rem; padding: 0; border: 0; border-radius: 999px; background: none; color: var(--fg-muted); cursor: pointer; font: inherit; font-size: .8rem; }
   .weg:hover { color: var(--fg); }
   .leer { font-size: .8125rem; color: var(--fg-muted); }
