@@ -76,14 +76,22 @@
   const gespannMitglieder = $derived(fahrzeuge.filter((f) => imInGespann(f.art, f.e)));
   // Position eines Gespann-Mitglieds auf der Fläche speichern und im Stand merken
   // Checkliste: Gegenstände aus dem Inventar und eigene Punkte; offen = noch nicht abgehakt
-  const checkPunkte = $derived([
-    ...daten.gepaecke.flatMap((g) => (g.inhalt ?? []).map((i) => ({ key: 'i' + i.id, id: i.id, name: i.name, gepackt: !!i.gepackt, quelle: 'inhalt' }))),
-    ...(daten.checkliste ?? []).map((p) => ({ key: 'p' + p.id, id: p.id, name: p.name, gepackt: !!p.gepackt, quelle: 'punkt' }))
+  // Gruppen: je Gepäck seine Gegenstände, ganz unten die eigenen Punkte (name null)
+  const checkGruppen = $derived([
+    ...daten.gepaecke.filter((g) => (g.inhalt ?? []).length > 0).map((g) => ({
+      key: 'g' + g.id, name: g.name,
+      punkte: g.inhalt.map((i) => ({ key: 'i' + i.id, id: i.id, name: i.name, gepackt: !!i.gepackt, quelle: 'inhalt' }))
+    })),
+    ...((daten.checkliste ?? []).length > 0 ? [{ key: 'eigene', name: null, punkte: daten.checkliste.map((p) => ({ key: 'p' + p.id, id: p.id, name: p.name, gepackt: !!p.gepackt, quelle: 'punkt' })) }] : [])
   ]);
+  const checkPunkte = $derived(checkGruppen.flatMap((g) => g.punkte));
   const checkOffen = $derived(checkPunkte.filter((p) => !p.gepackt).length);
   const fehlerAnzeigen = (e) => { if (e.status === 401) onungueltig(); else melde(fehlerMeldung(e), 'error'); };
-  async function checkUmschalten(p) {
-    const neu = !p.gepackt;
+  // Alles in einem Gepäck auf einmal abhaken oder wieder öffnen
+  async function checkGruppe(gruppe, neu) {
+    for (const p of gruppe.punkte) if (p.gepackt !== neu) await checkUmschalten(p, neu);
+  }
+  async function checkUmschalten(p, neu = !p.gepackt) {
     try {
       if (p.quelle === 'inhalt') {
         await api.gegenstandAendern(token, p.id, { gepackt: neu });
@@ -384,7 +392,7 @@
   <div class="stellplaetze">
     <input bind:this={fotoInput} type="file" accept="image/*" hidden onchange={fotoGewaehlt} />
     {#if checklisteOffen}
-      <Checkliste {lang} punkte={checkPunkte} onumschalten={checkUmschalten} onanlegen={checkAnlegen} onentfernen={checkEntfernen}
+      <Checkliste {lang}       gruppen={checkGruppen} onumschalten={checkUmschalten} ongruppe={checkGruppe} onanlegen={checkAnlegen} onentfernen={checkEntfernen}
         onzuruecksetzen={checkZuruecksetzen} onschliessen={() => (checklisteOffen = false)} />
     {/if}
     {#if inventarGepaeck}

@@ -2,13 +2,15 @@
   import { pick } from '../lib/i18n.js';
   import Fenster from './Fenster.svelte';
 
-  // Checkliste der Garage: die Gegenstände aus dem Inventar und eigene Punkte. Jeder Punkt bekommt einen Haken.
+  // Checkliste der Garage, nach Gepäck gegliedert: jeder Gegenstand aus dem Inventar bekommt einen Haken,
+  // jedes Gepäck hat außerdem einen Haken für alles darin. Eigene Punkte stehen ganz unten.
   // Sind alle abgehakt, wird die Liste grün. Die Haken lassen sich alle auf einmal entfernen.
-  let { lang, punkte = [], onumschalten, onanlegen, onentfernen, onzuruecksetzen, onschliessen } = $props();
+  let { lang, gruppen = [], onumschalten, ongruppe, onanlegen, onentfernen, onzuruecksetzen, onschliessen } = $props();
 
   let neu = $state('');
-  const alleErledigt = $derived(punkte.length > 0 && punkte.every((p) => p.gepackt));
-  const hakenGesetzt = $derived(punkte.some((p) => p.gepackt));
+  const alleDerListe = $derived(gruppen.flatMap((g) => g.punkte));
+  const alleErledigt = $derived(alleDerListe.length > 0 && alleDerListe.every((p) => p.gepackt));
+  const hakenGesetzt = $derived(alleDerListe.some((p) => p.gepackt));
 
   function hinzufuegen(e) {
     e.preventDefault();
@@ -16,6 +18,12 @@
     if (!text) return;
     neu = '';
     onanlegen?.(text);
+  }
+
+  // Zeigt den Haken eines Gepäcks als „teilweise“ (Querstrich), wenn nur einige Gegenstände abgehakt sind
+  function teilweise(node, wert) {
+    node.indeterminate = wert;
+    return { update(neuerWert) { node.indeterminate = neuerWert; } };
   }
 
   // Hängt das Fenster an den Seitenkörper, damit es über der Kopfleiste liegt
@@ -28,18 +36,30 @@
 <div use:insBodyHaengen>
   <Fenster {lang} titel={pick({ de: 'Checkliste', en: 'Checklist' }, lang)} onclose={onschliessen}>
     <div class="liste" class:fertig={alleErledigt}>
-      {#each punkte as p (p.key)}
-        <div class="zeile">
-          <label class="punkt">
-            <input type="checkbox" checked={p.gepackt} onchange={() => onumschalten?.(p)} />
-            <span class:erledigt={p.gepackt}>{p.name}</span>
-          </label>
-          {#if p.quelle === 'punkt'}
-            <button type="button" class="weg" aria-label={pick({ de: 'Punkt löschen', en: 'Delete item' }, lang)} onclick={() => onentfernen?.(p)}>✕</button>
+      {#each gruppen as g (g.key)}
+        {@const alle = g.punkte.every((p) => p.gepackt)}
+        <section class="gruppe">
+          {#if g.name !== null}
+            <label class="gruppen-kopf">
+              <input type="checkbox" checked={alle} use:teilweise={!alle && g.punkte.some((p) => p.gepackt)}
+                onchange={() => ongruppe?.(g, !alle)} />
+              <strong>{g.name}</strong>
+            </label>
           {:else}
-            <span class="herkunft">{pick({ de: 'aus dem Inventar', en: 'from the inventory' }, lang)}</span>
+            <p class="gruppen-kopf"><strong>{pick({ de: 'Eigene Punkte', en: 'Own items' }, lang)}</strong></p>
           {/if}
-        </div>
+          {#each g.punkte as p (p.key)}
+            <div class="zeile">
+              <label class="punkt">
+                <input type="checkbox" checked={p.gepackt} onchange={() => onumschalten?.(p)} />
+                <span class:erledigt={p.gepackt}>{p.name}</span>
+              </label>
+              {#if p.quelle === 'punkt'}
+                <button type="button" class="weg" aria-label={pick({ de: 'Punkt löschen', en: 'Delete item' }, lang)} onclick={() => onentfernen?.(p)}>✕</button>
+              {/if}
+            </div>
+          {/each}
+        </section>
       {:else}
         <p class="notiz">{pick({ de: 'Noch nichts auf der Liste. Unten kannst du Punkte hinzufügen.', en: 'Nothing on the list yet. Add items below.' }, lang)}</p>
       {/each}
@@ -60,13 +80,15 @@
 </div>
 
 <style>
-  .liste { display: flex; flex-direction: column; gap: .4rem; padding: .6rem; border: 1px solid var(--border); border-radius: var(--radius-sm); }
+  .liste { display: flex; flex-direction: column; gap: .75rem; padding: .6rem .75rem; border: 1px solid var(--border); border-radius: var(--radius-sm); }
   /* Alles abgehakt: grün */
   .liste.fertig { border: 2px solid #22c55e; background: rgba(34, 197, 94, .15); }
-  .zeile { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
-  .punkt { display: flex; align-items: center; gap: .5rem; cursor: pointer; min-width: 0; }
+  .gruppe { display: flex; flex-direction: column; gap: .3rem; }
+  .gruppen-kopf { display: flex; align-items: center; gap: .5rem; margin: 0; font-size: .9375rem; cursor: pointer; }
+  .gruppen-kopf input, .punkt input { width: 1rem; height: 1rem; margin: 0; }
+  .zeile { display: flex; align-items: center; justify-content: space-between; gap: .5rem; padding-left: 1.5rem; }
+  .punkt { display: flex; align-items: center; gap: .5rem; cursor: pointer; min-width: 0; font-size: .875rem; }
   .erledigt { text-decoration: line-through; color: var(--fg-muted); }
-  .herkunft { font-size: .75rem; color: var(--fg-muted); white-space: nowrap; }
   .weg { background: none; border: 0; color: var(--fg-muted); cursor: pointer; font: inherit; }
   .notiz { font-size: .8125rem; color: var(--fg-muted); margin: 0; }
   .neu { display: flex; gap: .5rem; margin-top: .75rem; }
