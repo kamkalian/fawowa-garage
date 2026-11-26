@@ -9,7 +9,6 @@
   let { lang, token, gepaeck, onaktualisiert, onschliessen, melde, onungueltig } = $props();
 
   let gegenstaende = $state((gepaeck.inhalt ?? []).map((g) => ({ ...g })));
-  let suche = $state('');
   let ziehend = $state(null);   // Id des gerade gezogenen Gegenstands
   let ziel = $state(null);      // Platz, über dem gerade gezogen wird
   let bearbeitet = $state(null); // { platz, g } – g ist null, wenn der Platz frei ist
@@ -20,9 +19,6 @@
   // Drei Plätze je Reihe: Reihen = (Reihe des letzten belegten Platzes) + 2, mindestens eine Reihe
   const reihen = $derived(hoechster === 0 ? 1 : Math.floor((hoechster - 1) / 3) + 2);
   const plaetze = $derived(reihen * 3);
-  const suchtext = $derived(suche.trim().toLowerCase());
-  const passt = (g) => suchtext !== '' && g.name.toLowerCase().includes(suchtext);
-  const trefferPlaetze = $derived(new Set(gegenstaende.filter(passt).map((g) => g.platz)));
 
   // Hängt das Fenster an den Seitenkörper, damit es über der Kopfleiste der Garage liegt
   function insBodyHaengen(node) {
@@ -91,33 +87,15 @@
     if (bearbeitet?.g && await loeschen(bearbeitet.g)) bearbeitet = null;
   }
 
-  function zuPlatz(platz) {
-    document.getElementById('platz-' + platz)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  }
 </script>
 
 <div use:insBodyHaengen>
 <Fenster {lang} breit titel={gepaeck.name} onclose={onschliessen}>
   <div class="inventar">
-    <div class="werkzeug">
-      <input type="search" class="input" bind:value={suche} aria-label={pick({ de: 'Gegenstand suchen', en: 'Search for an item' }, lang)}
-        placeholder={pick({ de: 'Gegenstand suchen …', en: 'Search for an item …' }, lang)} />
-    </div>
-
-    {#if suchtext !== ''}
-      <div class="treffer-liste" role="status">
-        {#each gegenstaende.filter(passt) as g (g.id)}
-          <button type="button" class="treffer-knopf" onclick={() => zuPlatz(g.platz)}>{g.name}</button>
-        {:else}
-          <p class="notiz">{pick({ de: 'Nichts gefunden.', en: 'Nothing found.' }, lang)}</p>
-        {/each}
-      </div>
-    {/if}
-
     <div class="raster">
       {#each Array.from({ length: plaetze }, (_, i) => i) as platz (platz)}
         {@const g = belegt.get(platz)}
-        <div id={'platz-' + platz} class="platz" class:frei={!g} class:leuchtet={trefferPlaetze.has(platz)} class:ziel={ziel === platz}
+        <div id={'platz-' + platz} class="platz" class:frei={!g} class:ziel={ziel === platz}
           ondragover={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; ziel = platz; }}
           ondragleave={() => { if (ziel === platz) ziel = null; }}
           ondrop={(e) => { e.preventDefault(); verschieben(Number(e.dataTransfer.getData('text/plain')), platz); }}>
@@ -164,15 +142,11 @@
 
 <style>
   .inventar { display: flex; flex-direction: column; gap: .75rem; }
-  .werkzeug { display: flex; gap: .5rem; align-items: center; }
-  .werkzeug input { flex: 1; }
-  .treffer-liste { display: flex; flex-wrap: wrap; gap: .3rem; }
-  .treffer-knopf { border: 1px solid var(--border); border-radius: 999px; background: var(--bg); color: inherit; padding: .2rem .6rem; font: inherit; font-size: .8125rem; cursor: pointer; }
-  .raster { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .5rem; }
+  /* Kleinere quadratische Plätze, drei je Reihe */
+  .raster { display: grid; grid-template-columns: repeat(3, 7rem); justify-content: start; gap: .5rem; }
   /* Quadratische Plätze */
   .platz { aspect-ratio: 1 / 1; border: 1px dashed var(--border); border-radius: var(--radius-sm); padding: .4rem; display: flex; align-items: center; justify-content: center; min-width: 0; transition: box-shadow .2s, border-color .2s; }
   .platz:not(.frei) { border-style: solid; background: var(--bg); }
-  .platz.leuchtet { border-color: var(--accent, #3b82f6); box-shadow: 0 0 0 2px var(--accent, #3b82f6), 0 0 16px var(--accent, #3b82f6); }
   .platz.ziel { border-color: var(--accent, #3b82f6); border-style: solid; }
   .leer { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: var(--fg-muted); font-size: 1.5rem; cursor: pointer; border-radius: var(--radius-sm); }
   .leer:hover, .leer:focus-visible { color: var(--fg); outline: none; background: var(--bg-input, transparent); }

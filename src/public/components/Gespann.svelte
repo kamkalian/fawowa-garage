@@ -9,7 +9,8 @@
   // Die Reihenfolge der Liste bestimmt die Reihenfolge der Elemente: oben ist vorne. Die Liste wird per Drag and Drop geordnet.
   // Jeder Eintrag (Fahrrad, Anhänger, Gepäck) kann ein Farbpaar haben; das Icon wird darin gezeigt, das ausgewählte Element in der anderen Farbe des Paares hinterlegt.
   // Positionen sind in einem festen Koordinatensystem (FLAECHE_B × FLAECHE_H); Fläche und Vorschau haben das Seitenverhältnis 4:3.
-  let { lang, mitglieder = [], positionen = {}, ondrop, onentfernen, onposition } = $props();
+  // treffer: Schlüssel der Gepäckstücke mit Suchtreffern (werden markiert); zeigen: zählt hoch, damit das Fenster aufgeht
+  let { lang, mitglieder = [], positionen = {}, ondrop, onentfernen, onposition, treffer = new Set(), zeigen = 0 } = $props();
 
   const FLAECHE_B = 640;          // logische Breite der Fläche in Pixeln
   const FLAECHE_H = 480;          // logische Höhe (Seitenverhältnis 4:3)
@@ -21,6 +22,7 @@
   const S_MAX = 5;
 
   let offen = $state(false);
+  $effect(() => { if (zeigen > 0) offen = true; });
   let ueber = $state(false);      // eine Kachel wird von außen darübergezogen
   let breite = $state(FLAECHE_B); // gemessene Breite der Fläche am Bildschirm
   let live = $state({});          // Lage während des Ziehens: { x, y, s, e } in logischen Pixeln
@@ -209,7 +211,7 @@
             {@const s = schluessel(f)}
             {@const sel = markiert === s}
             {@const p = liste[indexVon(s)].p}
-            <div class="element" class:markiert={sel} class:gedimmt={markiert !== null && !sel} class:zieht={zieht?.schluessel === s}
+            <div class="element" class:markiert={sel} class:gedimmt={markiert !== null && !sel} class:treffer={treffer.has(s)} class:zieht={zieht?.schluessel === s}
               style="left: {((live[s]?.x ?? p.x) / FLAECHE_B) * 100}%; top: {((live[s]?.y ?? p.y) / FLAECHE_H) * 100}%; --s: {p.s}; z-index: {p.e};"
               onpointerdown={(e) => { if (sel) zeigerStart(e, f, 'bewegen'); }} role="group" aria-label={f.e.name}>
               <div class="icon">
@@ -325,6 +327,8 @@
   /* Solange ein Element ausgewählt ist, werden die anderen halb transparent */
   .element.gedimmt { opacity: .5; }
   .element.zieht { cursor: grabbing; }
+  /* Suchtreffer: ein Gepäckstück mit gesuchtem Gegenstand leuchtet gelb */
+  .element.treffer { outline: 3px solid #facc15; outline-offset: 4px; border-radius: 8px; box-shadow: 0 0 16px 4px rgba(250, 204, 21, .6); }
   .icon { position: relative; display: flex; align-items: center; justify-content: center; }
   .beschriftung { font-size: .7rem; color: var(--fg-muted); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center; }
   /* Skalieren-Zeichen unten rechts */

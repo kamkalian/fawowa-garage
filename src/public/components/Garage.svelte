@@ -44,6 +44,8 @@
   let loeschen = $state(null);    // { art, eintrag } oder null
   let garageLoeschen = $state(false);
   let kopiert = $state(false);
+  let suche = $state('');        // Suchtext über der Garage (Gegenstände in den Gepäckstücken)
+  let gespannZeigen = $state(0); // zählt hoch, damit das Gespann mit den Treffern aufgeht
   let checklisteOffen = $state(false); // Checkliste (Gegenstände aus dem Inventar und eigene Punkte)
   let infoOffen = $state(false); // Hinweis zum Link: bei Hover und Fokus sichtbar, per Klick festgehalten
   let laeuft = $state(false);
@@ -76,6 +78,16 @@
   const gespannMitglieder = $derived(fahrzeuge.filter((f) => imInGespann(f.art, f.e)));
   // Position eines Gespann-Mitglieds auf der Fläche speichern und im Stand merken
   // Checkliste: Gegenstände aus dem Inventar und eigene Punkte; offen = noch nicht abgehakt
+  // Suche: Gegenstände in den Gepäckstücken; die Gepäckstücke mit Treffern werden im Gespann markiert
+  const suchText = $derived(suche.trim().toLowerCase());
+  const suchTreffer = $derived(suchText === '' ? [] : daten.gepaecke.flatMap((g) => (g.inhalt ?? []).filter((i) => i.name.toLowerCase().includes(suchText)).map((i) => ({ gepaeck: g, gegenstand: i }))));
+  const trefferGepaecke = $derived(new Set(suchTreffer.map((t) => 'gepaecke-' + t.gepaeck.id)));
+  const imGespannGepaeck = (id) => (daten.mitglieder?.gepaecke ?? []).includes(id);
+  function sucheAbschicken(e) {
+    e.preventDefault();
+    if (suchText !== '') gespannZeigen++;
+  }
+
   // Gruppen: je Gepäck seine Gegenstände, ganz unten die eigenen Punkte (name null)
   const checkGruppen = $derived([
     ...daten.gepaecke.filter((g) => (g.inhalt ?? []).length > 0).map((g) => ({
@@ -346,7 +358,7 @@
   <p class="fehler" role="alert">{t(lang, 'loadError')}</p>
 {:else}
   <section class="link" aria-label={t(lang, 'linkTitle')}>
-    <Gespann {lang} mitglieder={gespannMitglieder} positionen={daten.mitglieder?.positionen ?? {}} ondrop={gespannDrop} onentfernen={(f) => umschalten(f)} onposition={gespannPosition} />
+    <Gespann {lang} mitglieder={gespannMitglieder} positionen={daten.mitglieder?.positionen ?? {}} ondrop={gespannDrop} onentfernen={(f) => umschalten(f)} onposition={gespannPosition} treffer={trefferGepaecke} zeigen={gespannZeigen} />
     <div class="linkkopf">
       <label for="garage-link">{t(lang, 'linkTitle')}</label>
       <span class="info">
@@ -387,6 +399,28 @@
       <Icon name="ui-user" size={20} />
     </button>
   {/snippet}
+
+  <div class="suche">
+    <form role="search" onsubmit={sucheAbschicken}>
+      <input type="search" class="input" bind:value={suche} aria-label={pick({ de: 'Gegenstand suchen', en: 'Search for an item' }, lang)}
+        placeholder={pick({ de: 'Gegenstand suchen …', en: 'Search for an item …' }, lang)} />
+    </form>
+    {#if suchText !== ''}
+      <div class="suche-treffer">
+        {#each suchTreffer.slice(0, 8) as t (t.gegenstand.id)}
+          <button type="button" class="suche-treffer-knopf" onclick={() => gespannZeigen++}>
+            <span>{t.gegenstand.name}</span>
+            <small>{t.gepaeck.name} · {imGespannGepaeck(t.gepaeck.id) ? pick({ de: 'im Gespann', en: 'in the convoy' }, lang) : pick({ de: 'nicht im Gespann', en: 'not in the convoy' }, lang)}</small>
+          </button>
+        {:else}
+          <p class="notiz">{pick({ de: 'Nichts gefunden.', en: 'Nothing found.' }, lang)}</p>
+        {/each}
+        {#if suchTreffer.length > 0}
+          <button type="button" class="suche-alle" onclick={() => gespannZeigen++}>{pick({ de: 'Im Gespann zeigen', en: 'Show in the convoy' }, lang)}</button>
+        {/if}
+      </div>
+    {/if}
+  </div>
 
   <GarageRaum {lang} kopf={profilKnopf}>
   <div class="stellplaetze">
@@ -490,6 +524,13 @@
   /* Link, Kopieren und Reichweitenplaner: alle gleich hoch wie das Textfeld */
   .link .input { flex: 1; min-width: 12rem; height: 2.5rem; font-family: ui-monospace, monospace; }
   .link .btn { height: 2.5rem; display: inline-flex; align-items: center; }
+  /* Suche über der Garage; die Treffer klappen darunter auf */
+  .suche { position: relative; margin-bottom: .75rem; max-width: 28rem; }
+  .suche-treffer { position: absolute; z-index: 30; left: 0; right: 0; top: 100%; margin-top: .25rem; max-height: 18rem; overflow-y: auto; display: flex; flex-direction: column; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-sm); box-shadow: 0 6px 18px rgba(0, 0, 0, .2); }
+  .suche-treffer-knopf { display: flex; justify-content: space-between; align-items: center; gap: .5rem; padding: .45rem .6rem; background: none; border: 0; border-bottom: 1px solid var(--border); color: inherit; font: inherit; font-size: .875rem; text-align: left; cursor: pointer; }
+  .suche-treffer-knopf:hover { background: var(--bg-input, transparent); }
+  .suche-treffer-knopf small { color: var(--fg-muted); white-space: nowrap; }
+  .suche-alle { padding: .5rem .6rem; background: none; border: 0; color: var(--accent, #3b82f6); font: inherit; font-size: .875rem; text-align: left; cursor: pointer; }
   /* Checkliste: gelbe Blase mit der Zahl der offenen Punkte */
   .checkliste-knopf { position: relative; }
   .bubble { position: absolute; top: -.45rem; right: -.45rem; min-width: 1.25rem; height: 1.25rem; padding: 0 .3rem; border-radius: 999px; background: #facc15; color: #713f12; font-size: .75rem; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 0 0 2px var(--bg-card); }
