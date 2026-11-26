@@ -327,8 +327,8 @@
   /* Solange ein Element ausgewählt ist, werden die anderen halb transparent */
   .element.gedimmt { opacity: .5; }
   .element.zieht { cursor: grabbing; }
-  /* Suchtreffer: ein Gepäckstück mit gesuchtem Gegenstand leuchtet gelb */
-  .element.treffer { outline: 3px solid #facc15; outline-offset: 4px; border-radius: 8px; box-shadow: 0 0 16px 4px rgba(250, 204, 21, .6); }
+  /* Suchtreffer: ein roter Punkt oben rechts am Gepäckstück */
+  .element.treffer::after { content: ''; position: absolute; top: 2px; right: 2px; width: 12px; height: 12px; border-radius: 50%; background: #dc2626; box-shadow: 0 0 0 2px #fff; pointer-events: none; }
   .icon { position: relative; display: flex; align-items: center; justify-content: center; }
   .beschriftung { font-size: .7rem; color: var(--fg-muted); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center; }
   /* Skalieren-Zeichen unten rechts */
