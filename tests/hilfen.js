@@ -58,6 +58,7 @@ export class FakeSpeicher {
     const r = { fahrer_name: this.namen.get(garageId) ?? null, email: this.emails.get(garageId) ?? null, email_offen: offen?.email ?? null };
     for (const a of Object.keys(this.daten)) r[a] = this.daten[a].filter(z => z.garage_id === garageId).sort((x, y) => x.sortierung - y.sortierung || x.id - y.id).map(z => this._sicht(z));
     r.gespann = this.gespanne.has(garageId) ? { ...this.gespanne.get(garageId) } : null;
+    r.checkliste = [...(this.checkliste?.get(garageId) ?? [])];
     const m = this._mitgliederVon(garageId);
     r.mitglieder = { fahrraeder: [...m.fahrraeder], anhaenger: [...m.anhaenger], gepaecke: [...m.gepaecke] };
     if (m.positionen?.size) r.mitglieder.positionen = Object.fromEntries(m.positionen);
@@ -295,6 +296,34 @@ export class FakeSpeicher {
     zeile.motoren = motoren.map(m => ({ id: this.naechsteId++, ...m }));
     zeile.akkus = akkus.map(a => ({ id: this.naechsteId++, ...a }));
     return { motoren: zeile.motoren, akkus: zeile.akkus };
+  }
+
+  _checklisteVon(garageId) {
+    this.checkliste ??= new Map();
+    if (!this.checkliste.has(garageId)) this.checkliste.set(garageId, []);
+    return this.checkliste.get(garageId);
+  }
+  async checklisteAnlegen(garageId, name) {
+    const liste = this._checklisteVon(garageId);
+    const p = { id: (this.checklisteNr = (this.checklisteNr ?? 0) + 1), name, gepackt: false };
+    liste.push(p);
+    return { ...p };
+  }
+  async checklisteAendern(garageId, id, werte) {
+    const p = this._checklisteVon(garageId).find(x => x.id === id);
+    if (!p) return null;
+    Object.assign(p, werte);
+    return { ...p };
+  }
+  async checklisteLoeschen(garageId, id) {
+    const liste = this._checklisteVon(garageId);
+    const i = liste.findIndex(x => x.id === id);
+    if (i < 0) return false;
+    liste.splice(i, 1);
+    return true;
+  }
+  async checklisteZuruecksetzen(garageId) {
+    for (const p of this._checklisteVon(garageId)) p.gepackt = false;
   }
 
   async mitgliedPositionSetzen(garageId, art, id, x, y, s, e) {

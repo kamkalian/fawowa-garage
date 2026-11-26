@@ -21,7 +21,6 @@
   const suchtext = $derived(suche.trim().toLowerCase());
   const passt = (g) => suchtext !== '' && g.name.toLowerCase().includes(suchtext);
   const trefferPlaetze = $derived(new Set(gegenstaende.filter(passt).map((g) => g.platz)));
-  const gepackt = $derived(gegenstaende.filter((g) => g.gepackt).length);
 
   // Hängt das Fenster an den Seitenkörper, damit es über der Kopfleiste der Garage liegt
   function insBodyHaengen(node) {
@@ -65,11 +64,6 @@
     }));
   }
 
-  async function umschalten(g) {
-    const res = await aendern(() => api.gegenstandAendern(token, g.id, { gepackt: !g.gepackt }));
-    if (res) gespeichert(gegenstaende.map((x) => (x.id === g.id ? { ...x, gepackt: !g.gepackt } : x)));
-  }
-
   async function loeschen(g) {
     const ok = await aendern(() => api.gegenstandLoeschen(token, g.id));
     if (ok !== null) gespeichert(gegenstaende.filter((x) => x.id !== g.id));
@@ -86,7 +80,6 @@
     <div class="werkzeug">
       <input type="search" class="input" bind:value={suche} aria-label={pick({ de: 'Gegenstand suchen', en: 'Search for an item' }, lang)}
         placeholder={pick({ de: 'Gegenstand suchen …', en: 'Search for an item …' }, lang)} />
-      <span class="zaehler">{gepackt} / {gegenstaende.length} {pick({ de: 'gepackt', en: 'packed' }, lang)}</span>
     </div>
 
     {#if suchtext !== ''}
@@ -107,10 +100,9 @@
           ondragleave={() => { if (ziel === platz) ziel = null; }}
           ondrop={(e) => { e.preventDefault(); verschieben(Number(e.dataTransfer.getData('text/plain')), platz); }}>
           {#if g}
-            <div class="gegenstand" class:gepackt={g.gepackt} class:ziehend={ziehend === g.id} draggable="true"
+            <div class="gegenstand" class:ziehend={ziehend === g.id} draggable="true"
               ondragstart={(e) => { ziehend = g.id; e.dataTransfer.setData('text/plain', String(g.id)); e.dataTransfer.effectAllowed = 'move'; }}
               ondragend={() => { ziehend = null; ziel = null; }}>
-              <button type="button" class="haken" aria-pressed={g.gepackt} aria-label={pick({ de: 'gepackt', en: 'packed' }, lang)} onclick={() => umschalten(g)}>{g.gepackt ? '☑' : '☐'}</button>
               <span class="name">{g.name}</span>
               <button type="button" class="weg" aria-label={pick({ de: 'Gegenstand löschen', en: 'Delete item' }, lang)} onclick={() => loeschen(g)}>✕</button>
             </div>
@@ -131,7 +123,6 @@
   .inventar { display: flex; flex-direction: column; gap: .75rem; }
   .werkzeug { display: flex; gap: .5rem; align-items: center; }
   .werkzeug input { flex: 1; }
-  .zaehler { font-size: .8125rem; color: var(--fg-muted); white-space: nowrap; }
   .treffer-liste { display: flex; flex-wrap: wrap; gap: .3rem; }
   .treffer-knopf { border: 1px solid var(--border); border-radius: 999px; background: var(--bg); color: inherit; padding: .2rem .6rem; font: inherit; font-size: .8125rem; cursor: pointer; }
   .raster { display: grid; gap: .5rem; }
@@ -141,9 +132,8 @@
   .platz.ziel { border-color: var(--accent, #3b82f6); border-style: solid; }
   .gegenstand { flex: 1; display: flex; align-items: center; gap: .3rem; cursor: grab; min-width: 0; }
   .gegenstand.ziehend { opacity: .5; }
-  .gegenstand.gepackt .name { text-decoration: line-through; color: var(--fg-muted); }
   .name { flex: 1; min-width: 0; overflow-wrap: anywhere; font-size: .875rem; }
-  .haken, .weg { background: none; border: 0; color: inherit; cursor: pointer; padding: 0 .15rem; font: inherit; }
+  .weg { background: none; border: 0; color: inherit; cursor: pointer; padding: 0 .15rem; font: inherit; }
   .neu { flex: 1; display: flex; }
   .neu input { width: 100%; font-size: .875rem; }
   .notiz { font-size: .8125rem; color: var(--fg-muted); margin: 0; }

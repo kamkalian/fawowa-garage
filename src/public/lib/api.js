@@ -39,6 +39,10 @@ export const planerLesen = (token) => anfrage('GET', '/api/v1/garage/planer', { 
 export const planerSetzen = (token, werte) => anfrage('PUT', '/api/v1/garage/planer', { token, body: werte });
 export const mitgliedSetzen = (token, art, id, im) => anfrage('PUT', '/api/v1/garage/mitglied', { token, body: { art, id, im } });
 export const mitgliedPositionSetzen = (token, art, id, x, y, s, e) => anfrage('PUT', '/api/v1/garage/mitglied/position', { token, body: { art, id, x, y, s, e } });
+export const checklisteAnlegen = (token, name) => anfrage('POST', '/api/v1/garage/checkliste', { token, body: { name } });
+export const checklisteAendern = (token, id, werte) => anfrage('PUT', `/api/v1/garage/checkliste/${id}`, { token, body: werte });
+export const checklisteLoeschen = (token, id) => anfrage('DELETE', `/api/v1/garage/checkliste/${id}`, { token });
+export const checklisteZuruecksetzen = (token) => anfrage('POST', '/api/v1/garage/checkliste/zuruecksetzen', { token });
 export const antriebSetzen = (token, art, id, werte) => anfrage('PUT', `/api/v1/garage/antriebe/${art}/${id}`, { token, body: werte });
 export const gegenstandAnlegen = (token, gepaeckId, name, platz) => anfrage('POST', `/api/v1/garage/gepaecke/${gepaeckId}/gegenstaende`, { token, body: { name, platz } });
 export const gegenstandAendern = (token, id, werte) => anfrage('PUT', `/api/v1/garage/gegenstaende/${id}`, { token, body: werte });

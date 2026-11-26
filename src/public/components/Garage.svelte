@@ -9,6 +9,7 @@
   import EintragKarte from './EintragKarte.svelte';
   import Inventar from './Inventar.svelte';
   import Gespann from './Gespann.svelte';
+  import Checkliste from './Checkliste.svelte';
   import GarageRaum from './GarageRaum.svelte';
   import { portal } from '../lib/portal.js';
   import Fenster from './Fenster.svelte';
@@ -38,11 +39,12 @@
   let fahrer = $state(null); // Fahrergewicht, gilt für das ganze Gespann (Profil oben rechts)
   let profilOffen = $state(false);
   let status = $state('laden'); // laden | bereit | fehler
-  let daten = $state({ fahrraeder: [], anhaenger: [], gepaecke: [], gespann: null, email: null, email_offen: null });
+  let daten = $state({ fahrraeder: [], anhaenger: [], gepaecke: [], gespann: null, email: null, email_offen: null, checkliste: [] });
   let form = $state(null);        // { art, eintrag } oder null
   let loeschen = $state(null);    // { art, eintrag } oder null
   let garageLoeschen = $state(false);
   let kopiert = $state(false);
+  let checklisteOffen = $state(false); // Checkliste (Gegenstände aus dem Inventar und eigene Punkte)
   let infoOffen = $state(false); // Hinweis zum Link: bei Hover und Fokus sichtbar, per Klick festgehalten
   let laeuft = $state(false);
   let emailFenster = $state(false);
@@ -73,6 +75,45 @@
   // Mitglieder des Gespanns für den Gespann-Bereich
   const gespannMitglieder = $derived(fahrzeuge.filter((f) => imInGespann(f.art, f.e)));
   // Position eines Gespann-Mitglieds auf der Fläche speichern und im Stand merken
+  // Checkliste: Gegenstände aus dem Inventar und eigene Punkte; offen = noch nicht abgehakt
+  const checkPunkte = $derived([
+    ...daten.gepaecke.flatMap((g) => (g.inhalt ?? []).map((i) => ({ key: 'i' + i.id, id: i.id, name: i.name, gepackt: !!i.gepackt, quelle: 'inhalt' }))),
+    ...(daten.checkliste ?? []).map((p) => ({ key: 'p' + p.id, id: p.id, name: p.name, gepackt: !!p.gepackt, quelle: 'punkt' }))
+  ]);
+  const checkOffen = $derived(checkPunkte.filter((p) => !p.gepackt).length);
+  const fehlerAnzeigen = (e) => { if (e.status === 401) onungueltig(); else melde(fehlerMeldung(e), 'error'); };
+  async function checkUmschalten(p) {
+    const neu = !p.gepackt;
+    try {
+      if (p.quelle === 'inhalt') {
+        await api.gegenstandAendern(token, p.id, { gepackt: neu });
+        daten.gepaecke = daten.gepaecke.map((g) => ({ ...g, inhalt: (g.inhalt ?? []).map((i) => (i.id === p.id ? { ...i, gepackt: neu } : i)) }));
+      } else {
+        await api.checklisteAendern(token, p.id, { gepackt: neu });
+        daten.checkliste = (daten.checkliste ?? []).map((x) => (x.id === p.id ? { ...x, gepackt: neu } : x));
+      }
+    } catch (e) { fehlerAnzeigen(e); }
+  }
+  async function checkAnlegen(name) {
+    try {
+      const punkt = await api.checklisteAnlegen(token, name);
+      daten.checkliste = [...(daten.checkliste ?? []), punkt];
+    } catch (e) { fehlerAnzeigen(e); }
+  }
+  async function checkEntfernen(p) {
+    try {
+      await api.checklisteLoeschen(token, p.id);
+      daten.checkliste = (daten.checkliste ?? []).filter((x) => x.id !== p.id);
+    } catch (e) { fehlerAnzeigen(e); }
+  }
+  async function checkZuruecksetzen() {
+    try {
+      await api.checklisteZuruecksetzen(token);
+      daten.gepaecke = daten.gepaecke.map((g) => ({ ...g, inhalt: (g.inhalt ?? []).map((i) => ({ ...i, gepackt: false })) }));
+      daten.checkliste = (daten.checkliste ?? []).map((x) => ({ ...x, gepackt: false }));
+    } catch (e) { fehlerAnzeigen(e); }
+  }
+
   async function gespannPosition(art, id, x, y, skal, ebene) {
     // Sofort im Stand merken, damit das Element nicht zur alten Position zurückspringt; danach speichern
     daten.mitglieder = { ...daten.mitglieder, positionen: { ...(daten.mitglieder?.positionen ?? {}), [art + '-' + id]: { x, y, s: skal, e: ebene } } };
@@ -314,6 +355,11 @@
       <button type="button" class="btn btn-outline planer-knopf" disabled={!hatZugfahrzeug} onclick={() => { planerOffen = true; planerAdresse(true); }}
         title={hatZugfahrzeug ? undefined : pick({ de: 'Zuerst ein Zugfahrzeug ins Gespann nehmen', en: 'First add a towing vehicle to the convoy' }, lang)}>{t(lang, 'p_planerOeffnen')}</button>
     {/if}
+    <button type="button" class="btn btn-outline checkliste-knopf" onclick={() => (checklisteOffen = true)}
+      aria-label={checkOffen > 0 ? pick({ de: `Checkliste, noch ${checkOffen} offen`, en: `Checklist, ${checkOffen} open` }, lang) : pick({ de: 'Checkliste', en: 'Checklist' }, lang)}>
+      {pick({ de: 'Checkliste', en: 'Checklist' }, lang)}
+      {#if checkOffen > 0}<span class="bubble" aria-hidden="true">{checkOffen}</span>{/if}
+    </button>
     {#if emailAktiv}
       <button type="button" class="btn btn-outline btn-sm emailknopf" class:ok={!!daten.email} class:offen={!daten.email && !!daten.email_offen}
         title={daten.email ?? daten.email_offen ?? undefined} onclick={() => (emailFenster = true)}>
@@ -337,6 +383,10 @@
   <GarageRaum {lang} kopf={profilKnopf}>
   <div class="stellplaetze">
     <input bind:this={fotoInput} type="file" accept="image/*" hidden onchange={fotoGewaehlt} />
+    {#if checklisteOffen}
+      <Checkliste {lang} punkte={checkPunkte} onumschalten={checkUmschalten} onanlegen={checkAnlegen} onentfernen={checkEntfernen}
+        onzuruecksetzen={checkZuruecksetzen} onschliessen={() => (checklisteOffen = false)} />
+    {/if}
     {#if inventarGepaeck}
       <Inventar {lang} {token} gepaeck={inventarGepaeck} {melde} {onungueltig}
         onaktualisiert={(inhalt) => { daten.gepaecke = daten.gepaecke.map((x) => (x.id === inventarGepaeck.id ? { ...x, inhalt } : x)); }}
@@ -432,6 +482,9 @@
   /* Link, Kopieren und Reichweitenplaner: alle gleich hoch wie das Textfeld */
   .link .input { flex: 1; min-width: 12rem; height: 2.5rem; font-family: ui-monospace, monospace; }
   .link .btn { height: 2.5rem; display: inline-flex; align-items: center; }
+  /* Checkliste: gelbe Blase mit der Zahl der offenen Punkte */
+  .checkliste-knopf { position: relative; }
+  .bubble { position: absolute; top: -.45rem; right: -.45rem; min-width: 1.25rem; height: 1.25rem; padding: 0 .3rem; border-radius: 999px; background: #facc15; color: #713f12; font-size: .75rem; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 0 0 2px var(--bg-card); }
   .info { display: inline-flex; }
   .emailknopf.ok { border-color: var(--primary); color: var(--primary); }
   .emailknopf.offen { border-color: var(--amber); color: var(--amber); }

@@ -52,7 +52,7 @@ test('Garage-Antworten werden nicht zwischengespeichert', async () => {
   const r = await s.anfrage('GET', '/api/v1/garage', { token });
   assert.equal(r.status, 200);
   assert.equal(r.headers.get('cache-control'), 'no-store');
-  assert.deepEqual(r.json, { fahrer_name: 'Anja', email: null, email_offen: null, fahrraeder: [], anhaenger: [], gepaecke: [], gespann: null, mitglieder: { fahrraeder: [], anhaenger: [], gepaecke: [] } });
+  assert.deepEqual(r.json, { fahrer_name: 'Anja', email: null, email_offen: null, fahrraeder: [], anhaenger: [], gepaecke: [], gespann: null, mitglieder: { fahrraeder: [], anhaenger: [], gepaecke: [] }, checkliste: [] });
 });
 
 test('Garage anlegen braucht den Namen der Fahrerin oder des Fahrers', async () => {
