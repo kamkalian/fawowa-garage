@@ -6,9 +6,10 @@ import { gesamtgewicht } from '../lib/gewicht.js';
 
 const fahrrad = ARTEN.fahrraeder.felder;
 
-test('Pflichtfeld fehlt: nur der Name ist Pflicht beim Fahrrad', () => {
+test('Pflichtfeld fehlt: beim Fahrrad ist kein Feld Pflicht (der Name bekommt einen Standardnamen)', () => {
   const { werte, fehler } = pruefeEingabe(fahrrad, {});
-  assert.deepEqual(fehler, { name: 'pflicht' });
+  assert.equal(fehler, null);
+  assert.equal(werte.name, null);
   assert.equal(werte.gewicht_kg, null);
 });
 
@@ -49,11 +50,11 @@ test('Text: Länge, Steuerzeichen, Typ', () => {
   assert.deepEqual(pruefeEingabe(fahrrad, { name: 5 }).fehler, { name: 'ungueltig' });
   assert.equal(pruefeEingabe(fahrrad, { name: 'a\u0000b\nc' }).werte.name, 'a b c');
   assert.equal(pruefeEingabe(fahrrad, { name: 'a', notiz: 'Zeile 1\r\nZeile 2\u0007' }).werte.notiz, 'Zeile 1\nZeile 2');
-  assert.deepEqual(pruefeEingabe(fahrrad, { name: '   ' }).fehler, { name: 'pflicht' });
+  assert.equal(pruefeEingabe(fahrrad, { name: '   ' }).werte.name, null);
 });
 
 test('Eingabe, die kein Objekt ist, zählt als leer', () => {
-  for (const x of [null, undefined, 'text', 5, []]) assert.deepEqual(pruefeEingabe(fahrrad, x).fehler, { name: 'pflicht' });
+  for (const x of [null, undefined, 'text', 5, []]) assert.equal(pruefeEingabe(fahrrad, x).fehler, null);
 });
 
 test('Gespann: Fahrer und Gepäck, Gewichte prüfen', () => {

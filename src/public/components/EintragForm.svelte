@@ -9,7 +9,7 @@
   import { FARBPAARE } from '../../shared/farben.js';
 
   // Bauart und Art des Anhängers werden als Symbole zur Auswahl gezeigt, nicht als Liste
-  const SYMBOLFELDER = ['bauart', 'aufbau'];
+  const SYMBOLFELDER = ['bauart', 'aufbau', 'typ'];
 
   // Formular für Fahrrad und Anhänger; die Felder kommen aus lib/felder.js.
   // onsave(werte, antriebe) legt an oder ändert und wirft bei Fehlern einen ApiFehler.

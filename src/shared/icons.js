@@ -10,7 +10,14 @@ const ZWEI_D = {
   fahrrad_kabine: '<circle cx="11" cy="32" r="8.5"/><circle cx="37" cy="32" r="8.5"/><path d="M11 32 L22 32 L19 18 H31 L37 32 M22 32 L31 18 M19 18 L11 32 M31 18 L33 12 M29 12 H37 M14 15 H23"/><rect x="11" y="3" width="26" height="12" rx="3"/>',
   lastenrad: '<circle cx="12" cy="34" r="6"/><circle cx="36" cy="34" r="6"/><rect x="4" y="12" width="16" height="16" rx="2"/><path d="M12 34 L24 24 H30 L36 34 M24 24 L27 14 H32"/>',
   lastenrad_kabine: '<circle cx="12" cy="34" r="6"/><circle cx="36" cy="34" r="6"/><rect x="4" y="6" width="20" height="22" rx="3"/><path d="M8 12 H20 V20 H8 Z"/><path d="M12 34 L24 26 H30 L36 34 M24 26 L27 16 H32"/>',
-  gepaeck: '<rect x="8" y="14" width="32" height="24" rx="3"/><path d="M8 22 H40 M19 14 V10 H29 V14"/>'
+  gepaeck: '<rect x="8" y="14" width="32" height="24" rx="3"/><path d="M8 22 H40 M19 14 V10 H29 V14"/>',
+  tasche: '<path d="M10 16 H38 L40 42 H8 Z"/><path d="M18 16 V10 Q18 6 24 6 Q30 6 30 10 V16"/>',
+  kiste: '<rect x="8" y="14" width="32" height="26" rx="2"/><path d="M8 22 H40 M22 14 V22 H26 V14"/>',
+  lenkertasche: '<path d="M8 20 Q24 8 40 20 L38 40 H10 Z"/><path d="M8 26 H40"/>',
+  rahmentasche: '<path d="M12 14 H36 V36 H12 Z"/><path d="M12 24 H36 M24 14 V36"/>',
+  satteltasche: '<path d="M10 14 Q24 8 38 14 V34 Q38 40 32 40 H16 Q10 40 10 34 Z"/><path d="M10 24 H38"/>',
+  gepaecktraeger: '<path d="M6 22 H42"/><path d="M12 22 V32 H36 V22"/><path d="M14 32 V40 M34 32 V40"/>',
+  rucksack: '<path d="M16 12 Q24 6 32 12 V40 H16 Z"/><path d="M16 24 H32"/><path d="M20 12 V8 H28 V12"/>'
 };
 
 // --- 3D-Modelle ---

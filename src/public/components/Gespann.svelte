@@ -232,7 +232,6 @@
 
         <aside class="seite">
           <h3>{pick({ de: 'Im Gespann', en: 'In the convoy' }, lang)}</h3>
-          <p class="reihenfolge-hinweis">{pick({ de: 'Oben ist vorne. Zum Ordnen ziehen.', en: 'Top is in front. Drag to reorder.' }, lang)}</p>
           <ul class="liste" bind:this={listeEl} onpointermove={listeMove} onpointerup={listeUp} onpointercancel={listeAbbruch}>
             {#each vorneZuHinten as { f }, k (schluessel(f))}
               {#if ziehEintrag && slot === k}
@@ -330,6 +329,8 @@
   .beschriftung { font-size: .7rem; color: var(--fg-muted); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center; }
   /* Skalieren-Zeichen unten rechts */
   .skalieren { position: absolute; right: 0; bottom: 0; width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; border-radius: 4px; background: var(--bg-card); color: var(--fg); opacity: .85; cursor: nwse-resize; touch-action: none; }
+  /* Symbol um 90° gedreht */
+  .skalieren svg { transform: rotate(90deg); }
   .hinweis { position: absolute; left: 16px; bottom: 12px; font-size: .875rem; color: var(--fg-muted); margin: 0; }
 
   /* Seite rechts: Liste der Mitglieder */
@@ -338,7 +339,6 @@
   /* Hinweise unten rechts, ohne Rahmen */
   .erklaerung { list-style: disc; margin: auto 0 0; padding: 0 0 0 1.1rem; font-size: .75rem; color: var(--fg-muted); display: flex; flex-direction: column; gap: .3rem; }
   .seite h3 { font-size: .9375rem; margin: 0; }
-  .reihenfolge-hinweis { font-size: .75rem; color: var(--fg-muted); margin: 0; }
   .liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .35rem; }
   .zeile { position: relative; display: flex; align-items: center; gap: .25rem; cursor: grab; border-radius: var(--radius-sm); transition: margin .15s; }
   /* Ziellinie: zeigt an, wohin der Eintrag beim Loslassen kommt (oberhalb des Ziels beim Hochziehen, unterhalb beim Runterziehen).

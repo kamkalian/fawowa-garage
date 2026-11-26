@@ -3,8 +3,8 @@
   import * as api from '../lib/api.js';
   import Fenster from './Fenster.svelte';
 
-  // Inventar eines Gepäckstücks: ein Raster aus Plätzen. Belegt ein Gegenstand den letzten Platz, kommt rechts ein freier Platz dazu,
-  // und wenn die Zeile voll ist, eine neue Zeile darunter. Immer gibt es genau einen freien Platz mehr als belegte Plätze.
+  // Inventar eines Gepäckstücks: ein Raster mit drei Plätzen je Reihe. Immer gibt es eine Reihe mehr als die letzte belegte:
+  // ist ein Platz der letzten Reihe belegt, kommt eine weitere Reihe mit freien Plätzen darunter.
   let { lang, token, gepaeck, onaktualisiert, onschliessen, melde, onungueltig } = $props();
 
   let gegenstaende = $state((gepaeck.inhalt ?? []).map((g) => ({ ...g })));
@@ -15,12 +15,19 @@
 
   const belegt = $derived(new Map(gegenstaende.map((g) => [g.platz, g])));
   const hoechster = $derived(gegenstaende.reduce((m, g) => Math.max(m, g.platz + 1), 0));
-  const plaetze = $derived(Math.max(gegenstaende.length, hoechster) + 1);
-  const spalten = $derived(Math.ceil(Math.sqrt(plaetze)));
+  // Drei Plätze je Reihe: Reihen = (Reihe des letzten belegten Platzes) + 2, mindestens eine Reihe
+  const reihen = $derived(hoechster === 0 ? 1 : Math.floor((hoechster - 1) / 3) + 2);
+  const plaetze = $derived(reihen * 3);
   const suchtext = $derived(suche.trim().toLowerCase());
   const passt = (g) => suchtext !== '' && g.name.toLowerCase().includes(suchtext);
   const trefferPlaetze = $derived(new Set(gegenstaende.filter(passt).map((g) => g.platz)));
   const gepackt = $derived(gegenstaende.filter((g) => g.gepackt).length);
+
+  // Hängt das Fenster an den Seitenkörper, damit es über der Kopfleiste der Garage liegt
+  function insBodyHaengen(node) {
+    document.body.appendChild(node);
+    return { destroy() { node.remove(); } };
+  }
 
   const fehler = () => {
     melde(pick({ de: 'Das hat nicht geklappt.', en: 'That did not work.' }, lang));
@@ -73,6 +80,7 @@
   }
 </script>
 
+<div use:insBodyHaengen>
 <Fenster {lang} breit titel={gepaeck.name} onclose={onschliessen}>
   <div class="inventar">
     <div class="werkzeug">
@@ -91,7 +99,7 @@
       </div>
     {/if}
 
-    <div class="raster" style="grid-template-columns: repeat({spalten}, minmax(7.5rem, 1fr));">
+    <div class="raster" style="grid-template-columns: repeat(3, minmax(0, 1fr));">
       {#each Array.from({ length: plaetze }, (_, i) => i) as platz (platz)}
         {@const g = belegt.get(platz)}
         <div id={'platz-' + platz} class="platz" class:frei={!g} class:leuchtet={trefferPlaetze.has(platz)} class:ziel={ziel === platz}
@@ -117,6 +125,7 @@
     </div>
   </div>
 </Fenster>
+</div>
 
 <style>
   .inventar { display: flex; flex-direction: column; gap: .75rem; }

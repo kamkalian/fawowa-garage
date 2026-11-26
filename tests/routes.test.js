@@ -107,7 +107,7 @@ test('Ungültige Eingabe: 400 mit Feldhinweisen', async () => {
   const r = await s.anfrage('POST', '/api/v1/garage/fahrraeder', { token, body: { gewicht_kg: 'schwer' } });
   assert.equal(r.status, 400);
   assert.equal(r.json.code, 'eingabe');
-  assert.deepEqual(r.json.felder, { name: 'pflicht', gewicht_kg: 'ungueltig' });
+  assert.deepEqual(r.json.felder, { gewicht_kg: 'ungueltig' });
 });
 
 test('Unbekannte Art und ungültige ID: 404', async () => {
