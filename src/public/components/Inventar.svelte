@@ -3,15 +3,17 @@
   import * as api from '../lib/api.js';
   import Fenster from './Fenster.svelte';
 
-  // Inventar eines Gepäckstücks: ein Raster mit drei Plätzen je Reihe. Immer gibt es eine Reihe mehr als die letzte belegte:
+  // Inventar eines Gepäckstücks: ein Raster quadratischer Plätze mit drei Plätzen je Reihe. Immer gibt es eine Reihe mehr als die letzte belegte:
   // ist ein Platz der letzten Reihe belegt, kommt eine weitere Reihe mit freien Plätzen darunter.
+  // Ein Klick auf einen Platz öffnet ein Fenster mit dem Feld Name (Gegenstand anlegen, ändern oder löschen).
   let { lang, token, gepaeck, onaktualisiert, onschliessen, melde, onungueltig } = $props();
 
   let gegenstaende = $state((gepaeck.inhalt ?? []).map((g) => ({ ...g })));
   let suche = $state('');
   let ziehend = $state(null);   // Id des gerade gezogenen Gegenstands
   let ziel = $state(null);      // Platz, über dem gerade gezogen wird
-  let neuerName = $state({});   // Eingabe je freiem Platz
+  let bearbeitet = $state(null); // { platz, g } – g ist null, wenn der Platz frei ist
+  let eingabe = $state('');     // Name im Fenster
 
   const belegt = $derived(new Map(gegenstaende.map((g) => [g.platz, g])));
   const hoechster = $derived(gegenstaende.reduce((m, g) => Math.max(m, g.platz + 1), 0));
@@ -42,13 +44,27 @@
   }
   const gespeichert = (liste) => { gegenstaende = liste; onaktualisiert?.(liste); };
 
-  async function anlegen(platz) {
-    const name = (neuerName[platz] ?? '').trim();
-    if (!name) return;
-    const g = await aendern(() => api.gegenstandAnlegen(token, gepaeck.id, name, platz));
-    if (!g) return;
-    neuerName = { ...neuerName, [platz]: '' };
-    gespeichert([...gegenstaende, g]);
+  function oeffnen(platz, g) {
+    bearbeitet = { platz, g };
+    eingabe = g?.name ?? '';
+  }
+
+  // Name speichern: ändern, wenn der Platz belegt ist, sonst neu anlegen
+  async function speichern(e) {
+    e.preventDefault();
+    const name = eingabe.trim();
+    if (!name || !bearbeitet) return;
+    const { platz, g } = bearbeitet;
+    if (g) {
+      const res = await aendern(() => api.gegenstandAendern(token, g.id, { name }));
+      if (!res) return;
+      gespeichert(gegenstaende.map((x) => (x.id === g.id ? { ...x, name: res.gegenstand.name } : x)));
+    } else {
+      const neu = await aendern(() => api.gegenstandAnlegen(token, gepaeck.id, name, platz));
+      if (!neu) return;
+      gespeichert([...gegenstaende, neu]);
+    }
+    bearbeitet = null;
   }
 
   async function verschieben(id, zielPlatz) {
@@ -66,7 +82,13 @@
 
   async function loeschen(g) {
     const ok = await aendern(() => api.gegenstandLoeschen(token, g.id));
-    if (ok !== null) gespeichert(gegenstaende.filter((x) => x.id !== g.id));
+    if (ok === null) return false;
+    gespeichert(gegenstaende.filter((x) => x.id !== g.id));
+    return true;
+  }
+
+  async function loeschenImFenster() {
+    if (bearbeitet?.g && await loeschen(bearbeitet.g)) bearbeitet = null;
   }
 
   function zuPlatz(platz) {
@@ -92,7 +114,7 @@
       </div>
     {/if}
 
-    <div class="raster" style="grid-template-columns: repeat(3, minmax(0, 1fr));">
+    <div class="raster">
       {#each Array.from({ length: plaetze }, (_, i) => i) as platz (platz)}
         {@const g = belegt.get(platz)}
         <div id={'platz-' + platz} class="platz" class:frei={!g} class:leuchtet={trefferPlaetze.has(platz)} class:ziel={ziel === platz}
@@ -100,17 +122,18 @@
           ondragleave={() => { if (ziel === platz) ziel = null; }}
           ondrop={(e) => { e.preventDefault(); verschieben(Number(e.dataTransfer.getData('text/plain')), platz); }}>
           {#if g}
-            <div class="gegenstand" class:ziehend={ziehend === g.id} draggable="true"
+            <div class="gegenstand" class:ziehend={ziehend === g.id} draggable="true" role="button" tabindex="0"
+              aria-label={g.name}
+              onclick={() => oeffnen(platz, g)}
+              onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); oeffnen(platz, g); } }}
               ondragstart={(e) => { ziehend = g.id; e.dataTransfer.setData('text/plain', String(g.id)); e.dataTransfer.effectAllowed = 'move'; }}
               ondragend={() => { ziehend = null; ziel = null; }}>
               <span class="name">{g.name}</span>
-              <button type="button" class="weg" aria-label={pick({ de: 'Gegenstand löschen', en: 'Delete item' }, lang)} onclick={() => loeschen(g)}>✕</button>
             </div>
           {:else}
-            <form class="neu" onsubmit={(e) => { e.preventDefault(); anlegen(platz); }}>
-              <input class="input" type="text" maxlength="80" value={neuerName[platz] ?? ''} aria-label={pick({ de: 'Gegenstand auf diesen Platz legen', en: 'Put an item on this place' }, lang)}
-                placeholder="+" oninput={(e) => (neuerName = { ...neuerName, [platz]: e.currentTarget.value })} />
-            </form>
+            <div class="leer" role="button" tabindex="0" aria-label={pick({ de: 'Gegenstand auf diesen Platz legen', en: 'Put an item on this place' }, lang)}
+              onclick={() => oeffnen(platz, null)}
+              onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); oeffnen(platz, null); } }}>+</div>
           {/if}
         </div>
       {/each}
@@ -119,22 +142,46 @@
 </Fenster>
 </div>
 
+{#if bearbeitet}
+  <div use:insBodyHaengen>
+    <Fenster {lang} titel={pick({ de: 'Gegenstand', en: 'Item' }, lang)} onclose={() => (bearbeitet = null)}>
+      <form class="formular" onsubmit={speichern}>
+        <label for="inventar-name">{pick({ de: 'Name', en: 'Name' }, lang)}</label>
+        <input id="inventar-name" class="input" type="text" maxlength="80" bind:value={eingabe} />
+        <div class="aktionen">
+          {#if bearbeitet.g}
+            <button type="button" class="btn btn-ghost" onclick={loeschenImFenster}>{pick({ de: 'Löschen', en: 'Delete' }, lang)}</button>
+          {/if}
+          <span class="rechts">
+            <button type="button" class="btn btn-ghost" onclick={() => (bearbeitet = null)}>{pick({ de: 'Abbrechen', en: 'Cancel' }, lang)}</button>
+            <button type="submit" class="btn btn-primary" disabled={!eingabe.trim()}>{pick({ de: 'Speichern', en: 'Save' }, lang)}</button>
+          </span>
+        </div>
+      </form>
+    </Fenster>
+  </div>
+{/if}
+
 <style>
   .inventar { display: flex; flex-direction: column; gap: .75rem; }
   .werkzeug { display: flex; gap: .5rem; align-items: center; }
   .werkzeug input { flex: 1; }
   .treffer-liste { display: flex; flex-wrap: wrap; gap: .3rem; }
   .treffer-knopf { border: 1px solid var(--border); border-radius: 999px; background: var(--bg); color: inherit; padding: .2rem .6rem; font: inherit; font-size: .8125rem; cursor: pointer; }
-  .raster { display: grid; gap: .5rem; }
-  .platz { border: 1px dashed var(--border); border-radius: var(--radius-sm); min-height: 3.25rem; padding: .3rem; display: flex; align-items: stretch; min-width: 0; transition: box-shadow .2s, border-color .2s; }
+  .raster { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .5rem; }
+  /* Quadratische Plätze */
+  .platz { aspect-ratio: 1 / 1; border: 1px dashed var(--border); border-radius: var(--radius-sm); padding: .4rem; display: flex; align-items: center; justify-content: center; min-width: 0; transition: box-shadow .2s, border-color .2s; }
   .platz:not(.frei) { border-style: solid; background: var(--bg); }
   .platz.leuchtet { border-color: var(--accent, #3b82f6); box-shadow: 0 0 0 2px var(--accent, #3b82f6), 0 0 16px var(--accent, #3b82f6); }
   .platz.ziel { border-color: var(--accent, #3b82f6); border-style: solid; }
-  .gegenstand { flex: 1; display: flex; align-items: center; gap: .3rem; cursor: grab; min-width: 0; }
+  .leer { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: var(--fg-muted); font-size: 1.5rem; cursor: pointer; border-radius: var(--radius-sm); }
+  .leer:hover, .leer:focus-visible { color: var(--fg); outline: none; background: var(--bg-input, transparent); }
+  .gegenstand { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; text-align: center; cursor: pointer; border-radius: var(--radius-sm); }
+  .gegenstand:hover, .gegenstand:focus-visible { outline: none; background: var(--bg-input, transparent); }
   .gegenstand.ziehend { opacity: .5; }
-  .name { flex: 1; min-width: 0; overflow-wrap: anywhere; font-size: .875rem; }
-  .weg { background: none; border: 0; color: inherit; cursor: pointer; padding: 0 .15rem; font: inherit; }
-  .neu { flex: 1; display: flex; }
-  .neu input { width: 100%; font-size: .875rem; }
+  .name { min-width: 0; overflow-wrap: anywhere; font-size: .875rem; }
   .notiz { font-size: .8125rem; color: var(--fg-muted); margin: 0; }
+  .formular { display: flex; flex-direction: column; gap: .5rem; }
+  .aktionen { display: flex; gap: .5rem; justify-content: space-between; align-items: center; flex-wrap: wrap; margin-top: .75rem; }
+  .rechts { display: inline-flex; gap: .5rem; margin-left: auto; }
 </style>
